@@ -1,0 +1,48 @@
+name: Move issue to review on commit
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  update-issue-status:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Extract issue numbers from commit messages
+        id: extract
+        run: |
+          # Get all commit messages in this push
+          ISSUES=$(echo "${{ toJson(github.event.commits) }}" | \
+            grep -oP '#\K[0-9]+' | sort -u | tr '\n' ' ')
+          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+          echo "Found issue numbers: $ISSUES"
+
+      - name: Update issue labels
+        if: steps.extract.outputs.issues != ''
+        run: |
+          for ISSUE in ${{ steps.extract.outputs.issues }}; do
+            echo "Updating issue #$ISSUE"
+
+            # Remove status: in-progress label
+            gh issue edit $ISSUE \
+              --remove-label "status: in-progress" \
+              --repo ${{ github.repository }} || true
+
+            # Remove status: ready label (in case it was never started manually)
+            gh issue edit $ISSUE \
+              --remove-label "status: ready" \
+              --repo ${{ github.repository }} || true
+
+            # Add status: review label
+            gh issue edit $ISSUE \
+              --add-label "status: review" \
+              --repo ${{ github.repository }}
+
+            echo "Issue #$ISSUE moved to status: review"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
