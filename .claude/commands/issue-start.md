@@ -36,7 +36,11 @@ Print a brief summary:
 - Report the current branch and whether there are any uncommitted changes
 - If there are uncommitted changes, warn the user and ask if they want to continue
 
-### Step 4 — Confirm ready to start
+### Step 4 — Check project instructions
+
+Read `/internal_docs/INSTRUCTIONS_COPY.md`. Look for any content relevant to the issue (domain model, schema, architecture decisions, conventions). Call out anything directly useful for implementation — for example, table definitions if the issue involves the database, or API contracts if it involves endpoints.
+
+### Step 5 — Confirm ready to start
 
 Tell the user:
 - Which area(s) will be affected (frontend / backend / both) based on the issue labels
