@@ -1,6 +1,6 @@
 ---
 description: Run end-of-issue checks, commit, and push for a given issue number
-allowed-tools: Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git branch:*), Bash(git log:*), Bash(gh issue view:*), Bash(npm run *:*), Bash(mvn *:*)
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git branch:*), Bash(git log:*), Bash(gh issue view:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*)
 ---
 
 ## Context
