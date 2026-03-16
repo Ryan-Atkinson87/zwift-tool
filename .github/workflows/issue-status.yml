@@ -12,35 +12,29 @@ jobs:
       issues: write
 
     steps:
-      - name: Extract issue numbers from commit messages
-        id: extract
+      - name: Extract issue numbers and update labels
         run: |
-          # Get all commit messages in this push
-          ISSUES=$(echo "${{ toJson(github.event.commits) }}" | \
-            grep -oP '#\K[0-9]+' | sort -u | tr '\n' ' ')
-          echo "issues=$ISSUES" >> $GITHUB_OUTPUT
+          # Extract all issue numbers from commit messages in this push
+          MESSAGES=$(echo '${{ toJson(github.event.commits) }}' | jq -r '.[].message')
+          echo "Commit messages: $MESSAGES"
+
+          ISSUES=$(echo "$MESSAGES" | grep -oE '#[0-9]+' | grep -oE '[0-9]+' | sort -u)
           echo "Found issue numbers: $ISSUES"
 
-      - name: Update issue labels
-        if: steps.extract.outputs.issues != ''
-        run: |
-          for ISSUE in ${{ steps.extract.outputs.issues }}; do
+          if [ -z "$ISSUES" ]; then
+            echo "No issue numbers found in commit messages, skipping."
+            exit 0
+          fi
+
+          for ISSUE in $ISSUES; do
             echo "Updating issue #$ISSUE"
 
-            # Remove status: in-progress label
-            gh issue edit $ISSUE \
-              --remove-label "status: in-progress" \
-              --repo ${{ github.repository }} || true
+            # Remove in-progress and ready labels (|| true prevents failure if label not present)
+            gh issue edit $ISSUE --remove-label "status: in-progress" --repo ${{ github.repository }} || true
+            gh issue edit $ISSUE --remove-label "status: ready" --repo ${{ github.repository }} || true
 
-            # Remove status: ready label (in case it was never started manually)
-            gh issue edit $ISSUE \
-              --remove-label "status: ready" \
-              --repo ${{ github.repository }} || true
-
-            # Add status: review label
-            gh issue edit $ISSUE \
-              --add-label "status: review" \
-              --repo ${{ github.repository }}
+            # Add review label
+            gh issue edit $ISSUE --add-label "status: review" --repo ${{ github.repository }}
 
             echo "Issue #$ISSUE moved to status: review"
           done
