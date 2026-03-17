@@ -64,3 +64,4 @@ yarn-error.log*
 # Internal documentation
 # -------------------------------------------------------
 internal_docs/
+postgreSQL/

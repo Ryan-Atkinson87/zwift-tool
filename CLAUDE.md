@@ -22,10 +22,10 @@ npm run dev
 
 # Backend (localhost:8080)
 cd backend
-mvn spring-boot:run
+export $(grep -v '^#' .env | xargs) && mvn spring-boot:run
 ```
 
-Backend requires a `.env` file — copy `backend/.env.example` and fill in Neon DB credentials and JWT secret.
+Backend requires a `.env` file — copy `backend/.env.example` and fill in Neon DB credentials and JWT secret. Environment variables are loaded into the shell before Maven runs; Spring Boot resolves them directly via `${DB_URL}` etc. in `application.properties`.
 
 ## Tech Stack
 
