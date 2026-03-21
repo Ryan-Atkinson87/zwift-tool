@@ -26,10 +26,10 @@ If any criteria are not met, stop here and tell the user what still needs to be 
 
 ### 2. Docs & Instructions Check
 
-Review the changes made and assess whether any of the following need creating or updating:
+Read `/internal_docs/INSTRUCTIONS_COPY.md` and `CLAUDE.md` in full before assessing. Then check whether any of the following need creating or updating:
 - `README.md` (root or subdirectory)
 - `CLAUDE.md` — update if the issue changes architecture, introduces new commands/scripts, or establishes patterns future Claude instances should know about
-- `/internal_docs/INSTRUCTIONS_COPY.md` — read this file and update it if the issue changes anything it describes: schema, domain model, architecture decisions, API contracts, or conventions. Keep it accurate and current.
+- `/internal_docs/INSTRUCTIONS_COPY.md` — update if the issue changes anything it describes: schema, domain model, architecture decisions, API contracts, or conventions. Keep it accurate and current. Do not assume it is already up to date — read it and verify line by line against the changes made.
 - Any other documentation files
 
 Print what was checked and what (if anything) was updated.
