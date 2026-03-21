@@ -67,15 +67,23 @@ Once all checks pass:
 
 Do NOT push automatically. Tell the user the merge is complete locally and ask if they want to push to `origin/main`.
 
-### 6. Post-merge
+### 6. Sync dev with main
 
-After the merge:
+After the merge (and push if the user approved it):
 
-1. Checkout `dev` again so the user is back on their working branch
-2. Print a summary:
-   - Number of commits merged
-   - Areas affected (frontend, backend, docs, config)
-   - Whether push to origin/main is still needed
+1. Checkout `dev`
+2. Merge `main` into `dev` with `git merge main` to bring the merge commit back into the development branch
+3. Push `dev` to `origin/dev`
+
+This keeps `dev` in sync with `main` so that future work starts from a clean base.
+
+### 7. Summary
+
+Print a final summary:
+
+- Number of commits merged
+- Areas affected (frontend, backend, docs, config)
+- Whether origin/main and origin/dev are both up to date
 
 ### Future: Merge Restrictions
 
