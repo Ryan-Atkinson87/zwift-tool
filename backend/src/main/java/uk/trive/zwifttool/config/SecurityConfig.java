@@ -31,7 +31,7 @@ public class SecurityConfig {
             // cookies. For this API, two controls make that attack impossible without CSRF tokens:
             //   1. SameSite=Strict cookies: the browser will not attach cookies on any cross-site
             //      request, so a malicious origin can never trigger an authenticated call.
-            //   2. Strict CORS: the API rejects requests from any origin other than zwifttool.trive.uk,
+            //   2. Strict CORS: the API rejects requests from any origin other than zwifttool.trivedev.uk,
             //      so even if a cross-site request were sent, the preflight would be rejected.
             // Keeping CSRF enabled would require every client request to carry a synchronisation token,
             // adding complexity with no security benefit given the above controls.

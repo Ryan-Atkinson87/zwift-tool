@@ -2,8 +2,8 @@
 
 A web-based workout editor for Zwift cyclists. Load, edit, and export Zwift workout files (`.zwo` format), with a saved block library for reusing warm-ups, main sets, and cool-downs across multiple workouts in bulk.
 
-**Live at:** [zwifttool.trive.uk](https://zwifttool.trive.uk) *(in development)*
-**Brand:** [Trive](https://trive.uk)
+**Live at:** [zwifttool.trivedev.uk](https://zwifttool.trivedev.uk) *(in development)*
+**Brand:** [Trive](https://trivedev.uk)
 
 ---
 
@@ -68,8 +68,8 @@ Planned MVP scope:
 ## Architecture
 
 ```
-zwifttool.trive.uk       Cloudflare Pages (React + Vite + TypeScript)
-api.zwifttool.trive.uk   Railway (Spring Boot)
+zwifttool.trivedev.uk       Cloudflare Pages (React + Vite + TypeScript)
+api.zwifttool.trivedev.uk   Railway (Spring Boot)
                          Neon (serverless Postgres)
 ```
 
