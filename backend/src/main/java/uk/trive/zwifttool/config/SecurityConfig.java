@@ -7,32 +7,49 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Configures the Spring Security filter chain for the application,
- * including CORS policy and CSRF settings.
+ * including CORS policy, CSRF settings, JWT authentication, and
+ * endpoint authorisation rules.
  *
  * <p>CORS and cookie behaviour are environment-aware. In production the allowed
  * origin is {@code https://zwifttool.trivedev.uk}; in local dev it is
  * {@code http://localhost:5173}. The values are set via environment variables
  * so the same code runs in both environments without profiles.</p>
- *
- * <p>This is a scaffold configuration. JWT authentication will be added
- * when the auth endpoints are implemented.</p>
  */
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     @Value("${app.cors.allowed-origin}")
     private String allowedOrigin;
 
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
     /**
      * Builds the security filter chain applied to all incoming HTTP requests.
+     *
+     * <p>The filter chain is configured in the following order:</p>
+     * <ol>
+     *   <li>CORS: handle preflight OPTIONS requests before any auth checks</li>
+     *   <li>CSRF: disabled, protected by SameSite cookies and strict CORS instead</li>
+     *   <li>Session management: stateless, no server-side sessions</li>
+     *   <li>JWT filter: placed before UsernamePasswordAuthenticationFilter to
+     *       extract and validate the access token from the HttpOnly cookie</li>
+     *   <li>Authorisation: public endpoints permitted, all others require authentication</li>
+     * </ol>
      *
      * @param http the {@link HttpSecurity} builder provided by Spring Security
      * @return the configured {@link SecurityFilterChain}
@@ -45,6 +62,7 @@ public class SecurityConfig {
             //    This must come before any authentication checks so that preflight OPTIONS
             //    requests are handled correctly.
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
             // 2. CSRF protection is disabled. Spring Security CSRF defends against attacks where a
             //    malicious site tricks the browser into making authenticated requests using the
             //    victim's cookies. For this API, two controls make that attack impossible without
@@ -56,12 +74,42 @@ public class SecurityConfig {
             //    Keeping CSRF enabled would require every client request to carry a synchronisation
             //    token, adding complexity with no security benefit given the above controls.
             .csrf(csrf -> csrf.disable())
-            // 3. Authorise requests: permit public endpoints, require auth for everything else.
+
+            // 3. Disable session creation. We use stateless JWT auth, not server-side sessions.
+            //    Each request is authenticated independently via the access token cookie.
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+
+            // 4. Apply the JWT authentication filter before Spring's default
+            //    UsernamePasswordAuthenticationFilter. This ensures the access token from
+            //    the HttpOnly cookie is validated and the SecurityContext is populated
+            //    before any authorisation checks run.
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+            // 5. Authorise requests: permit public endpoints, require auth for everything else.
+            //    Public endpoints: health check, sign-up, sign-in, and token refresh.
+            //    POST /auth/signout is deliberately not in this list because it requires
+            //    a valid access token to identify which user's sessions to clear.
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/health").permitAll()
+                .requestMatchers("/auth/signup").permitAll()
+                .requestMatchers("/auth/signin").permitAll()
+                .requestMatchers("/auth/refresh").permitAll()
                 .anyRequest().authenticated()
             );
+
         return http.build();
+    }
+
+    /**
+     * Provides the BCrypt password encoder used for hashing and verifying passwords.
+     *
+     * @return a {@link BCryptPasswordEncoder} instance
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     /**
