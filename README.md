@@ -54,7 +54,7 @@ In active development. Issues and project board track current progress.
 Planned MVP scope:
 
 - [x] Repository setup
-- [ ] Backend scaffolding and database schema
+- [x] Backend scaffolding and database schema
 - [ ] Authentication (sign up, sign in, sign out)
 - [ ] Workout upload and section split flow
 - [ ] Workout visualisation (bar chart, three sections)
@@ -89,10 +89,10 @@ npm run dev        # runs at localhost:5173
 
 # Backend
 cd backend
-mvn spring-boot:run   # runs at localhost:8080
+export $(grep -v '^#' .env | xargs) && mvn spring-boot:run   # runs at localhost:8080
 ```
 
-Environment variables are required for the backend. See `.env.example` (coming soon).
+Backend requires a `.env` file. Copy `backend/.env.example` and fill in Neon DB credentials and JWT secret.
 
 ---
 
