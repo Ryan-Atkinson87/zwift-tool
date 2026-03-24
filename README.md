@@ -2,8 +2,8 @@
 
 A web-based workout editor for Zwift cyclists. Load, edit, and export Zwift workout files (`.zwo` format), with a saved block library for reusing warm-ups, main sets, and cool-downs across multiple workouts in bulk.
 
-**Live at:** [zwifttool.trive.uk](https://zwifttool.trive.uk) *(in development)*
-**Brand:** [Trive](https://trive.uk)
+**Live at:** [zwifttool.trivedev.uk](https://zwifttool.trivedev.uk) *(in development)*
+**Brand:** [Trive](https://trivedev.uk)
 
 ---
 
@@ -54,7 +54,7 @@ In active development. Issues and project board track current progress.
 Planned MVP scope:
 
 - [x] Repository setup
-- [ ] Backend scaffolding and database schema
+- [x] Backend scaffolding and database schema
 - [ ] Authentication (sign up, sign in, sign out)
 - [ ] Workout upload and section split flow
 - [ ] Workout visualisation (bar chart, three sections)
@@ -68,8 +68,8 @@ Planned MVP scope:
 ## Architecture
 
 ```
-zwifttool.trive.uk       Cloudflare Pages (React + Vite + TypeScript)
-api.zwifttool.trive.uk   Railway (Spring Boot)
+zwifttool.trivedev.uk       Cloudflare Pages (React + Vite + TypeScript)
+api.zwifttool.trivedev.uk   Railway (Spring Boot)
                          Neon (serverless Postgres)
 ```
 
@@ -89,10 +89,10 @@ npm run dev        # runs at localhost:5173
 
 # Backend
 cd backend
-mvn spring-boot:run   # runs at localhost:8080
+export $(grep -v '^#' .env | xargs) && mvn spring-boot:run   # runs at localhost:8080
 ```
 
-Environment variables are required for the backend. See `.env.example` (coming soon).
+Backend requires a `.env` file. Copy `backend/.env.example` and fill in Neon DB credentials and JWT secret.
 
 ---
 

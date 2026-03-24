@@ -38,9 +38,9 @@ Backend requires a `.env` file — copy `backend/.env.example` and fill in Neon 
 ## Architecture
 
 ```
-zwifttool.trive.uk       Cloudflare Pages (React + Vite + TypeScript)
+zwifttool.trivedev.uk       Cloudflare Pages (React + Vite + TypeScript)
     ↕ REST API
-api.zwifttool.trive.uk   Railway (Spring Boot)
+api.zwifttool.trivedev.uk   Railway (Spring Boot)
     ↕ JDBC
                          Neon (serverless Postgres)
 ```
@@ -638,7 +638,7 @@ export async function saveWorkout(workout: WorkoutRequest): Promise<Workout> {
 }
 ```
 
-Always pass `credentials: 'include'` on every request. This is required for the HttpOnly auth cookies to be sent cross-origin to `api.zwifttool.trive.uk`.
+Always pass `credentials: 'include'` on every request. This is required for the HttpOnly auth cookies to be sent cross-origin to `api.zwifttool.trivedev.uk`.
 
 ---
 
