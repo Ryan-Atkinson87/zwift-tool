@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { signUp as signUpApi } from '../api/auth.ts'
-import type { AuthResponse, AuthState, SignUpRequest } from '../types/auth.ts'
+import { signIn as signInApi, signUp as signUpApi } from '../api/auth.ts'
+import type { AuthResponse, AuthState, SignInRequest, SignUpRequest } from '../types/auth.ts'
 
 /**
  * Manages authentication state for the current session.
- * Provides sign-up (and later sign-in/sign-out) actions that keep
+ * Provides sign-up, sign-in, and sign-out actions that keep
  * the local auth state in sync with the backend.
  */
 export function useAuth(): AuthState & {
     signUp: (request: SignUpRequest) => Promise<void>
+    signIn: (request: SignInRequest) => Promise<void>
     signOut: () => void
 } {
     const [user, setUser] = useState<AuthResponse | null>(null)
@@ -24,6 +25,16 @@ export function useAuth(): AuthState & {
         }
     }
 
+    async function signIn(request: SignInRequest): Promise<void> {
+        setIsLoading(true)
+        try {
+            const response = await signInApi(request)
+            setUser(response)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     function signOut(): void {
         setUser(null)
     }
@@ -33,6 +44,7 @@ export function useAuth(): AuthState & {
         user,
         isLoading,
         signUp,
+        signIn,
         signOut,
     }
 }

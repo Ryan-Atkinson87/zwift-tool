@@ -1,4 +1,5 @@
 import { useState, type JSX } from 'react'
+import { SignInModal } from './components/auth/SignInModal.tsx'
 import { SignUpModal } from './components/auth/SignUpModal.tsx'
 import { useAuth } from './hooks/useAuth.ts'
 
@@ -8,11 +9,16 @@ import { useAuth } from './hooks/useAuth.ts'
  * workout editor is under development.
  */
 export function App(): JSX.Element {
-    const { isAuthenticated, user, signUp, signOut } = useAuth()
+    const { isAuthenticated, user, signUp, signIn, signOut } = useAuth()
     const [isSignUpOpen, setIsSignUpOpen] = useState(false)
+    const [isSignInOpen, setIsSignInOpen] = useState(false)
 
     async function handleSignUp(email: string, password: string): Promise<void> {
         await signUp({ email, password })
+    }
+
+    async function handleSignIn(email: string, password: string): Promise<void> {
+        await signIn({ email, password })
     }
 
     return (
@@ -38,20 +44,39 @@ export function App(): JSX.Element {
                     </button>
                 </div>
             ) : (
-                <button
-                    onClick={() => setIsSignUpOpen(true)}
-                    className={`
-                        px-6 py-2
-                        bg-indigo-600 text-white
-                        text-sm font-medium
-                        rounded-md
-                        hover:bg-indigo-500 transition-colors
-                    `}
-                >
-                    Sign up
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsSignInOpen(true)}
+                        className={`
+                            px-6 py-2
+                            bg-indigo-600 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-indigo-500 transition-colors
+                        `}
+                    >
+                        Sign in
+                    </button>
+                    <button
+                        onClick={() => setIsSignUpOpen(true)}
+                        className={`
+                            px-6 py-2
+                            bg-zinc-700 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-zinc-600 transition-colors
+                        `}
+                    >
+                        Sign up
+                    </button>
+                </div>
             )}
 
+            <SignInModal
+                isOpen={isSignInOpen}
+                onClose={() => setIsSignInOpen(false)}
+                onSignIn={handleSignIn}
+            />
             <SignUpModal
                 isOpen={isSignUpOpen}
                 onClose={() => setIsSignUpOpen(false)}
