@@ -9,9 +9,12 @@ import { useAuth } from './hooks/useAuth.ts'
  * workout editor is under development.
  */
 export function App(): JSX.Element {
-    const { isAuthenticated, user, signUp, signIn, signOut } = useAuth()
+    const { isAuthenticated, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
     const [isSignUpOpen, setIsSignUpOpen] = useState(false)
     const [isSignInOpen, setIsSignInOpen] = useState(false)
+
+    // Derive whether sign-in modal should show from session expiry or explicit open
+    const showSignIn = isSignInOpen || sessionExpired
 
     async function handleSignUp(email: string, password: string): Promise<void> {
         await signUp({ email, password })
@@ -73,8 +76,11 @@ export function App(): JSX.Element {
             )}
 
             <SignInModal
-                isOpen={isSignInOpen}
-                onClose={() => setIsSignInOpen(false)}
+                isOpen={showSignIn}
+                onClose={() => {
+                    setIsSignInOpen(false)
+                    clearSessionExpired()
+                }}
                 onSignIn={handleSignIn}
             />
             <SignUpModal
