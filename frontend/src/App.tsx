@@ -31,7 +31,7 @@ export function App(): JSX.Element {
                         Signed in as <span className="text-white font-medium">{user?.email}</span>
                     </p>
                     <button
-                        onClick={signOut}
+                        onClick={() => void signOut()}
                         className={`
                             px-4 py-2
                             bg-zinc-700 text-white

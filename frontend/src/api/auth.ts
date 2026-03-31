@@ -27,6 +27,24 @@ export async function signUp(request: SignUpRequest): Promise<AuthResponse> {
 }
 
 /**
+ * Signs out the current user by clearing server-side sessions and
+ * HttpOnly auth cookies. Returns 204 No Content on success.
+ *
+ * @throws Error if the request fails (e.g. access token already expired)
+ */
+export async function signOut(): Promise<void> {
+    const response = await fetch(`${API_BASE}/auth/signout`, {
+        method: 'POST',
+        credentials: 'include',
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message)
+    }
+}
+
+/**
  * Authenticates an existing user with email and password.
  * On success, the backend sets HttpOnly auth cookies automatically.
  *
