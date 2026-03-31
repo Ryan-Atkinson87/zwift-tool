@@ -1,3 +1,9 @@
+/** Request body for the sign-in endpoint. */
+export interface SignInRequest {
+    email: string
+    password: string
+}
+
 /** Request body for the sign-up endpoint. */
 export interface SignUpRequest {
     email: string
