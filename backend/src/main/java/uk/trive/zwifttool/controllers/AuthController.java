@@ -10,6 +10,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,7 +54,7 @@ public class AuthController {
      * @return HTTP 201 with the user details and auth cookies set
      */
     @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> signUp(@RequestBody SignUpRequest request) {
+    public ResponseEntity<AuthResponse> signUp(@Valid @RequestBody SignUpRequest request) {
         User user = authService.signUp(request.getEmail(), request.getPassword(), request.getDisplayName());
         UserSession session = authService.createSession(user.getId());
 
