@@ -9,7 +9,7 @@ import { useAuth } from './hooks/useAuth.ts'
  * workout editor is under development.
  */
 export function App(): JSX.Element {
-    const { isAuthenticated, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
+    const { isAuthenticated, isLoading, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
     const [isSignUpOpen, setIsSignUpOpen] = useState(false)
     const [isSignInOpen, setIsSignInOpen] = useState(false)
 
@@ -22,6 +22,14 @@ export function App(): JSX.Element {
 
     async function handleSignIn(email: string, password: string): Promise<void> {
         await signIn({ email, password })
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
+                <p className="text-zinc-400 text-sm">Loading...</p>
+            </div>
+        )
     }
 
     return (
