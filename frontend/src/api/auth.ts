@@ -45,6 +45,28 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Silently refreshes the access token using the refresh token cookie.
+ * On success, the backend sets new HttpOnly auth cookies automatically
+ * via refresh token rotation.
+ *
+ * @returns the authenticated user's information
+ * @throws Error if the refresh token is expired or invalid (session ended)
+ */
+export async function refresh(): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message)
+    }
+
+    return response.json()
+}
+
+/**
  * Authenticates an existing user with email and password.
  * On success, the backend sets HttpOnly auth cookies automatically.
  *

@@ -1,19 +1,54 @@
-import { useState } from 'react'
-import { signIn as signInApi, signOut as signOutApi, signUp as signUpApi } from '../api/auth.ts'
+import { useCallback, useEffect, useState } from 'react'
+import { refresh as refreshApi, signIn as signInApi, signOut as signOutApi, signUp as signUpApi } from '../api/auth.ts'
+import { registerSessionExpiredHandler } from '../api/client.ts'
 import type { AuthResponse, AuthState, SignInRequest, SignUpRequest } from '../types/auth.ts'
 
 /**
  * Manages authentication state for the current session.
  * Provides sign-up, sign-in, and sign-out actions that keep
  * the local auth state in sync with the backend.
+ *
+ * Registers a session-expired handler so that when a silent token
+ * refresh fails, the user state is cleared and the sign-in modal
+ * can be shown without interrupting the user's workflow.
+ *
+ * On mount, attempts to restore an existing session by calling the
+ * refresh endpoint. If a valid refresh token cookie exists, the user
+ * is signed back in without needing to re-enter credentials.
  */
 export function useAuth(): AuthState & {
     signUp: (request: SignUpRequest) => Promise<void>
     signIn: (request: SignInRequest) => Promise<void>
     signOut: () => Promise<void>
+    sessionExpired: boolean
+    clearSessionExpired: () => void
 } {
     const [user, setUser] = useState<AuthResponse | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
+    const [sessionExpired, setSessionExpired] = useState(false)
+
+    const handleSessionExpired = useCallback((): void => {
+        setUser(null)
+        setSessionExpired(true)
+    }, [])
+
+    useEffect(() => {
+        registerSessionExpiredHandler(handleSessionExpired)
+    }, [handleSessionExpired])
+
+    // Restore session from existing refresh token cookie on app mount
+    useEffect(() => {
+        refreshApi()
+            .then(setUser)
+            .catch(() => {
+                // No valid session to restore, remain signed out
+            })
+            .finally(() => setIsLoading(false))
+    }, [])
+
+    function clearSessionExpired(): void {
+        setSessionExpired(false)
+    }
 
     async function signUp(request: SignUpRequest): Promise<void> {
         setIsLoading(true)
@@ -52,5 +87,7 @@ export function useAuth(): AuthState & {
         signUp,
         signIn,
         signOut,
+        sessionExpired,
+        clearSessionExpired,
     }
 }
