@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signIn as signInApi, signUp as signUpApi } from '../api/auth.ts'
+import { signIn as signInApi, signOut as signOutApi, signUp as signUpApi } from '../api/auth.ts'
 import type { AuthResponse, AuthState, SignInRequest, SignUpRequest } from '../types/auth.ts'
 
 /**
@@ -10,7 +10,7 @@ import type { AuthResponse, AuthState, SignInRequest, SignUpRequest } from '../t
 export function useAuth(): AuthState & {
     signUp: (request: SignUpRequest) => Promise<void>
     signIn: (request: SignInRequest) => Promise<void>
-    signOut: () => void
+    signOut: () => Promise<void>
 } {
     const [user, setUser] = useState<AuthResponse | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -35,8 +35,14 @@ export function useAuth(): AuthState & {
         }
     }
 
-    function signOut(): void {
-        setUser(null)
+    async function signOut(): Promise<void> {
+        try {
+            await signOutApi()
+        } finally {
+            // Clear local state regardless of whether the API call succeeded,
+            // so the user is never stuck in a signed-in state
+            setUser(null)
+        }
     }
 
     return {
