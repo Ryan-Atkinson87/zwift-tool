@@ -25,7 +25,7 @@ cd backend
 export $(grep -v '^#' .env | xargs) && mvn spring-boot:run
 ```
 
-Backend requires a `.env` file — copy `backend/.env.example` and fill in Neon DB credentials and JWT secret. Environment variables are loaded into the shell before Maven runs; Spring Boot resolves them directly via `${DB_URL}` etc. in `application.properties`.
+Backend requires a `.env` file — copy `backend/.env.example` and fill in all values (DB credentials, JWT secret, CORS origin, cookie settings). Environment variables are loaded into the shell before Maven runs; Spring Boot resolves them directly via `${DB_URL}` etc. in `application.properties`.
 
 ## Tech Stack
 
