@@ -1,6 +1,6 @@
 ---
-description: Run end-of-issue checks, commit, and push for a given issue number
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git branch:*), Bash(git log:*), Bash(gh issue view:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*)
+description: Run end-of-issue checks and prepare for commit
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git branch:*), Bash(git log:*), Bash(gh issue view:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*)
 ---
 
 ## Context
@@ -52,19 +52,20 @@ Run any tests relevant to the areas changed:
 
 Print results. If tests fail, stop and report before proceeding.
 
-### 5. Commit & Push
+### 5. Hand Off to User for Commit & Push
 
-Once all checks above pass:
+Once all checks above pass, hand the git workflow to the user. Do NOT run git add, git commit, git push, or any git write commands yourself.
 
 1. Confirm the current branch is `dev`. If not, warn the user and stop.
-2. Stage all changes with `git add`.
-3. Determine the correct conventional commit prefix based on the issue type label:
+2. Determine the correct conventional commit prefix based on the issue type label:
    - `type: technical` → `chore:`
    - `type: user-story` → `feat:`
    - Default to `feat:` if unclear
-4. Create a commit with the message format: `<prefix> <short description> (#<issue number>)`
+3. Tell the user to:
+   - Stage their changes: `git add <relevant files>`
+   - Review the staged diff: `git diff --staged`
+4. When the user asks for the commit message, read the staged diff with `git diff --staged` and write a commit message in the format: `<prefix> <short description> (#<issue number>)`
    - The short description should be concise (under 60 chars) and match the issue title
    - Example: `feat: scaffold frontend React/Vite/TS/Tailwind (#1)`
-5. Push to `origin/dev`
-
-Print the final commit message and confirm the push succeeded.
+5. Print the commit message for the user to copy and run `git commit -m "..."` themselves
+6. Tell the user to push when ready: `git push origin dev`

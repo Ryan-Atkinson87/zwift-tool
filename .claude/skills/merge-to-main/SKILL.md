@@ -1,6 +1,6 @@
 ---
-description: Merge changes from dev to main with pre-merge checks
-allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git checkout:*), Bash(git merge:*), Bash(git push:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git stash:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
+description: Run pre-merge checks for dev to main, then hand off merge to user
+allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
 ---
 
 ## Context
@@ -57,29 +57,31 @@ Run tests based on the areas that changed:
 
 Print results. If tests fail, stop and report.
 
-### 5. Merge
+### 5. Hand Off Merge to User
 
-Once all checks pass:
+Once all checks pass, do NOT run git checkout, git merge, or git push yourself. Tell the user to run:
 
-1. Checkout `main`
-2. Merge `dev` into `main` using `git merge dev` (no fast-forward: `--no-ff`) with the message: `merge: dev into main`
-3. Print the merge commit details
+```
+git checkout main
+git merge dev --no-ff -m "merge: dev into main"
+git push origin main
+```
 
-Do NOT push automatically. Tell the user the merge is complete locally and ask if they want to push to `origin/main`.
+### 6. Hand Off Dev Sync to User
 
-### 6. Sync dev with main
+Tell the user to sync dev with main:
 
-After the merge (and push if the user approved it):
-
-1. Checkout `dev`
-2. Merge `main` into `dev` with `git merge main` to bring the merge commit back into the development branch
-3. Push `dev` to `origin/dev`
+```
+git checkout dev
+git merge main
+git push origin dev
+```
 
 This keeps `dev` in sync with `main` so that future work starts from a clean base.
 
 ### 7. Summary
 
-Print a final summary:
+Once the user confirms the merge and sync are done, print a final summary:
 
 - Number of commits merged
 - Areas affected (frontend, backend, docs, config)
