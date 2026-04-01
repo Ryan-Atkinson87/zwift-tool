@@ -57,6 +57,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        log.warn("Failed sign-in attempt: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", ex.getMessage()));
     }
@@ -69,7 +70,22 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(InvalidRefreshTokenException.class)
     public ResponseEntity<Map<String, String>> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        log.warn("Invalid refresh token: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * Catches all unhandled exceptions and logs them at ERROR level with
+     * full stack traces before returning a generic error response.
+     *
+     * @param ex the unhandled exception
+     * @return HTTP 500 Internal Server Error
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleUnhandledException(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", "An unexpected error occurred."));
     }
 }
