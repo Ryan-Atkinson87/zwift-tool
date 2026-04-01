@@ -9,6 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -53,14 +54,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         String token = extractTokenFromCookies(request);
 
-        if (token != null && jwtUtil.isValid(token)) {
-            UUID userId = jwtUtil.extractUserId(token);
+        if (token != null) {
+            try {
+                UUID userId = jwtUtil.extractUserId(token);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Authenticated user {} from JWT cookie", userId);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Authenticated user {} from JWT cookie", userId);
+            } catch (JwtException e) {
+                log.warn("JWT validation failed: {}", e.getMessage());
+            }
         }
 
         filterChain.doFilter(request, response);
