@@ -16,7 +16,7 @@ Audit all project documentation against the actual codebase to find anything tha
 
 ### 0. Discover All Documentation Files
 
-Find all `.md` files in the project that are NOT inside `node_modules/`, `target/`, or `.claude/commands/`. These are the project-owned documentation files to audit.
+Find all `.md` files in the project that are NOT inside `node_modules/`, `target/`, or `.claude/skills/`. These are the project-owned documentation files to audit.
 
 Known docs at time of writing (verify these still exist and check for new ones):
 - `README.md` (root)

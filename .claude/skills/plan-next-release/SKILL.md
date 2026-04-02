@@ -5,7 +5,7 @@ allowed-tools: Read, Glob, Grep, Write, Bash(gh project item-list:*), Bash(gh is
 
 ## Context
 
-- Next Release issues: !`gh project item-list 2 --owner Ryan-Atkinson87 --format json --limit 100 | jq '[.items[] | select(.status == "Next Release") | {number: .content.number, title: .title, labels: .labels}]'`
+- Next Release issues: !`gh project item-list 2 --owner Ryan-Atkinson87 --format json --limit 100 --jq '.items[] | select(.status == "Next Release") | {number: .content.number, title: .title, labels: .labels}'`
 
 ## Your task
 

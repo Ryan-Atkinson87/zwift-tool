@@ -1,7 +1,7 @@
 ---
 description: Full issue workflow — review, implement, check, and merge
 argument-hint: <issue-number>
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash(gh issue view:*), Bash(gh issue list:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git checkout:*), Bash(git merge:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git stash:*), Bash(npm run *:*), Bash(npm install:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(gh issue view:*), Bash(gh issue list:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(npm run *:*), Bash(npm install:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
 ---
 
 ## Context
@@ -135,23 +135,25 @@ Run tests based on which areas were changed:
 
 If tests fail, stop and report.
 
-### Step 4.5 — Commit & push
+### Step 4.5 — Hand off to user for commit & push
 
-Once all checks pass:
+Once all checks pass, hand the git workflow to the user. Do NOT run git add, git commit, git push, or any git write commands yourself.
 
 1. Confirm the current branch is `dev`. If not, warn the user and stop.
-2. Stage all changes with `git add`.
-3. Determine the correct conventional commit prefix based on the issue type label:
+2. Determine the correct conventional commit prefix based on the issue type label:
    - `type: technical` → `chore:`
    - `type: user-story` → `feat:`
    - Default to `feat:` if unclear
-4. Create a commit with the message format: `<prefix> <issue title> (#<issue number>)`
-5. Push to `origin/dev`
-6. **Print the full commit message so the user can see it.**
+3. Tell the user to:
+   - Stage their changes: `git add <files>`
+   - Review the staged diff: `git diff --staged`
+4. When the user asks for the commit message, read the staged diff with `git diff --staged` and write a commit message in the format: `<prefix> <issue title> (#<issue number>)`
+5. Print the commit message for the user to copy and run `git commit -m "..."` themselves
+6. Tell the user to push when ready: `git push origin dev`
 
 ### --- CHECKPOINT 4 ---
 
-**Stop here.** Tell the user the commit and push are complete. Show them the commit message. Ask if they are happy to proceed to merge, or if anything needs changing. Wait for their response.
+**Stop here.** Wait for the user to confirm they have committed and pushed. Ask if they are happy to proceed to merge, or if anything needs changing. Wait for their response.
 
 ---
 
@@ -173,24 +175,29 @@ Using the diff between `main` and `dev`, summarise what changed: frontend, backe
 
 Skip if Phase 4 already ran these checks on the same changes. Otherwise run them.
 
-### Step 5.4 — Merge
+### Step 5.4 — Hand off merge to user
 
-1. Checkout `main`
-2. Merge `dev` into `main` using `git merge dev --no-ff` with the message: `merge: dev into main`
-3. Print the merge commit details
-4. Do NOT push automatically. Ask the user if they want to push to `origin/main`. Wait for their response.
+Do NOT run git checkout, git merge, or git push yourself. Instead, tell the user to run:
 
-### Step 5.5 — Sync dev with main
+```
+git checkout main
+git merge dev --no-ff -m "merge: dev into main"
+git push origin main
+```
 
-After the user approves the push (or declines):
+### Step 5.5 — Hand off dev sync to user
 
-1. Checkout `dev`
-2. Merge `main` into `dev` with `git merge main`
-3. Push `dev` to `origin/dev`
+Tell the user to sync dev with main:
+
+```
+git checkout dev
+git merge main
+git push origin dev
+```
 
 ### Step 5.6 — Summary
 
-Print a final summary:
+Once the user confirms the merge and sync are done, print a final summary:
 
 - Issue number and title
 - Number of commits merged
