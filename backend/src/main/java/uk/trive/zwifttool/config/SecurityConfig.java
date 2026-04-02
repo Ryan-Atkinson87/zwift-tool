@@ -96,6 +96,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/signup").permitAll()
                 .requestMatchers("/auth/signin").permitAll()
                 .requestMatchers("/auth/refresh").permitAll()
+                .requestMatchers("/sentry-test").permitAll()
                 .anyRequest().authenticated()
             );
 
