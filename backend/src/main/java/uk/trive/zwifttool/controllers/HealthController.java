@@ -20,13 +20,4 @@ public class HealthController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("OK");
     }
-
-    /**
-     * Throws an unhandled exception to verify Sentry integration is capturing errors.
-     * Remove this endpoint once Sentry is confirmed working.
-     */
-    @GetMapping("/sentry-test")
-    public ResponseEntity<Void> sentryTest() {
-        throw new RuntimeException("Sentry test error");
-    }
 }
