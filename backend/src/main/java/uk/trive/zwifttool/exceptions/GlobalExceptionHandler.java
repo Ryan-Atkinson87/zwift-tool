@@ -8,6 +8,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import io.sentry.Sentry;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -85,6 +87,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleUnhandledException(Exception ex) {
         log.error("Unhandled exception", ex);
+        Sentry.captureException(ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "An unexpected error occurred."));
     }
