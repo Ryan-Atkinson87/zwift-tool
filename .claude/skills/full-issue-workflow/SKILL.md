@@ -144,12 +144,7 @@ Once all checks pass, hand the git workflow to the user. Do NOT run git add, git
    - `type: technical` → `chore:`
    - `type: user-story` → `feat:`
    - Default to `feat:` if unclear
-3. Tell the user to:
-   - Stage their changes: `git add <files>`
-   - Review the staged diff: `git diff --staged`
-4. When the user asks for the commit message, read the staged diff with `git diff --staged` and write a commit message in the format: `<prefix> <issue title> (#<issue number>)`
-5. Print the commit message for the user to copy and run `git commit -m "..."` themselves
-6. Tell the user to push when ready: `git push origin dev`
+3. List the changed files and print the commit message in the format: `<prefix> <issue title> (#<issue number>)`. The user handles staging, committing, and pushing themselves; do not walk them through git commands each time.
 
 ### --- CHECKPOINT 4 ---
 
