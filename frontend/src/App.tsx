@@ -3,8 +3,10 @@ import { SignInModal } from './components/auth/SignInModal.tsx'
 import { SignUpModal } from './components/auth/SignUpModal.tsx'
 import { FileUploader } from './components/import/FileUploader.tsx'
 import { IntervalList } from './components/import/IntervalList.tsx'
+import { SectionSplitter, type SectionSplit } from './components/import/SectionSplitter.tsx'
 import { useAuth } from './hooks/useAuth.ts'
-import type { ParsedWorkout } from './types/workout'
+import { saveWorkout } from './api/workouts'
+import type { ParsedWorkout, ParsedInterval } from './types/workout'
 
 /**
  * Root application component. Renders the top-level layout and entry point
@@ -16,6 +18,10 @@ export function App(): JSX.Element {
     const [isSignUpOpen, setIsSignUpOpen] = useState(false)
     const [isSignInOpen, setIsSignInOpen] = useState(false)
     const [parsedWorkouts, setParsedWorkouts] = useState<ParsedWorkout[]>([])
+    const [splittingWorkout, setSplittingWorkout] = useState<ParsedWorkout | null>(null)
+    const [isSaving, setIsSaving] = useState(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -26,6 +32,66 @@ export function App(): JSX.Element {
 
     async function handleSignIn(email: string, password: string): Promise<void> {
         await signIn({ email, password })
+    }
+
+    function handleFilesParsed(workouts: ParsedWorkout[]): void {
+        setParsedWorkouts(workouts)
+        setSaveSuccess(null)
+        setSaveError(null)
+        // Auto-start splitting if only one file was uploaded
+        if (workouts.length === 1) {
+            setSplittingWorkout(workouts[0])
+        }
+    }
+
+    function handleStartSplit(workout: ParsedWorkout): void {
+        setSplittingWorkout(workout)
+        setSaveSuccess(null)
+        setSaveError(null)
+    }
+
+    async function handleConfirmSplit(split: SectionSplit): Promise<void> {
+        setIsSaving(true)
+        setSaveError(null)
+
+        try {
+            await saveWorkout({
+                name: split.workout.name,
+                author: split.workout.author,
+                description: split.workout.description,
+                warmupContent: split.warmupIntervals.length > 0
+                    ? JSON.stringify(split.warmupIntervals) : null,
+                mainsetContent: JSON.stringify(split.mainsetIntervals),
+                cooldownContent: split.cooldownIntervals.length > 0
+                    ? JSON.stringify(split.cooldownIntervals) : null,
+                warmupDurationSeconds: split.warmupIntervals.length > 0
+                    ? sumDuration(split.warmupIntervals) : null,
+                mainsetDurationSeconds: sumDuration(split.mainsetIntervals),
+                cooldownDurationSeconds: split.cooldownIntervals.length > 0
+                    ? sumDuration(split.cooldownIntervals) : null,
+                warmupIntervalCount: split.warmupIntervals.length > 0
+                    ? split.warmupIntervals.length : null,
+                mainsetIntervalCount: split.mainsetIntervals.length,
+                cooldownIntervalCount: split.cooldownIntervals.length > 0
+                    ? split.cooldownIntervals.length : null,
+            })
+
+            setSaveSuccess(`"${split.workout.name}" saved successfully.`)
+            setSplittingWorkout(null)
+
+            // Remove the saved workout from the parsed list
+            setParsedWorkouts((prev) =>
+                prev.filter((w) => w.fileName !== split.workout.fileName)
+            )
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : 'Failed to save workout.')
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    function sumDuration(intervals: ParsedInterval[]): number {
+        return Math.round(intervals.reduce((sum, i) => sum + i.durationSeconds, 0))
     }
 
     if (isLoading) {
@@ -60,10 +126,34 @@ export function App(): JSX.Element {
                         </button>
                     </div>
 
-                    <FileUploader onFilesParsed={setParsedWorkouts} />
+                    <FileUploader onFilesParsed={handleFilesParsed} />
 
-                    {parsedWorkouts.length > 0 && (
-                        <IntervalList workouts={parsedWorkouts} />
+                    {saveSuccess && (
+                        <p className="px-4 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
+                            {saveSuccess}
+                        </p>
+                    )}
+
+                    {saveError && (
+                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            {saveError}
+                        </p>
+                    )}
+
+                    {splittingWorkout ? (
+                        <SectionSplitter
+                            workout={splittingWorkout}
+                            onConfirm={(split) => void handleConfirmSplit(split)}
+                            onCancel={() => setSplittingWorkout(null)}
+                            isSaving={isSaving}
+                        />
+                    ) : (
+                        parsedWorkouts.length > 0 && (
+                            <IntervalList
+                                workouts={parsedWorkouts}
+                                onSelectWorkout={handleStartSplit}
+                            />
+                        )
                     )}
                 </div>
             ) : (

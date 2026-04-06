@@ -9,13 +9,16 @@ import type { ParsedInterval, ParsedWorkout } from '../../types/workout'
 
 interface Props {
     workouts: ParsedWorkout[]
+    onSelectWorkout?: (workout: ParsedWorkout) => void
 }
 
 /**
  * Renders a list of parsed workouts, each with its metadata and a flat
  * list of intervals. Displayed after upload and before section splitting.
+ * When onSelectWorkout is provided, each workout card is clickable to
+ * proceed to the section split step.
  */
-export function IntervalList({ workouts }: Props): JSX.Element {
+export function IntervalList({ workouts, onSelectWorkout }: Props): JSX.Element {
     return (
         <div className="flex flex-col gap-6 w-full max-w-2xl">
             {workouts.map((workout) => (
@@ -45,10 +48,26 @@ export function IntervalList({ workouts }: Props): JSX.Element {
                         ))}
                     </div>
 
-                    <p className="text-zinc-500 text-xs">
-                        {workout.intervals.length} interval{workout.intervals.length !== 1 ? 's' : ''} ·{' '}
-                        {formatTotalDuration(workout.intervals)}
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-zinc-500 text-xs">
+                            {workout.intervals.length} interval{workout.intervals.length !== 1 ? 's' : ''} ·{' '}
+                            {formatTotalDuration(workout.intervals)}
+                        </p>
+                        {onSelectWorkout && (
+                            <button
+                                onClick={() => onSelectWorkout(workout)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-indigo-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-indigo-500 transition-colors
+                                `}
+                            >
+                                Define sections
+                            </button>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>
