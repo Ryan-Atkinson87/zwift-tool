@@ -1,7 +1,10 @@
 import { useState, type JSX } from 'react'
 import { SignInModal } from './components/auth/SignInModal.tsx'
 import { SignUpModal } from './components/auth/SignUpModal.tsx'
+import { FileUploader } from './components/import/FileUploader.tsx'
+import { IntervalList } from './components/import/IntervalList.tsx'
 import { useAuth } from './hooks/useAuth.ts'
+import type { ParsedWorkout } from './types/workout'
 
 /**
  * Root application component. Renders the top-level layout and entry point
@@ -12,6 +15,7 @@ export function App(): JSX.Element {
     const { isAuthenticated, isLoading, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
     const [isSignUpOpen, setIsSignUpOpen] = useState(false)
     const [isSignInOpen, setIsSignInOpen] = useState(false)
+    const [parsedWorkouts, setParsedWorkouts] = useState<ParsedWorkout[]>([])
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -37,22 +41,30 @@ export function App(): JSX.Element {
             <h1 className="text-3xl font-bold mb-8">Zwift Tool</h1>
 
             {isAuthenticated ? (
-                <div className="flex flex-col items-center gap-4">
-                    <p className="text-zinc-300">
-                        Signed in as <span className="text-white font-medium">{user?.email}</span>
-                    </p>
-                    <button
-                        onClick={() => void signOut()}
-                        className={`
-                            px-4 py-2
-                            bg-zinc-700 text-white
-                            text-sm font-medium
-                            rounded-md
-                            hover:bg-zinc-600 transition-colors
-                        `}
-                    >
-                        Sign out
-                    </button>
+                <div className="flex flex-col items-center gap-6 w-full px-4">
+                    <div className="flex items-center gap-4">
+                        <p className="text-zinc-300">
+                            Signed in as <span className="text-white font-medium">{user?.email}</span>
+                        </p>
+                        <button
+                            onClick={() => void signOut()}
+                            className={`
+                                px-4 py-2
+                                bg-zinc-700 text-white
+                                text-sm font-medium
+                                rounded-md
+                                hover:bg-zinc-600 transition-colors
+                            `}
+                        >
+                            Sign out
+                        </button>
+                    </div>
+
+                    <FileUploader onFilesParsed={setParsedWorkouts} />
+
+                    {parsedWorkouts.length > 0 && (
+                        <IntervalList workouts={parsedWorkouts} />
+                    )}
                 </div>
             ) : (
                 <div className="flex gap-3">
