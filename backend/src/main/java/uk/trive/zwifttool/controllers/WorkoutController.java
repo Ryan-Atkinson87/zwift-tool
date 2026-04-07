@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,9 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import uk.trive.zwifttool.controllers.dto.BlockResponse;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
+import uk.trive.zwifttool.controllers.dto.WorkoutDetailResponse;
 import uk.trive.zwifttool.controllers.dto.WorkoutResponse;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
+import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.Workout;
 import uk.trive.zwifttool.services.WorkoutService;
 
@@ -55,6 +59,26 @@ public class WorkoutController {
     }
 
     /**
+     * Returns a single workout by ID with full block content for each
+     * section, so the frontend can load it into the editor canvas.
+     *
+     * <p>Returns HTTP 404 both when the workout does not exist and when
+     * it belongs to a different user, to avoid leaking existence.</p>
+     *
+     * @param workoutId the ID of the workout to fetch
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the full workout detail
+     */
+    @GetMapping("/{workoutId}")
+    public ResponseEntity<WorkoutDetailResponse> getWorkout(
+            @PathVariable UUID workoutId,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
      * Saves a new workout from the import flow. Creates non-library blocks
      * for each section and links them to a new workout record.
      *
@@ -69,6 +93,45 @@ public class WorkoutController {
     ) {
         Workout workout = workoutService.saveImportedWorkout(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(workout));
+    }
+
+    /**
+     * Maps a Workout entity to the full detail response, including the
+     * content of every section block.
+     */
+    private WorkoutDetailResponse toDetailResponse(Workout workout) {
+        return WorkoutDetailResponse.builder()
+                .id(workout.getId())
+                .name(workout.getName())
+                .author(workout.getAuthor())
+                .description(workout.getDescription())
+                .warmupBlock(toBlockResponse(workout.getWarmupBlock()))
+                .mainsetBlock(toBlockResponse(workout.getMainsetBlock()))
+                .cooldownBlock(toBlockResponse(workout.getCooldownBlock()))
+                .isDraft(workout.isDraft())
+                .createdAt(workout.getCreatedAt())
+                .updatedAt(workout.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Maps a Block entity to its API response representation, returning
+     * null when the source block is null (warm-up and cool-down are optional).
+     */
+    private BlockResponse toBlockResponse(Block block) {
+        if (block == null) {
+            return null;
+        }
+        return BlockResponse.builder()
+                .id(block.getId())
+                .name(block.getName())
+                .description(block.getDescription())
+                .sectionType(block.getSectionType())
+                .content(block.getContent())
+                .durationSeconds(block.getDurationSeconds())
+                .intervalCount(block.getIntervalCount())
+                .isLibraryBlock(block.isLibraryBlock())
+                .build();
     }
 
     /**

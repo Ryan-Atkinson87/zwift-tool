@@ -78,6 +78,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles requests for a workout that does not exist, or that exists
+     * but belongs to a different user. Both cases collapse to 404 to avoid
+     * leaking the existence of other users' workouts.
+     *
+     * @param ex the exception
+     * @return HTTP 404 Not Found
+     */
+    @ExceptionHandler(WorkoutNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleWorkoutNotFound(WorkoutNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Catches all unhandled exceptions and logs them at ERROR level with
      * full stack traces before returning a generic error response.
      *

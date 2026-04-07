@@ -68,3 +68,37 @@ export interface WorkoutSummary {
     isDraft: boolean
     updatedAt: string
 }
+
+/**
+ * A single block with its full interval content, as returned by
+ * GET /workouts/{id}. Content is parsed from the raw JSON string
+ * on the API response into a typed {@link ParsedInterval} list.
+ */
+export interface BlockDetail {
+    id: string
+    name: string
+    description: string | null
+    sectionType: SectionType
+    intervals: ParsedInterval[]
+    durationSeconds: number
+    intervalCount: number
+    isLibraryBlock: boolean
+}
+
+/**
+ * Full workout detail including every section block's intervals,
+ * as returned by GET /workouts/{id}. Used when loading a workout
+ * into the editor canvas.
+ */
+export interface WorkoutDetail {
+    id: string
+    name: string
+    author: string | null
+    description: string | null
+    warmupBlock: BlockDetail | null
+    mainsetBlock: BlockDetail
+    cooldownBlock: BlockDetail | null
+    isDraft: boolean
+    createdAt: string
+    updatedAt: string
+}

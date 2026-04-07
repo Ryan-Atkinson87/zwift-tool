@@ -6,7 +6,9 @@ import { IntervalList } from './components/import/IntervalList.tsx'
 import { SectionSplitter, type SectionSplit } from './components/import/SectionSplitter.tsx'
 import { useAuth } from './hooks/useAuth.ts'
 import { useWorkouts } from './hooks/useWorkouts.ts'
+import { useWorkout } from './hooks/useWorkout.ts'
 import { WorkoutList } from './components/workout/WorkoutList.tsx'
+import { WorkoutCanvas } from './components/workout/WorkoutCanvas.tsx'
 import { saveWorkout } from './api/workouts'
 import type { ParsedWorkout, ParsedInterval } from './types/workout'
 
@@ -31,6 +33,11 @@ export function App(): JSX.Element {
         error: workoutsError,
         reload: reloadWorkouts,
     } = useWorkouts(isAuthenticated)
+    const {
+        workout: selectedWorkout,
+        isLoading: isLoadingSelectedWorkout,
+        error: selectedWorkoutError,
+    } = useWorkout(selectedWorkoutId)
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -196,6 +203,12 @@ export function App(): JSX.Element {
                         error={workoutsError}
                         selectedWorkoutId={selectedWorkoutId}
                         onSelect={setSelectedWorkoutId}
+                    />
+
+                    <WorkoutCanvas
+                        workout={selectedWorkout}
+                        isLoading={isLoadingSelectedWorkout}
+                        error={selectedWorkoutError}
                     />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />

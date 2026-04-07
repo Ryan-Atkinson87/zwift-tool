@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
+import uk.trive.zwifttool.exceptions.WorkoutNotFoundException;
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.SectionType;
 import uk.trive.zwifttool.models.Workout;
@@ -45,6 +46,33 @@ public class WorkoutService {
     public List<WorkoutSummaryResponse> getWorkoutsForUser(UUID userId) {
         log.debug("Fetching workout summaries for user {}", userId);
         return workoutRepository.findSummariesByUserId(userId);
+    }
+
+    /**
+     * Retrieves a workout by ID, verifying it belongs to the requesting
+     * user before returning it.
+     *
+     * <p>Both missing workouts and workouts owned by a different user
+     * result in {@link WorkoutNotFoundException}. Collapsing both cases
+     * to a 404 avoids leaking the existence of other users' workouts.</p>
+     *
+     * @param workoutId the ID of the workout to retrieve
+     * @param userId    the authenticated user's ID
+     * @return the matching workout with its section blocks attached
+     * @throws WorkoutNotFoundException if no workout exists with the given
+     *                                  ID for this user
+     */
+    public Workout getWorkoutForUser(UUID workoutId, UUID userId) {
+        log.debug("Fetching workout {} for user {}", workoutId, userId);
+
+        Workout workout = workoutRepository.findById(workoutId)
+                .orElseThrow(() -> new WorkoutNotFoundException(workoutId));
+
+        if (!workout.getUserId().equals(userId)) {
+            throw new WorkoutNotFoundException(workoutId);
+        }
+
+        return workout;
     }
 
     /**

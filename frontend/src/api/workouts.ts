@@ -1,5 +1,11 @@
 import { fetchWithAuth } from './client'
-import type { WorkoutSummary } from '../types/workout'
+import type {
+    BlockDetail,
+    ParsedInterval,
+    SectionType,
+    WorkoutDetail,
+    WorkoutSummary,
+} from '../types/workout'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
@@ -58,6 +64,99 @@ export async function fetchWorkouts(): Promise<WorkoutSummary[]> {
     }
 
     return response.json()
+}
+
+/**
+ * Raw block payload as returned by the backend detail endpoint.
+ * The {@code content} field is a JSON string of the interval array
+ * and is parsed into a typed list before the block leaves this module.
+ */
+interface BlockDetailPayload {
+    id: string
+    name: string
+    description: string | null
+    sectionType: SectionType
+    content: string
+    durationSeconds: number
+    intervalCount: number
+    isLibraryBlock: boolean
+}
+
+/**
+ * Raw workout detail payload as returned by GET /workouts/{id}.
+ */
+interface WorkoutDetailPayload {
+    id: string
+    name: string
+    author: string | null
+    description: string | null
+    warmupBlock: BlockDetailPayload | null
+    mainsetBlock: BlockDetailPayload
+    cooldownBlock: BlockDetailPayload | null
+    isDraft: boolean
+    createdAt: string
+    updatedAt: string
+}
+
+/**
+ * Fetches a single workout by ID with full block content, used when
+ * loading a workout into the editor canvas.
+ *
+ * @param workoutId the ID of the workout to fetch
+ * @returns the full workout detail with typed interval lists
+ * @throws Error if the workout does not exist, the user is not
+ *               authorised, or the request fails
+ */
+export async function fetchWorkoutById(workoutId: string): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}`, {
+        method: 'GET',
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to load workout: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+
+    return {
+        id: payload.id,
+        name: payload.name,
+        author: payload.author,
+        description: payload.description,
+        warmupBlock: mapBlock(payload.warmupBlock),
+        mainsetBlock: mapBlock(payload.mainsetBlock),
+        cooldownBlock: mapBlock(payload.cooldownBlock),
+        isDraft: payload.isDraft,
+        createdAt: payload.createdAt,
+        updatedAt: payload.updatedAt,
+    }
+}
+
+/**
+ * Maps a raw block payload into a {@link BlockDetail}, parsing the
+ * JSON-encoded content string into a typed interval list.
+ */
+function mapBlock(block: BlockDetailPayload): BlockDetail
+function mapBlock(block: BlockDetailPayload | null): BlockDetail | null
+function mapBlock(block: BlockDetailPayload | null): BlockDetail | null {
+    if (block === null) {
+        return null
+    }
+
+    const intervals: ParsedInterval[] = block.content.trim().length > 0
+        ? (JSON.parse(block.content) as ParsedInterval[])
+        : []
+
+    return {
+        id: block.id,
+        name: block.name,
+        description: block.description,
+        sectionType: block.sectionType,
+        intervals,
+        durationSeconds: block.durationSeconds,
+        intervalCount: block.intervalCount,
+        isLibraryBlock: block.isLibraryBlock,
+    }
 }
 
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
