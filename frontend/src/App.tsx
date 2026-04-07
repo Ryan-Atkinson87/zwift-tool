@@ -106,6 +106,43 @@ export function App(): JSX.Element {
         return Math.round(intervals.reduce((sum, i) => sum + i.durationSeconds, 0))
     }
 
+    /**
+     * Creates a new blank draft workout via the backend and refreshes the
+     * saved workout list. The new workout has a single empty main set block
+     * and no warm-up or cool-down, ready for the user to add blocks.
+     */
+    async function handleCreateBlankWorkout(): Promise<void> {
+        setIsSaving(true)
+        setSaveError(null)
+        setSaveSuccess(null)
+
+        try {
+            const created = await saveWorkout({
+                name: 'New Workout',
+                author: null,
+                description: null,
+                warmupContent: null,
+                // Empty main set: a single block with no intervals yet
+                mainsetContent: '[]',
+                cooldownContent: null,
+                warmupDurationSeconds: null,
+                mainsetDurationSeconds: 0,
+                cooldownDurationSeconds: null,
+                warmupIntervalCount: null,
+                mainsetIntervalCount: 0,
+                cooldownIntervalCount: null,
+            })
+
+            setSaveSuccess('New blank workout created.')
+            await reloadWorkouts()
+            setSelectedWorkoutId(created.id)
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : 'Failed to create blank workout.')
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -137,6 +174,21 @@ export function App(): JSX.Element {
                             Sign out
                         </button>
                     </div>
+
+                    <button
+                        onClick={() => void handleCreateBlankWorkout()}
+                        disabled={isSaving}
+                        className={`
+                            px-4 py-2
+                            bg-indigo-600 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-indigo-500 transition-colors
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
+                    >
+                        New workout
+                    </button>
 
                     <WorkoutList
                         workouts={savedWorkouts}
