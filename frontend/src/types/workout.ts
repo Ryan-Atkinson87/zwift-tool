@@ -54,3 +54,17 @@ export interface ParsedWorkout {
     description: string | null
     intervals: ParsedInterval[]
 }
+
+/**
+ * Lightweight summary of a saved workout, as returned by GET /workouts.
+ * Used to render the workout list panel without loading full block content.
+ */
+export interface WorkoutSummary {
+    id: string
+    name: string
+    author: string | null
+    description: string | null
+    durationSeconds: number
+    isDraft: boolean
+    updatedAt: string
+}

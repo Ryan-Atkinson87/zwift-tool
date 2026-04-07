@@ -1,10 +1,12 @@
 package uk.trive.zwifttool.controllers;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutResponse;
+import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.models.Workout;
 import uk.trive.zwifttool.services.WorkoutService;
 
@@ -31,6 +34,25 @@ import uk.trive.zwifttool.services.WorkoutService;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+
+    /**
+     * Returns all workouts for the authenticated user as a lightweight
+     * summary list, ordered by most recently updated first.
+     *
+     * <p>An empty list is returned with HTTP 200 when the user has no
+     * saved workouts. The frontend handles the empty state uniformly
+     * regardless of how many workouts are present.</p>
+     *
+     * @param userId the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the workout summary list (possibly empty)
+     */
+    @GetMapping
+    public ResponseEntity<List<WorkoutSummaryResponse>> getWorkouts(
+            @AuthenticationPrincipal UUID userId
+    ) {
+        List<WorkoutSummaryResponse> workouts = workoutService.getWorkoutsForUser(userId);
+        return ResponseEntity.ok(workouts);
+    }
 
     /**
      * Saves a new workout from the import flow. Creates non-library blocks

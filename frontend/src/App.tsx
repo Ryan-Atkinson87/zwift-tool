@@ -5,6 +5,8 @@ import { FileUploader } from './components/import/FileUploader.tsx'
 import { IntervalList } from './components/import/IntervalList.tsx'
 import { SectionSplitter, type SectionSplit } from './components/import/SectionSplitter.tsx'
 import { useAuth } from './hooks/useAuth.ts'
+import { useWorkouts } from './hooks/useWorkouts.ts'
+import { WorkoutList } from './components/workout/WorkoutList.tsx'
 import { saveWorkout } from './api/workouts'
 import type { ParsedWorkout, ParsedInterval } from './types/workout'
 
@@ -22,6 +24,13 @@ export function App(): JSX.Element {
     const [isSaving, setIsSaving] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+    const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+    const {
+        workouts: savedWorkouts,
+        isLoading: isLoadingWorkouts,
+        error: workoutsError,
+        reload: reloadWorkouts,
+    } = useWorkouts(isAuthenticated)
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -83,6 +92,9 @@ export function App(): JSX.Element {
             setParsedWorkouts((prev) =>
                 prev.filter((w) => w.fileName !== split.workout.fileName)
             )
+
+            // Refresh the saved workouts list so the new workout appears
+            void reloadWorkouts()
         } catch (error) {
             setSaveError(error instanceof Error ? error.message : 'Failed to save workout.')
         } finally {
@@ -125,6 +137,14 @@ export function App(): JSX.Element {
                             Sign out
                         </button>
                     </div>
+
+                    <WorkoutList
+                        workouts={savedWorkouts}
+                        isLoading={isLoadingWorkouts}
+                        error={workoutsError}
+                        selectedWorkoutId={selectedWorkoutId}
+                        onSelect={setSelectedWorkoutId}
+                    />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />
 

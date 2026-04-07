@@ -1,6 +1,7 @@
 package uk.trive.zwifttool.services;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
+import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.SectionType;
 import uk.trive.zwifttool.models.Workout;
@@ -29,6 +31,21 @@ public class WorkoutService {
 
     private final WorkoutRepository workoutRepository;
     private final BlockRepository blockRepository;
+
+    /**
+     * Returns a summary list of all workouts owned by the given user,
+     * ordered by most recently updated first.
+     *
+     * <p>Delegates to a repository projection query so only the fields
+     * needed for the list view are loaded.</p>
+     *
+     * @param userId the authenticated user's ID
+     * @return list of workout summaries, empty if the user has none
+     */
+    public List<WorkoutSummaryResponse> getWorkoutsForUser(UUID userId) {
+        log.debug("Fetching workout summaries for user {}", userId);
+        return workoutRepository.findSummariesByUserId(userId);
+    }
 
     /**
      * Saves a new workout from the import flow. Creates non-library blocks

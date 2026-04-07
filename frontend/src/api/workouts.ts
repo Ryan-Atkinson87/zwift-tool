@@ -1,4 +1,5 @@
 import { fetchWithAuth } from './client'
+import type { WorkoutSummary } from '../types/workout'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 
@@ -40,6 +41,25 @@ export interface SaveWorkoutResponse {
  * @returns the saved workout record
  * @throws Error if the request fails
  */
+/**
+ * Fetches all saved workouts for the authenticated user as a summary list,
+ * ordered by most recently updated first.
+ *
+ * @returns the workout summary list, empty if the user has no saved workouts
+ * @throws Error if the request fails
+ */
+export async function fetchWorkouts(): Promise<WorkoutSummary[]> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts`, {
+        method: 'GET',
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to load workouts: ${response.status}`)
+    }
+
+    return response.json()
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',
