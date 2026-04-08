@@ -98,6 +98,12 @@ export interface WorkoutDetail {
     warmupBlock: BlockDetail | null
     mainsetBlock: BlockDetail
     cooldownBlock: BlockDetail | null
+    /** True when the warm-up section has a previous block to undo to. */
+    hasPrevWarmup: boolean
+    /** True when the main set section has a previous block to undo to. */
+    hasPrevMainset: boolean
+    /** True when the cool-down section has a previous block to undo to. */
+    hasPrevCooldown: boolean
     isDraft: boolean
     createdAt: string
     updatedAt: string

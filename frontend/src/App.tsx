@@ -9,8 +9,9 @@ import { useWorkouts } from './hooks/useWorkouts.ts'
 import { useWorkout } from './hooks/useWorkout.ts'
 import { WorkoutList } from './components/workout/WorkoutList.tsx'
 import { WorkoutCanvas } from './components/workout/WorkoutCanvas.tsx'
-import { saveWorkout } from './api/workouts'
-import type { ParsedWorkout, ParsedInterval } from './types/workout'
+import { saveWorkout, undoWorkoutSection } from './api/workouts'
+import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
+import type { ParsedWorkout, ParsedInterval, SectionType } from './types/workout'
 
 /**
  * Root application component. Renders the top-level layout and entry point
@@ -37,7 +38,17 @@ export function App(): JSX.Element {
         workout: selectedWorkout,
         isLoading: isLoadingSelectedWorkout,
         error: selectedWorkoutError,
+        applyUpdate: applySelectedWorkoutUpdate,
     } = useWorkout(selectedWorkoutId)
+    const [isUndoing, setIsUndoing] = useState(false)
+    const [undoError, setUndoError] = useState<string | null>(null)
+    // Auto-save loop. The hook is wired here so the editor UI can call
+    // queueSectionUpdate as soon as the interval editor lands; for now it
+    // is dormant since no edits are emitted yet.
+    const { status: autosaveStatus, error: autosaveError } = useWorkoutAutosave(
+        selectedWorkout,
+        applySelectedWorkoutUpdate,
+    )
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -106,6 +117,29 @@ export function App(): JSX.Element {
             setSaveError(error instanceof Error ? error.message : 'Failed to save workout.')
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    /**
+     * Reverts the most recent change to a single section of the selected
+     * workout. Calls the backend undo endpoint and pushes the refreshed
+     * detail back into the cached workout state.
+     */
+    async function handleUndoSection(sectionType: SectionType): Promise<void> {
+        if (selectedWorkoutId === null) {
+            return
+        }
+
+        setIsUndoing(true)
+        setUndoError(null)
+
+        try {
+            const updated = await undoWorkoutSection(selectedWorkoutId, sectionType)
+            applySelectedWorkoutUpdate(updated)
+        } catch (error) {
+            setUndoError(error instanceof Error ? error.message : 'Failed to undo change.')
+        } finally {
+            setIsUndoing(false)
         }
     }
 
@@ -209,7 +243,21 @@ export function App(): JSX.Element {
                         workout={selectedWorkout}
                         isLoading={isLoadingSelectedWorkout}
                         error={selectedWorkoutError}
+                        onUndoSection={(section) => void handleUndoSection(section)}
+                        isUndoing={isUndoing}
                     />
+
+                    {undoError && (
+                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            {undoError}
+                        </p>
+                    )}
+
+                    {autosaveStatus === 'error' && autosaveError && (
+                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            Auto-save failed: {autosaveError}
+                        </p>
+                    )}
 
                     <FileUploader onFilesParsed={handleFilesParsed} />
 

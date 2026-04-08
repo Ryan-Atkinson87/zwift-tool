@@ -92,6 +92,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles undo requests on a section that has no previous state.
+     *
+     * @param ex the exception
+     * @return HTTP 409 Conflict
+     */
+    @ExceptionHandler(NoPreviousStateException.class)
+    public ResponseEntity<Map<String, String>> handleNoPreviousState(NoPreviousStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Catches all unhandled exceptions and logs them at ERROR level with
      * full stack traces before returning a generic error response.
      *

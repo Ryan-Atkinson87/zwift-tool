@@ -25,6 +25,12 @@ public class WorkoutDetailResponse {
     private BlockResponse warmupBlock;
     private BlockResponse mainsetBlock;
     private BlockResponse cooldownBlock;
+    /** True when the warm-up section has a previous block to undo to. */
+    private boolean hasPrevWarmup;
+    /** True when the main set section has a previous block to undo to. */
+    private boolean hasPrevMainset;
+    /** True when the cool-down section has a previous block to undo to. */
+    private boolean hasPrevCooldown;
     private boolean isDraft;
     private Instant createdAt;
     private Instant updatedAt;

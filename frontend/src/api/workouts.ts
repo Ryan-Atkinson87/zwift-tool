@@ -93,9 +93,20 @@ interface WorkoutDetailPayload {
     warmupBlock: BlockDetailPayload | null
     mainsetBlock: BlockDetailPayload
     cooldownBlock: BlockDetailPayload | null
+    hasPrevWarmup: boolean
+    hasPrevMainset: boolean
+    hasPrevCooldown: boolean
     isDraft: boolean
     createdAt: string
     updatedAt: string
+}
+
+/** Request body for updating a single section of an existing workout. */
+export interface UpdateWorkoutSectionRequest {
+    sectionType: SectionType
+    content: string
+    durationSeconds: number
+    intervalCount: number
 }
 
 /**
@@ -118,6 +129,66 @@ export async function fetchWorkoutById(workoutId: string): Promise<WorkoutDetail
 
     const payload: WorkoutDetailPayload = await response.json()
 
+    return mapWorkoutDetailPayload(payload)
+}
+
+/**
+ * Updates a single section of an existing workout. Used by the editor's
+ * auto-save loop. Returns the full updated workout detail.
+ *
+ * @param workoutId the ID of the workout to update
+ * @param request   the section type and new content to apply
+ * @throws Error if the workout does not exist, the user is not
+ *               authorised, or the request fails
+ */
+export async function updateWorkoutSection(
+    workoutId: string,
+    request: UpdateWorkoutSectionRequest,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to update workout section: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
+/**
+ * Reverts the most recent change to a single section by swapping the
+ * current and previous block IDs on the backend. Pressing undo a second
+ * time acts as a redo.
+ *
+ * @param workoutId   the ID of the workout to undo
+ * @param sectionType the section to revert
+ * @throws Error if the section has no previous state, the workout does
+ *               not exist, or the request fails
+ */
+export async function undoWorkoutSection(
+    workoutId: string,
+    sectionType: SectionType,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/undo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionType }),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to undo section: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
+/** Maps a raw workout detail payload into the typed {@link WorkoutDetail}. */
+function mapWorkoutDetailPayload(payload: WorkoutDetailPayload): WorkoutDetail {
     return {
         id: payload.id,
         name: payload.name,
@@ -126,6 +197,9 @@ export async function fetchWorkoutById(workoutId: string): Promise<WorkoutDetail
         warmupBlock: mapBlock(payload.warmupBlock),
         mainsetBlock: mapBlock(payload.mainsetBlock),
         cooldownBlock: mapBlock(payload.cooldownBlock),
+        hasPrevWarmup: payload.hasPrevWarmup,
+        hasPrevMainset: payload.hasPrevMainset,
+        hasPrevCooldown: payload.hasPrevCooldown,
         isDraft: payload.isDraft,
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,

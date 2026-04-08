@@ -12,6 +12,14 @@ interface Props {
     workout: WorkoutDetail | null
     isLoading: boolean
     error: string | null
+    /**
+     * Called when the user clicks the undo button for a section. The
+     * parent is responsible for invoking the undo API and refreshing the
+     * workout detail. The button is disabled when no previous state exists.
+     */
+    onUndoSection?: (sectionType: SectionType) => void
+    /** True while an undo request is in flight, used to disable the button. */
+    isUndoing?: boolean
 }
 
 /** Default Y-axis upper bound in percent FTP. Expands if any bar exceeds it. */
@@ -31,6 +39,7 @@ interface SectionBars {
     type: SectionType
     label: string
     bars: ChartBar[]
+    hasPrev: boolean
 }
 
 /**
@@ -41,7 +50,13 @@ interface SectionBars {
  * <p>Displays loading, error, and empty states. When no workout is
  * selected, shows a hint prompting the user to pick one from the list.</p>
  */
-export function WorkoutCanvas({ workout, isLoading, error }: Props): JSX.Element {
+export function WorkoutCanvas({
+    workout,
+    isLoading,
+    error,
+    onUndoSection,
+    isUndoing = false,
+}: Props): JSX.Element {
     if (isLoading) {
         return (
             <div className="w-full max-w-4xl px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
@@ -85,7 +100,13 @@ export function WorkoutCanvas({ workout, isLoading, error }: Props): JSX.Element
                 )}
             </div>
 
-            <ChartArea sections={sections} yMax={yMax} totalSeconds={total} />
+            <ChartArea
+                sections={sections}
+                yMax={yMax}
+                totalSeconds={total}
+                onUndoSection={onUndoSection}
+                isUndoing={isUndoing}
+            />
 
             <WorkoutFooter totalSeconds={total} normalisedPower={np} />
         </div>
@@ -101,6 +122,7 @@ function buildSections(workout: WorkoutDetail): SectionBars[] {
             type: 'WARMUP',
             label: 'Warm-Up',
             bars: expandBlock(workout.warmupBlock),
+            hasPrev: workout.hasPrevWarmup,
         })
     }
 
@@ -108,6 +130,7 @@ function buildSections(workout: WorkoutDetail): SectionBars[] {
         type: 'MAINSET',
         label: 'Main Set',
         bars: expandBlock(workout.mainsetBlock),
+        hasPrev: workout.hasPrevMainset,
     })
 
     if (workout.cooldownBlock !== null) {
@@ -115,6 +138,7 @@ function buildSections(workout: WorkoutDetail): SectionBars[] {
             type: 'COOLDOWN',
             label: 'Cool-Down',
             bars: expandBlock(workout.cooldownBlock),
+            hasPrev: workout.hasPrevCooldown,
         })
     }
 
@@ -143,6 +167,8 @@ interface ChartAreaProps {
     sections: SectionBars[]
     yMax: number
     totalSeconds: number
+    onUndoSection?: (sectionType: SectionType) => void
+    isUndoing: boolean
 }
 
 /**
@@ -150,7 +176,13 @@ interface ChartAreaProps {
  * Warm-Up and Cool-Down sections are given a subtle background tint to
  * distinguish them from the Main Set.
  */
-function ChartArea({ sections, yMax, totalSeconds }: ChartAreaProps): JSX.Element {
+function ChartArea({
+    sections,
+    yMax,
+    totalSeconds,
+    onUndoSection,
+    isUndoing,
+}: ChartAreaProps): JSX.Element {
     const totalBars = sections.reduce((sum, s) => sum + s.bars.length, 0)
 
     if (totalBars === 0) {
@@ -182,16 +214,25 @@ function ChartArea({ sections, yMax, totalSeconds }: ChartAreaProps): JSX.Elemen
                 narrow section would otherwise force its label to wrap. */}
             <div className="flex mb-1" style={{ gap: '8px' }}>
                 {sections.map((section, i) => (
-                    <p
+                    <div
                         key={section.type}
-                        className={`
-                            text-xs font-semibold tracking-wide uppercase
-                            text-center text-zinc-300 truncate
-                        `}
+                        className="flex items-center justify-center gap-2 min-w-0"
                         style={{ flex: `${sectionWidths[i]} 1 0` }}
                     >
-                        {section.label}
-                    </p>
+                        <p
+                            className={`
+                                text-xs font-semibold tracking-wide uppercase
+                                text-zinc-300 truncate
+                            `}
+                        >
+                            {section.label}
+                        </p>
+                        <UndoButton
+                            sectionType={section.type}
+                            disabled={!section.hasPrev || isUndoing || onUndoSection === undefined}
+                            onClick={onUndoSection}
+                        />
+                    </div>
                 ))}
             </div>
 
@@ -326,6 +367,38 @@ function YAxisLegend({ yMax }: YAxisLegendProps): JSX.Element {
             <span>0% FTP</span>
             <span>{yMax}% FTP</span>
         </div>
+    )
+}
+
+interface UndoButtonProps {
+    sectionType: SectionType
+    disabled: boolean
+    onClick?: (sectionType: SectionType) => void
+}
+
+/**
+ * Small inline undo control rendered next to each section label. Disabled
+ * when there is no previous state to revert to, when an undo is already in
+ * flight, or when the parent does not provide an undo handler.
+ */
+function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.Element {
+    return (
+        <button
+            type="button"
+            onClick={() => onClick?.(sectionType)}
+            disabled={disabled}
+            title="Undo last change to this section"
+            className={`
+                px-2 py-0.5
+                bg-zinc-700 text-zinc-200
+                text-[10px] font-semibold uppercase tracking-wide
+                rounded
+                hover:bg-zinc-600 transition-colors
+                disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-700
+            `}
+        >
+            Undo
+        </button>
     )
 }
 

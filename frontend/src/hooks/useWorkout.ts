@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { fetchWorkoutById } from '../api/workouts'
 import type { WorkoutDetail } from '../types/workout'
 
@@ -9,6 +9,13 @@ export interface UseWorkoutResult {
     workout: WorkoutDetail | null
     isLoading: boolean
     error: string | null
+    /**
+     * Replaces the cached workout detail with a fresh copy returned by an
+     * auto-save or undo response, so the canvas can re-render without a
+     * full re-fetch. The replacement is ignored if its ID does not match
+     * the currently loaded workout.
+     */
+    applyUpdate: (updated: WorkoutDetail) => void
 }
 
 /**
@@ -61,8 +68,17 @@ export function useWorkout(workoutId: string | null): UseWorkoutResult {
         }
     }, [workoutId])
 
+    const applyUpdate = useCallback((updated: WorkoutDetail): void => {
+        setState((prev) => {
+            if (prev.id !== updated.id) {
+                return prev
+            }
+            return { id: updated.id, workout: updated, error: null }
+        })
+    }, [])
+
     if (workoutId === null) {
-        return { workout: null, isLoading: false, error: null }
+        return { workout: null, isLoading: false, error: null, applyUpdate }
     }
 
     const isSynced = state.id === workoutId
@@ -70,5 +86,6 @@ export function useWorkout(workoutId: string | null): UseWorkoutResult {
         workout: isSynced ? state.workout : null,
         isLoading: !isSynced,
         error: isSynced ? state.error : null,
+        applyUpdate,
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
+import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
+import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutDetailResponse;
 import uk.trive.zwifttool.controllers.dto.WorkoutResponse;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
@@ -96,6 +99,46 @@ public class WorkoutController {
     }
 
     /**
+     * Updates a single section of an existing workout. Used by the editor's
+     * auto-save loop. The current block ID for the section is rotated into
+     * the matching {@code prev_*} column to support single-step undo.
+     *
+     * @param workoutId the ID of the workout to update
+     * @param request   the section type and new content to apply
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated workout detail
+     */
+    @PutMapping("/{workoutId}")
+    public ResponseEntity<WorkoutDetailResponse> updateWorkoutSection(
+            @PathVariable UUID workoutId,
+            @Valid @RequestBody UpdateWorkoutSectionRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.updateWorkoutSection(workoutId, userId, request);
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Reverts the most recent change to a single section of a workout by
+     * swapping the current and previous block IDs. Pressing undo a second
+     * time acts as a redo, since both blocks remain referenced.
+     *
+     * @param workoutId the ID of the workout to undo
+     * @param request   the section to revert
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated workout detail
+     */
+    @PostMapping("/{workoutId}/undo")
+    public ResponseEntity<WorkoutDetailResponse> undoWorkoutSection(
+            @PathVariable UUID workoutId,
+            @Valid @RequestBody UndoSectionRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.undoWorkoutSection(workoutId, userId, request.getSectionType());
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
      * Maps a Workout entity to the full detail response, including the
      * content of every section block.
      */
@@ -108,6 +151,9 @@ public class WorkoutController {
                 .warmupBlock(toBlockResponse(workout.getWarmupBlock()))
                 .mainsetBlock(toBlockResponse(workout.getMainsetBlock()))
                 .cooldownBlock(toBlockResponse(workout.getCooldownBlock()))
+                .hasPrevWarmup(workout.getPrevWarmupBlock() != null)
+                .hasPrevMainset(workout.getPrevMainsetBlock() != null)
+                .hasPrevCooldown(workout.getPrevCooldownBlock() != null)
                 .isDraft(workout.isDraft())
                 .createdAt(workout.getCreatedAt())
                 .updatedAt(workout.getUpdatedAt())
