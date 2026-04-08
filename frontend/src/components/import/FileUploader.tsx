@@ -8,6 +8,14 @@ import { useRef, useState, type JSX, type ChangeEvent } from 'react'
 import type { ParsedWorkout } from '../../types/workout'
 import { parseZwoFile } from '../../utils/zwoParser'
 
+// Auto-discovered pool of bundled example .zwo files. Adding a new file under
+// src/assets/example-workouts/ is automatically picked up at build time, so
+// the example pool requires no code changes to extend.
+const EXAMPLE_WORKOUTS: Record<string, string> = import.meta.glob(
+    '../../assets/example-workouts/*.zwo',
+    { query: '?raw', import: 'default', eager: true },
+)
+
 interface Props {
     onFilesParsed: (workouts: ParsedWorkout[]) => void
 }
@@ -20,7 +28,41 @@ interface Props {
 export function FileUploader({ onFilesParsed }: Props): JSX.Element {
     const [errors, setErrors] = useState<string[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
+    const [loadedExampleKeys, setLoadedExampleKeys] = useState<Set<string>>(new Set())
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const exampleKeys = Object.keys(EXAMPLE_WORKOUTS)
+    const remainingExampleKeys = exampleKeys.filter((key) => !loadedExampleKeys.has(key))
+    const examplesExhausted = remainingExampleKeys.length === 0
+
+    function handleLoadExample(): void {
+        if (examplesExhausted || isProcessing) return
+
+        // Pick one unused example at random so repeated clicks surface a different
+        // workout each time until the pool for this session is exhausted.
+        const randomIndex = Math.floor(Math.random() * remainingExampleKeys.length)
+        const chosenKey = remainingExampleKeys[randomIndex]
+        const rawXml = EXAMPLE_WORKOUTS[chosenKey]
+        const fileName = chosenKey.split('/').pop() ?? 'example.zwo'
+
+        setErrors([])
+
+        try {
+            const parsed = parseZwoFile(rawXml, fileName)
+            setLoadedExampleKeys((previous) => {
+                const next = new Set(previous)
+                next.add(chosenKey)
+                return next
+            })
+            onFilesParsed([parsed])
+        } catch (error) {
+            setErrors([
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to load example workout.',
+            ])
+        }
+    }
 
     async function handleFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
         const files = event.target.files
@@ -63,29 +105,54 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
 
     return (
         <div className="flex flex-col items-center gap-4">
-            <label
-                className={`
-                    flex items-center justify-center
-                    px-6 py-3
-                    bg-indigo-600 text-white
-                    text-sm font-medium
-                    rounded-md
-                    cursor-pointer
-                    hover:bg-indigo-500 transition-colors
-                    ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-                `}
-            >
-                {isProcessing ? 'Processing...' : 'Upload .zwo files'}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".zwo"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => void handleFileChange(e)}
-                    disabled={isProcessing}
-                />
-            </label>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+                <label
+                    className={`
+                        flex items-center justify-center
+                        px-6 py-3
+                        bg-indigo-600 text-white
+                        text-sm font-medium
+                        rounded-md
+                        cursor-pointer
+                        hover:bg-indigo-500 transition-colors
+                        ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+                    `}
+                >
+                    {isProcessing ? 'Processing...' : 'Upload .zwo files'}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".zwo"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => void handleFileChange(e)}
+                        disabled={isProcessing}
+                    />
+                </label>
+
+                <button
+                    type="button"
+                    onClick={handleLoadExample}
+                    disabled={examplesExhausted || isProcessing}
+                    className={`
+                        flex items-center justify-center
+                        px-6 py-3
+                        bg-zinc-700 text-white
+                        text-sm font-medium
+                        rounded-md
+                        hover:bg-zinc-600 transition-colors
+                        ${examplesExhausted || isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                >
+                    Load Example Workout
+                </button>
+            </div>
+
+            {examplesExhausted && exampleKeys.length > 0 && (
+                <p className="text-sm text-zinc-400">
+                    No more example workouts available.
+                </p>
+            )}
 
             {errors.length > 0 && (
                 <div className="flex flex-col gap-2 w-full max-w-md">

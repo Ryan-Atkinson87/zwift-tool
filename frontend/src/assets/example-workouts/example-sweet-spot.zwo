@@ -1,0 +1,22 @@
+<workout_file>
+    <author>Zwift Tool</author>
+    <name>Example - Sweet Spot</name>
+    <description></description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="SST"/>
+    </tags>
+    <workout>
+        <SteadyState Duration="60" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.81449997" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.95449996" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="60.000004" Power="1.0944999" pace="0"/>
+        <SteadyState Duration="180.00002" Power="0.50449997" pace="0"/>
+        <IntervalsT Repeat="2" OnDuration="960" OffDuration="300" OnPower="0.90450001" OffPower="0.50204545" pace="0"/>
+        <Cooldown Duration="120" PowerLow="0.50449997" PowerHigh="0.2545" pace="0"/>
+    </workout>
+</workout_file>

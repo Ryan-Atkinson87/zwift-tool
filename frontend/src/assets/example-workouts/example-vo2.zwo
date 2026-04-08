@@ -1,0 +1,22 @@
+<workout_file>
+    <author>Zwift Tool</author>
+    <name>Example - VO2</name>
+    <description></description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="VO2"/>
+    </tags>
+    <workout>
+        <SteadyState Duration="60" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.81449997" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="90" Power="0.95449996" pace="0"/>
+        <SteadyState Duration="30" Power="0.50449997" pace="0"/>
+        <SteadyState Duration="60.000004" Power="1.0944999" pace="0"/>
+        <SteadyState Duration="180.00002" Power="0.50449997" pace="0"/>
+        <IntervalsT Repeat="5" OnDuration="240.00002" OffDuration="240.00002" OnPower="1.2010636" OffPower="0.50449997" pace="0"/>
+        <Cooldown Duration="120.00001" PowerLow="0.75" PowerHigh="0.25" pace="0"/>
+    </workout>
+</workout_file>

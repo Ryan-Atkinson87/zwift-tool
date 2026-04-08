@@ -1,0 +1,22 @@
+<workout_file>
+    <author>Zwift Tool</author>
+    <name>Example - Endurance</name>
+    <description></description>
+    <sportType>bike</sportType>
+    <tags/>
+    <workout>
+        <Warmup Duration="180" PowerLow="0.40449998" PowerHigh="0.65450001" pace="0"/>
+        <SteadyState Duration="300" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="300" Power="0.70449996" pace="0"/>
+        <SteadyState Duration="300" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="300" Power="0.70449996" pace="0"/>
+        <SteadyState Duration="300" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="300" Power="0.70449996" pace="0"/>
+        <SteadyState Duration="300" Power="0.65000004" pace="0"/>
+        <SteadyState Duration="300" Power="0.70449996" pace="0"/>
+        <SteadyState Duration="300" Power="0.65450001" pace="0"/>
+        <SteadyState Duration="300" Power="0.70449996" pace="0"/>
+        <SteadyState Duration="300" Power="0.65450001" pace="0"/>
+        <Cooldown Duration="120" PowerLow="0.65450001" PowerHigh="0.40449998" pace="0"/>
+    </workout>
+</workout_file>
