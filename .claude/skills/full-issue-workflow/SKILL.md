@@ -4,6 +4,10 @@ argument-hint: <issue-number>
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash(gh issue view:*), Bash(gh issue list:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(npm run *:*), Bash(npm install:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
 ---
 
+## Git handling
+
+The user handles all git write operations themselves (add, commit, push, merge, checkout). This skill only ever reads git state and prints commit messages or merge commands for the user to copy. Never run git write commands. Never walk the user through git commands step by step — they know how git works.
+
 ## Context
 
 - Issue number: $ARGUMENTS
@@ -135,26 +139,33 @@ Run tests based on which areas were changed:
 
 If tests fail, stop and report.
 
-### Step 4.5 — Hand off to user for commit & push
+### Step 4.5 — Hand off commit message
 
-Once all checks pass, hand the git workflow to the user. Do NOT run git add, git commit, git push, or any git write commands yourself.
+Once all checks pass, confirm the current branch is `dev` (warn and stop if not). Determine the conventional commit prefix from the issue type label:
 
-1. Confirm the current branch is `dev`. If not, warn the user and stop.
-2. Determine the correct conventional commit prefix based on the issue type label:
-   - `type: technical` → `chore:`
-   - `type: user-story` → `feat:`
-   - Default to `feat:` if unclear
-3. List the changed files and print the commit message in the format: `<prefix> <issue title> (#<issue number>)`. The user handles staging, committing, and pushing themselves; do not walk them through git commands each time.
+- `type: technical` → `chore:`
+- `type: user-story` → `feat:`
+- Default to `feat:` if unclear
+
+Print the changed file list and the commit message in the format `<prefix> <issue title> (#<issue number>)`. Nothing else — no git command walkthrough.
 
 ### --- CHECKPOINT 4 ---
 
-**Stop here.** Wait for the user to confirm they have committed and pushed. Ask if they are happy to proceed to merge, or if anything needs changing. Wait for their response.
+**Stop here.** Wait for the user to confirm they have committed and pushed.
 
 ---
 
-## Phase 5 — Merge to Main
+## Phase 5 — Merge to Main (conditional)
 
-### Step 5.1 — Pre-flight checks
+### Step 5.1 — Check whether to merge
+
+Merging to main only happens at the **end of a runbook block**, not after every issue. Before doing anything else in this phase, ask the user:
+
+> "Is this the final issue of the current runbook block? If yes, I'll run the merge-to-main checks. If no, we're done — the changes will stay on `dev` until the block is complete."
+
+**Wait for their response.** If they say no (or there is no active runbook), skip the rest of Phase 5 and jump straight to Step 5.5 (final summary, noting that merge was deferred). If they say yes, continue with Step 5.2.
+
+### Step 5.2 — Pre-flight checks
 
 Verify:
 
@@ -162,39 +173,29 @@ Verify:
 2. `dev` is ahead of `main`
 3. Local `dev` is up to date with `origin/dev`
 
-### Step 5.2 — Identify changed areas
+### Step 5.3 — Identify changed areas
 
-Using the diff between `main` and `dev`, summarise what changed: frontend, backend, docs, config, and file counts.
-
-### Step 5.3 — Lint & build (if not already run in Phase 4)
-
-Skip if Phase 4 already ran these checks on the same changes. Otherwise run them.
+Using the diff between `main` and `dev`, summarise what changed across the whole runbook block: frontend, backend, docs, config, and file counts.
 
 ### Step 5.4 — Hand off merge to user
 
-Do NOT run git checkout, git merge, or git push yourself. Instead, tell the user to run:
+Print the merge and dev-sync commands for the user to copy. Do not walk them through each one.
 
 ```
 git checkout main
 git merge dev --no-ff -m "merge: dev into main"
 git push origin main
-```
 
-### Step 5.5 — Hand off dev sync to user
-
-Tell the user to sync dev with main:
-
-```
 git checkout dev
 git merge main
 git push origin dev
 ```
 
-### Step 5.6 — Summary
+### Step 5.5 — Summary
 
-Once the user confirms the merge and sync are done, print a final summary:
+Print a final summary:
 
 - Issue number and title
-- Number of commits merged
-- Areas affected
-- Whether origin/main and origin/dev are both up to date
+- Whether the merge happened or was deferred (and why)
+- Areas affected by this issue
+- Current state of `origin/dev` and (if merged) `origin/main`
