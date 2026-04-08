@@ -65,3 +65,4 @@ yarn-error.log*
 # -------------------------------------------------------
 internal_docs/
 postgreSQL/
+test_uploads/
