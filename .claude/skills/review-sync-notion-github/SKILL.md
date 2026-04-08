@@ -3,12 +3,6 @@ description: Cross-reference Notion User Stories and Technical Tasks against Git
 allowed-tools: Read, Glob, Grep, Bash(gh issue *:*), mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-update-page
 ---
 
-## Context
-
-- Current branch: !`git branch --show-current`
-- Open GitHub issues: !`gh issue list --state open --limit 100 --json number,title,state,milestone --jq 'sort_by(.number) | .[] | "#\(.number) — \(.title) | Milestone: \(.milestone.title // "none")"'`
-- Closed GitHub issues: !`gh issue list --state closed --limit 100 --json number,title,state,milestone --jq 'sort_by(.number) | .[] | "#\(.number) — \(.title) | Milestone: \(.milestone.title // "none")"'`
-
 ## Your Task
 
 Cross-reference the Notion User Stories and Technical Tasks databases against GitHub issues. Find and fix any mismatches in status, missing entries, or items that exist in one system but not the other.
@@ -28,7 +22,13 @@ For every row found, fetch the page to get its properties (Title, Status, Phase,
 
 ### 2. Fetch All GitHub Issues
 
-Use `gh issue list` with `--state all` to get every issue (open and closed). Record number, title, state, milestone, and labels for each.
+Run the following to collect every issue (open and closed):
+
+```
+gh issue list --state all --limit 200 --json number,title,state,milestone,labels
+```
+
+Parse the JSON output and record the number, title, state, milestone, and labels for each issue. Use this list as the source of truth for the rest of the skill — do not call `gh` again unless you need fresh data after applying changes.
 
 ---
 
