@@ -9,7 +9,8 @@ import { useWorkouts } from './hooks/useWorkouts.ts'
 import { useWorkout } from './hooks/useWorkout.ts'
 import { WorkoutList } from './components/workout/WorkoutList.tsx'
 import { WorkoutCanvas } from './components/workout/WorkoutCanvas.tsx'
-import { saveWorkout, undoWorkoutSection } from './api/workouts'
+import { WorkoutMetadataEditor } from './components/workout/WorkoutMetadataEditor.tsx'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata } from './api/workouts'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import type { ParsedWorkout, ParsedInterval, SectionType } from './types/workout'
 
@@ -42,6 +43,8 @@ export function App(): JSX.Element {
     } = useWorkout(selectedWorkoutId)
     const [isUndoing, setIsUndoing] = useState(false)
     const [undoError, setUndoError] = useState<string | null>(null)
+    const [isSavingMetadata, setIsSavingMetadata] = useState(false)
+    const [metadataError, setMetadataError] = useState<string | null>(null)
     // Auto-save loop. The hook is wired here so the editor UI can call
     // queueSectionUpdate as soon as the interval editor lands; for now it
     // is dormant since no edits are emitted yet.
@@ -143,6 +146,36 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Persists updated metadata for the selected workout, refreshes the
+     * cached workout detail, and reloads the saved workouts list so the
+     * left panel reflects the new name.
+     */
+    async function handleSaveMetadata(next: {
+        name: string
+        author: string | null
+        description: string | null
+    }): Promise<void> {
+        if (selectedWorkoutId === null) {
+            return
+        }
+
+        setIsSavingMetadata(true)
+        setMetadataError(null)
+
+        try {
+            const updated = await updateWorkoutMetadata(selectedWorkoutId, next)
+            applySelectedWorkoutUpdate(updated)
+            void reloadWorkouts()
+        } catch (error) {
+            setMetadataError(
+                error instanceof Error ? error.message : 'Failed to save workout details.',
+            )
+        } finally {
+            setIsSavingMetadata(false)
+        }
+    }
+
     function sumDuration(intervals: ParsedInterval[]): number {
         return Math.round(intervals.reduce((sum, i) => sum + i.durationSeconds, 0))
     }
@@ -239,6 +272,15 @@ export function App(): JSX.Element {
                         onSelect={setSelectedWorkoutId}
                     />
 
+                    {selectedWorkout !== null && (
+                        <WorkoutMetadataEditor
+                            key={selectedWorkout.id}
+                            workout={selectedWorkout}
+                            onSave={(next) => void handleSaveMetadata(next)}
+                            isSaving={isSavingMetadata}
+                        />
+                    )}
+
                     <WorkoutCanvas
                         workout={selectedWorkout}
                         isLoading={isLoadingSelectedWorkout}
@@ -246,6 +288,12 @@ export function App(): JSX.Element {
                         onUndoSection={(section) => void handleUndoSection(section)}
                         isUndoing={isUndoing}
                     />
+
+                    {metadataError && (
+                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            {metadataError}
+                        </p>
+                    )}
 
                     {undoError && (
                         <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">

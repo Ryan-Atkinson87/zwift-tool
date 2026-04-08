@@ -28,7 +28,11 @@ export function WorkoutList({
                 Saved workouts
             </h2>
 
-            {isLoading && (
+            {/* Only show the loading text on the very first fetch (no
+                workouts cached yet). On a background reload triggered by a
+                save we keep showing the existing list so the layout does
+                not collapse and the focused field stays in place. */}
+            {isLoading && workouts.length === 0 && (
                 <p className="text-sm text-zinc-400">Loading workouts...</p>
             )}
 
@@ -44,7 +48,7 @@ export function WorkoutList({
                 </p>
             )}
 
-            {!isLoading && !error && workouts.length > 0 && (
+            {workouts.length > 0 && (
                 <ul className="flex flex-col gap-2">
                     {workouts.map((workout) => (
                         <li key={workout.id}>

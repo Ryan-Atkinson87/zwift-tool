@@ -91,14 +91,13 @@ export function WorkoutCanvas({
 
     return (
         <div className="flex flex-col w-full max-w-4xl gap-3">
-            <div className="flex items-baseline justify-between">
-                <h2 className="text-lg font-semibold text-white truncate">{workout.name}</h2>
-                {workout.isDraft && (
+            {workout.isDraft && (
+                <div className="flex justify-end">
                     <span className="px-2 py-0.5 bg-zinc-700 text-zinc-300 text-xs font-medium rounded">
                         Draft
                     </span>
-                )}
-            </div>
+                </div>
+            )}
 
             <ChartArea
                 sections={sections}

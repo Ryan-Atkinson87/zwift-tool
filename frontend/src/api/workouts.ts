@@ -109,6 +109,13 @@ export interface UpdateWorkoutSectionRequest {
     intervalCount: number
 }
 
+/** Request body for updating the metadata fields of an existing workout. */
+export interface UpdateWorkoutMetadataRequest {
+    name: string
+    author: string | null
+    description: string | null
+}
+
 /**
  * Fetches a single workout by ID with full block content, used when
  * loading a workout into the editor canvas.
@@ -153,6 +160,33 @@ export async function updateWorkoutSection(
 
     if (!response.ok) {
         throw new Error(`Failed to update workout section: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
+/**
+ * Updates the metadata fields (name, author, description) of an existing
+ * workout. Used by the editor's inline metadata editor on blur.
+ *
+ * @param workoutId the ID of the workout to update
+ * @param request   the new metadata values
+ * @throws Error if the workout does not exist, the user is not
+ *               authorised, or the request fails
+ */
+export async function updateWorkoutMetadata(
+    workoutId: string,
+    request: UpdateWorkoutMetadataRequest,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/metadata`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to update workout metadata: ${response.status}`)
     }
 
     const payload: WorkoutDetailPayload = await response.json()

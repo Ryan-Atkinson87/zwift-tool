@@ -2,6 +2,7 @@ package uk.trive.zwifttool.services;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
+import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.exceptions.NoPreviousStateException;
@@ -214,6 +216,43 @@ public class WorkoutService {
         }
 
         return saved;
+    }
+
+    /**
+     * Updates the metadata fields (name, author, description) of an existing
+     * workout. Used by the editor when the user edits these fields inline.
+     *
+     * <p>If every supplied field already matches the workout's current value,
+     * the call short-circuits as a no-op so a blur with no real change does
+     * not bump {@code updated_at}. Metadata edits do not interact with the
+     * per-section undo state and never touch any block rows.</p>
+     *
+     * @param workoutId the ID of the workout to update
+     * @param userId    the authenticated user's ID
+     * @param request   the new metadata values
+     * @return the updated workout
+     * @throws WorkoutNotFoundException if no workout exists for this user
+     */
+    @Transactional
+    public Workout updateWorkoutMetadata(UUID workoutId, UUID userId, UpdateWorkoutMetadataRequest request) {
+        log.info("Updating metadata on workout {} for user {}", workoutId, userId);
+
+        Workout workout = getWorkoutForUser(workoutId, userId);
+
+        // No-op short-circuit: a blur with unchanged values should not
+        // bump updated_at or churn the database
+        if (Objects.equals(workout.getName(), request.getName())
+                && Objects.equals(workout.getAuthor(), request.getAuthor())
+                && Objects.equals(workout.getDescription(), request.getDescription())) {
+            log.debug("Skipping metadata update on workout {}: values unchanged", workoutId);
+            return workout;
+        }
+
+        workout.setName(request.getName());
+        workout.setAuthor(request.getAuthor());
+        workout.setDescription(request.getDescription());
+
+        return workoutRepository.save(workout);
     }
 
     /**
