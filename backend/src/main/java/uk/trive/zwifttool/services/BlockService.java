@@ -2,6 +2,7 @@ package uk.trive.zwifttool.services;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveBlockRequest;
 import uk.trive.zwifttool.models.Block;
+import uk.trive.zwifttool.models.SectionType;
 import uk.trive.zwifttool.repositories.BlockRepository;
 
 /**
@@ -54,14 +56,20 @@ public class BlockService {
     }
 
     /**
-     * Returns all library blocks owned by the given user, ordered by most
-     * recently created first.
+     * Returns library blocks owned by the given user, optionally filtered to
+     * a single section type, ordered by most recently created first.
      *
-     * @param userId the authenticated user's ID
-     * @return list of library blocks, empty if the user has none
+     * <p>When {@code sectionType} is empty, all library blocks are returned
+     * regardless of section type.</p>
+     *
+     * @param userId      the authenticated user's ID
+     * @param sectionType an optional section type to filter by
+     * @return list of matching library blocks, empty if the user has none
      */
-    public List<Block> getLibraryBlocks(UUID userId) {
-        log.debug("Fetching library blocks for user {}", userId);
-        return blockRepository.findByUserIdAndIsLibraryBlockTrueOrderByCreatedAtDesc(userId);
+    public List<Block> getLibraryBlocks(UUID userId, Optional<SectionType> sectionType) {
+        log.debug("Fetching library blocks for user {} (sectionType={})", userId, sectionType.orElse(null));
+        return sectionType
+                .map(type -> blockRepository.findByUserIdAndIsLibraryBlockTrueAndSectionTypeOrderByCreatedAtDesc(userId, type))
+                .orElseGet(() -> blockRepository.findByUserIdAndIsLibraryBlockTrueOrderByCreatedAtDesc(userId));
     }
 }

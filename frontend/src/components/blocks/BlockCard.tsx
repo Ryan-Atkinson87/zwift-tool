@@ -5,6 +5,8 @@ import { formatDuration } from '../../utils/workoutStats'
 
 interface Props {
     block: LibraryBlock
+    isSelected: boolean
+    onClick: () => void
 }
 
 const SECTION_LABELS: Record<SectionType, string> = {
@@ -14,24 +16,31 @@ const SECTION_LABELS: Record<SectionType, string> = {
 }
 
 /**
- * Displays a single library block as a card showing the section type badge,
- * block name, optional description, duration, and interval count.
+ * Displays a single library block as a clickable card showing the section
+ * type badge, block name, optional description, duration, and interval count.
+ * Highlights when selected.
  */
-export function BlockCard({ block }: Props): JSX.Element {
+export function BlockCard({ block, isSelected, onClick }: Props): JSX.Element {
     return (
-        <div
+        <button
+            type="button"
+            onClick={onClick}
             className={`
-                flex flex-col gap-1
+                flex flex-col gap-1 text-left
                 w-full px-3 py-2
-                bg-zinc-800 border border-zinc-700
-                rounded-lg
+                border rounded-lg
+                transition-colors
+                ${isSelected
+                    ? 'bg-zinc-700 border-indigo-500'
+                    : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 hover:border-zinc-600'
+                }
             `}
         >
             <div className="flex items-center justify-between gap-2">
                 <span
                     className={`
                         px-1.5 py-0.5
-                        bg-zinc-700 text-zinc-300
+                        bg-zinc-600 text-zinc-300
                         text-[10px] font-semibold uppercase tracking-wide
                         rounded shrink-0
                     `}
@@ -47,6 +56,6 @@ export function BlockCard({ block }: Props): JSX.Element {
             {block.description !== null && block.description.length > 0 && (
                 <p className="text-xs text-zinc-400 line-clamp-2">{block.description}</p>
             )}
-        </div>
+        </button>
     )
 }

@@ -48,14 +48,19 @@ export async function saveBlock(request: SaveBlockRequest): Promise<LibraryBlock
 }
 
 /**
- * Fetches all library blocks for the authenticated user, ordered by most
- * recently created first.
+ * Fetches library blocks for the authenticated user, ordered by most
+ * recently created first. Optionally filtered to a single section type.
  *
+ * @param sectionType optional section type to filter by
  * @returns the list of library blocks, empty if the user has none
  * @throws Error if the request fails
  */
-export async function fetchLibraryBlocks(): Promise<LibraryBlock[]> {
-    const response = await fetchWithAuth(`${API_BASE}/blocks`, {
+export async function fetchLibraryBlocks(sectionType?: SectionType): Promise<LibraryBlock[]> {
+    const url = sectionType != null
+        ? `${API_BASE}/blocks?sectionType=${sectionType}`
+        : `${API_BASE}/blocks`
+
+    const response = await fetchWithAuth(url, {
         method: 'GET',
     })
 
