@@ -7,6 +7,9 @@ import {
     normalisedPowerBeta,
     totalDurationSeconds,
 } from '../../utils/workoutStats'
+import { ZonePresetButtons } from './ZonePresetButtons'
+import type { Zone } from '../../utils/zonePresets'
+import type { ZonePresetView } from '../../api/zonePresets'
 
 interface Props {
     workout: WorkoutDetail | null
@@ -20,6 +23,38 @@ interface Props {
     onUndoSection?: (sectionType: SectionType) => void
     /** True while an undo request is in flight, used to disable the button. */
     isUndoing?: boolean
+    /**
+     * Called when the user clicks a zone preset button next to a section.
+     * The parent is responsible for appending a new SteadyState interval
+     * to the section using the preset's default duration and %FTP, and for
+     * queuing the resulting auto-save.
+     */
+    onAddZonePreset?: (sectionType: SectionType, zone: Zone) => void
+    /** Disables every preset button while a save or undo is in flight. */
+    isAddingPreset?: boolean
+    /**
+     * Effective zone presets for tooltip values on the preset buttons.
+     * When omitted, the static documented defaults are shown.
+     */
+    zonePresets?: ZonePresetView[]
+    /**
+     * Called when the user clicks the "+ Block" button next to a section.
+     * The parent opens a modal to let the user pick the block type
+     * (Ramp / IntervalsT / Free Ride) and fill in its parameters.
+     */
+    onOpenAddBlock?: (sectionType: SectionType) => void
+    /**
+     * Called when the user clicks a bar on the chart. The parent uses
+     * this to drive the inline interval editor. Bars produced by an
+     * IntervalsT group all share a single source index so clicking any
+     * sub-bar selects the IntervalsT interval as a whole.
+     */
+    onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
+    /**
+     * The currently selected interval, if any. Used to draw a highlight
+     * outline around the matching bars on the chart.
+     */
+    selectedInterval?: { sectionType: SectionType; intervalIndex: number } | null
 }
 
 /** Default Y-axis upper bound in percent FTP. Expands if any bar exceeds it. */
@@ -40,6 +75,12 @@ interface SectionBars {
     label: string
     bars: ChartBar[]
     hasPrev: boolean
+    /**
+     * True when the section has no block at all (only valid for warm-up
+     * and cool-down). Used to render a placeholder strip with the preset
+     * buttons so the user can create the section by clicking a preset.
+     */
+    isEmptySection: boolean
 }
 
 /**
@@ -56,6 +97,12 @@ export function WorkoutCanvas({
     error,
     onUndoSection,
     isUndoing = false,
+    onAddZonePreset,
+    isAddingPreset = false,
+    zonePresets,
+    onOpenAddBlock,
+    onSelectInterval,
+    selectedInterval = null,
 }: Props): JSX.Element {
     if (isLoading) {
         return (
@@ -91,14 +138,13 @@ export function WorkoutCanvas({
 
     return (
         <div className="flex flex-col w-full max-w-4xl gap-3">
-            <div className="flex items-baseline justify-between">
-                <h2 className="text-lg font-semibold text-white truncate">{workout.name}</h2>
-                {workout.isDraft && (
+            {workout.isDraft && (
+                <div className="flex justify-end">
                     <span className="px-2 py-0.5 bg-zinc-700 text-zinc-300 text-xs font-medium rounded">
                         Draft
                     </span>
-                )}
-            </div>
+                </div>
+            )}
 
             <ChartArea
                 sections={sections}
@@ -106,6 +152,12 @@ export function WorkoutCanvas({
                 totalSeconds={total}
                 onUndoSection={onUndoSection}
                 isUndoing={isUndoing}
+                onAddZonePreset={onAddZonePreset}
+                isAddingPreset={isAddingPreset}
+                zonePresets={zonePresets}
+                onOpenAddBlock={onOpenAddBlock}
+                onSelectInterval={onSelectInterval}
+                selectedInterval={selectedInterval}
             />
 
             <WorkoutFooter totalSeconds={total} normalisedPower={np} />
@@ -113,36 +165,35 @@ export function WorkoutCanvas({
     )
 }
 
-/** Builds the ordered list of sections from a workout detail. */
+/**
+ * Builds the ordered list of sections from a workout detail. Warm-up and
+ * cool-down placeholders are always included so the user can add a preset
+ * interval to create the section, even when no block exists yet.
+ */
 function buildSections(workout: WorkoutDetail): SectionBars[] {
-    const sections: SectionBars[] = []
-
-    if (workout.warmupBlock !== null) {
-        sections.push({
+    return [
+        {
             type: 'WARMUP',
             label: 'Warm-Up',
-            bars: expandBlock(workout.warmupBlock),
+            bars: workout.warmupBlock !== null ? expandBlock(workout.warmupBlock) : [],
             hasPrev: workout.hasPrevWarmup,
-        })
-    }
-
-    sections.push({
-        type: 'MAINSET',
-        label: 'Main Set',
-        bars: expandBlock(workout.mainsetBlock),
-        hasPrev: workout.hasPrevMainset,
-    })
-
-    if (workout.cooldownBlock !== null) {
-        sections.push({
+            isEmptySection: workout.warmupBlock === null,
+        },
+        {
+            type: 'MAINSET',
+            label: 'Main Set',
+            bars: expandBlock(workout.mainsetBlock),
+            hasPrev: workout.hasPrevMainset,
+            isEmptySection: false,
+        },
+        {
             type: 'COOLDOWN',
             label: 'Cool-Down',
-            bars: expandBlock(workout.cooldownBlock),
+            bars: workout.cooldownBlock !== null ? expandBlock(workout.cooldownBlock) : [],
             hasPrev: workout.hasPrevCooldown,
-        })
-    }
-
-    return sections
+            isEmptySection: workout.cooldownBlock === null,
+        },
+    ]
 }
 
 /** Expands a block's intervals into chart bars with a stable group prefix. */
@@ -169,6 +220,12 @@ interface ChartAreaProps {
     totalSeconds: number
     onUndoSection?: (sectionType: SectionType) => void
     isUndoing: boolean
+    onAddZonePreset?: (sectionType: SectionType, zone: Zone) => void
+    isAddingPreset: boolean
+    zonePresets?: ZonePresetView[]
+    onOpenAddBlock?: (sectionType: SectionType) => void
+    onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
+    selectedInterval: { sectionType: SectionType; intervalIndex: number } | null
 }
 
 /**
@@ -182,19 +239,13 @@ function ChartArea({
     totalSeconds,
     onUndoSection,
     isUndoing,
+    onAddZonePreset,
+    isAddingPreset,
+    zonePresets,
+    onOpenAddBlock,
+    onSelectInterval,
+    selectedInterval,
 }: ChartAreaProps): JSX.Element {
-    const totalBars = sections.reduce((sum, s) => sum + s.bars.length, 0)
-
-    if (totalBars === 0) {
-        return (
-            <div className="w-full px-4 py-8 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
-                <p className="text-sm text-zinc-400">
-                    This workout has no intervals yet. Add some blocks to get started.
-                </p>
-            </div>
-        )
-    }
-
     const sectionWidths = sections.map((section) =>
         widthForBars(section.bars, totalSeconds),
     )
@@ -205,56 +256,101 @@ function ChartArea({
                 flex flex-col w-full
                 px-3 py-3
                 bg-zinc-800/40 border border-zinc-700
-                rounded-lg
+                rounded-lg overflow-hidden
             `}
         >
-            {/* Labels and charts are laid out as two independent flex rows
-                with matching flex ratios. Keeping them in separate rows
-                ensures every chart shares the same baseline even when a
-                narrow section would otherwise force its label to wrap. */}
+            {/* Labels row uses equal thirds so every section name is always
+                fully visible, regardless of how short that section's bars are.
+                The chart row below uses duration-based ratios independently. */}
             <div className="flex mb-1" style={{ gap: '8px' }}>
-                {sections.map((section, i) => (
+                {sections.map((section) => {
+                    const alignment =
+                        section.type === 'WARMUP' ? 'items-start' :
+                        section.type === 'COOLDOWN' ? 'items-end' :
+                        'items-center'
+                    return (
                     <div
                         key={section.type}
-                        className="flex items-center justify-center gap-2 min-w-0"
-                        style={{ flex: `${sectionWidths[i]} 1 0` }}
+                        className={`flex flex-col ${alignment} gap-1 min-w-0`}
+                        style={{ flex: '1 1 0' }}
                     >
-                        <p
-                            className={`
-                                text-xs font-semibold tracking-wide uppercase
-                                text-zinc-300 truncate
-                            `}
-                        >
-                            {section.label}
-                        </p>
-                        <UndoButton
-                            sectionType={section.type}
-                            disabled={!section.hasPrev || isUndoing || onUndoSection === undefined}
-                            onClick={onUndoSection}
-                        />
+                        <div className="flex items-center gap-2">
+                            <p
+                                className={`
+                                    text-xs font-semibold tracking-wide uppercase
+                                    text-zinc-300 truncate
+                                `}
+                            >
+                                {section.label}
+                            </p>
+                            <UndoButton
+                                sectionType={section.type}
+                                disabled={!section.hasPrev || isUndoing || onUndoSection === undefined}
+                                onClick={onUndoSection}
+                            />
+                            {onOpenAddBlock !== undefined && (
+                                <button
+                                    type="button"
+                                    onClick={() => onOpenAddBlock(section.type)}
+                                    title="Add a Ramp, Intervals, or Free Ride block"
+                                    className={`
+                                        px-2 py-0.5
+                                        bg-zinc-700 text-zinc-200
+                                        text-[10px] font-semibold uppercase tracking-wide
+                                        rounded
+                                        hover:bg-zinc-600 transition-colors
+                                    `}
+                                >
+                                    + Block
+                                </button>
+                            )}
+                        </div>
+                        {onAddZonePreset !== undefined && (
+                            <ZonePresetButtons
+                                sectionType={section.type}
+                                onSelectPreset={onAddZonePreset}
+                                disabled={isAddingPreset}
+                                effectivePresets={zonePresets}
+                            />
+                        )}
                     </div>
-                ))}
+                    )
+                })}
             </div>
 
             <div className="flex" style={{ gap: '8px' }}>
-                {sections.map((section, i) => (
-                    <div
-                        key={section.type}
-                        style={{ flex: `${sectionWidths[i]} 1 0` }}
-                    >
-                        <SectionChart section={section} yMax={yMax} />
-                    </div>
-                ))}
+                <YAxisLegend yMax={yMax} />
+                <div className="flex flex-1 min-w-0" style={{ gap: '8px' }}>
+                    {sections.map((section, i) => (
+                        <div
+                            key={section.type}
+                            style={{ flex: `${sectionWidths[i]} 1 0` }}
+                        >
+                            <SectionChart
+                                section={section}
+                                yMax={yMax}
+                                onSelectInterval={onSelectInterval}
+                                selectedIntervalIndex={
+                                    selectedInterval?.sectionType === section.type
+                                        ? selectedInterval.intervalIndex
+                                        : null
+                                }
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
-
-            <YAxisLegend yMax={yMax} />
         </div>
     )
 }
 
 /** Approximates a section's total width share for flex sizing. */
 function widthForBars(bars: ChartBar[], totalSeconds: number): number {
-    if (totalSeconds === 0) return 1
+    // Empty sections (typically a missing warm-up or cool-down) need a
+    // larger minimum so the preset buttons row stays comfortably readable
+    if (bars.length === 0) {
+        return totalSeconds === 0 ? 1 : 0.15
+    }
     const sum = bars.reduce((acc, bar) => acc + bar.durationSeconds, 0)
     // Clamp to a small minimum so very short sections still show their label
     return Math.max(sum / totalSeconds, 0.02)
@@ -263,6 +359,8 @@ function widthForBars(bars: ChartBar[], totalSeconds: number): number {
 interface SectionChartProps {
     section: SectionBars
     yMax: number
+    onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
+    selectedIntervalIndex: number | null
 }
 
 /**
@@ -271,7 +369,12 @@ interface SectionChartProps {
  * one unit on the y-axis equals one percent of FTP. The SVG scales
  * responsively via preserveAspectRatio="none".
  */
-function SectionChart({ section, yMax }: SectionChartProps): JSX.Element {
+function SectionChart({
+    section,
+    yMax,
+    onSelectInterval,
+    selectedIntervalIndex,
+}: SectionChartProps): JSX.Element {
     const sectionDuration = section.bars.reduce((sum, bar) => sum + bar.durationSeconds, 0)
 
     // Total gap space scales with bar count; use a constant-ish fraction of
@@ -298,7 +401,13 @@ function SectionChart({ section, yMax }: SectionChartProps): JSX.Element {
         )
     }
 
-    const rects = buildSectionRects(section.bars, yMax)
+    const shapes = buildSectionShapes(
+        section.bars,
+        yMax,
+        section.type,
+        onSelectInterval,
+        selectedIntervalIndex,
+    )
 
     return (
         <div className={`${sectionBackground} rounded overflow-hidden`}>
@@ -308,19 +417,25 @@ function SectionChart({ section, yMax }: SectionChartProps): JSX.Element {
                 className="block w-full"
                 style={{ height: `${PLOT_HEIGHT}px` }}
             >
-                {rects}
+                {shapes}
             </svg>
         </div>
     )
 }
 
 /**
- * Lays out a section's bars into positioned SVG rectangles. The running
+ * Lays out a section's bars into positioned SVG shapes. The running
  * cursor is kept inside this helper so it does not appear as a mutated
  * closure variable inside a React component body.
  */
-function buildSectionRects(bars: ChartBar[], yMax: number): JSX.Element[] {
-    const rects: JSX.Element[] = []
+function buildSectionShapes(
+    bars: ChartBar[],
+    yMax: number,
+    sectionType: SectionType,
+    onSelectInterval: ((sectionType: SectionType, intervalIndex: number) => void) | undefined,
+    selectedIntervalIndex: number | null,
+): JSX.Element[] {
+    const shapes: JSX.Element[] = []
     let cursor = 0
 
     for (let i = 0; i < bars.length; i++) {
@@ -331,25 +446,135 @@ function buildSectionRects(bars: ChartBar[], yMax: number): JSX.Element[] {
             cursor += sameGroup ? GROUP_INNER_GAP_SECONDS : BAR_GAP_SECONDS
         }
 
-        const height = (bar.powerPercent / yMax) * PLOT_HEIGHT
-        const y = PLOT_HEIGHT - height
-        const fill = getColourForZone(getZoneForPower(bar.powerPercent))
+        const isSelected =
+            bar.sourceIntervalIndex !== null
+            && bar.sourceIntervalIndex === selectedIntervalIndex
 
-        rects.push(
-            <rect
+        const handleClick = onSelectInterval !== undefined && bar.sourceIntervalIndex !== null
+            ? () => onSelectInterval(sectionType, bar.sourceIntervalIndex as number)
+            : undefined
+
+        shapes.push(
+            <BarShape
                 key={i}
+                bar={bar}
                 x={cursor}
-                y={y}
-                width={bar.durationSeconds}
-                height={height}
-                fill={fill}
+                yMax={yMax}
+                isSelected={isSelected}
+                onClick={handleClick}
             />,
         )
 
         cursor += bar.durationSeconds
     }
 
-    return rects
+    return shapes
+}
+
+interface BarShapeProps {
+    bar: ChartBar
+    x: number
+    yMax: number
+    isSelected: boolean
+    onClick?: () => void
+}
+
+/**
+ * Renders a single chart bar in the style appropriate for its source
+ * interval: a flat rectangle for SteadyState and IntervalsT bars, a
+ * gradient-filled polygon for ramps, and a grey wavy-top block for Free
+ * Ride. The bar is rendered as a button-like target so the inline editor
+ * can react to clicks.
+ */
+function BarShape({ bar, x, yMax, isSelected, onClick }: BarShapeProps): JSX.Element {
+    const cursorClass = onClick !== undefined ? 'cursor-pointer' : ''
+    const selectionStroke = isSelected ? '#FFFFFF' : 'none'
+
+    if (bar.style === 'ramp' && bar.startPowerPercent !== null && bar.endPowerPercent !== null) {
+        const startHeight = (bar.startPowerPercent / yMax) * PLOT_HEIGHT
+        const endHeight = (bar.endPowerPercent / yMax) * PLOT_HEIGHT
+        const startY = PLOT_HEIGHT - startHeight
+        const endY = PLOT_HEIGHT - endHeight
+        // Polygon from bottom-left, up the start edge, across the top
+        // following the ramp slope, down the end edge, and back along the
+        // baseline. SVG y-axis increases downward.
+        const points = [
+            `${x},${PLOT_HEIGHT}`,
+            `${x},${startY}`,
+            `${x + bar.durationSeconds},${endY}`,
+            `${x + bar.durationSeconds},${PLOT_HEIGHT}`,
+        ].join(' ')
+        const startColour = getColourForZone(getZoneForPower(bar.startPowerPercent))
+        const endColour = getColourForZone(getZoneForPower(bar.endPowerPercent))
+        const gradientId = `ramp-${x}-${bar.durationSeconds}`
+        return (
+            <g onClick={onClick} className={cursorClass}>
+                <defs>
+                    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={startColour} />
+                        <stop offset="100%" stopColor={endColour} />
+                    </linearGradient>
+                </defs>
+                <polygon
+                    points={points}
+                    fill={`url(#${gradientId})`}
+                    stroke={selectionStroke}
+                    strokeWidth={isSelected ? 2 : 0}
+                    vectorEffect="non-scaling-stroke"
+                />
+            </g>
+        )
+    }
+
+    if (bar.style === 'freeride') {
+        const baseHeight = (bar.powerPercent / yMax) * PLOT_HEIGHT
+        const baseTopY = PLOT_HEIGHT - baseHeight
+        // Build a path with a sine-wave top edge that mimics Zwift's
+        // Free Ride visualisation. The wave amplitude scales with the
+        // section duration so it stays visible at any zoom level.
+        const amplitude = Math.max(baseHeight * 0.06, 4)
+        const segments = Math.max(8, Math.round(bar.durationSeconds / 30))
+        const points: string[] = []
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments
+            const px = x + t * bar.durationSeconds
+            const py = baseTopY - Math.sin(t * Math.PI * 2) * amplitude
+            points.push(`${i === 0 ? 'M' : 'L'} ${px} ${py}`)
+        }
+        // Close the path back along the baseline
+        points.push(`L ${x + bar.durationSeconds} ${PLOT_HEIGHT}`)
+        points.push(`L ${x} ${PLOT_HEIGHT}`)
+        points.push('Z')
+        return (
+            <g onClick={onClick} className={cursorClass}>
+                <path
+                    d={points.join(' ')}
+                    fill="#6B7280"
+                    stroke={selectionStroke}
+                    strokeWidth={isSelected ? 2 : 0}
+                    vectorEffect="non-scaling-stroke"
+                />
+            </g>
+        )
+    }
+
+    const height = (bar.powerPercent / yMax) * PLOT_HEIGHT
+    const y = PLOT_HEIGHT - height
+    const fill = getColourForZone(getZoneForPower(bar.powerPercent))
+    return (
+        <rect
+            x={x}
+            y={y}
+            width={bar.durationSeconds}
+            height={height}
+            fill={fill}
+            stroke={selectionStroke}
+            strokeWidth={isSelected ? 2 : 0}
+            vectorEffect="non-scaling-stroke"
+            onClick={onClick}
+            className={cursorClass}
+        />
+    )
 }
 
 interface YAxisLegendProps {
@@ -363,9 +588,12 @@ interface YAxisLegendProps {
  */
 function YAxisLegend({ yMax }: YAxisLegendProps): JSX.Element {
     return (
-        <div className="flex justify-between px-1 mt-2 text-xs text-zinc-500">
-            <span>0% FTP</span>
-            <span>{yMax}% FTP</span>
+        <div
+            className="flex flex-col justify-between items-end text-[10px] text-zinc-500 shrink-0"
+            style={{ height: `${PLOT_HEIGHT}px` }}
+        >
+            <span>{yMax}%</span>
+            <span>0%</span>
         </div>
     )
 }

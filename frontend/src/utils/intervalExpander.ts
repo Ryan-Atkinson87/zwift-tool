@@ -17,21 +17,39 @@
 
 import type { ParsedInterval } from '../types/workout'
 
+/** Visual style of a chart bar, used by the renderer to pick its shape. */
+export type ChartBarStyle = 'flat' | 'ramp' | 'freeride'
+
 /**
  * A single bar on the workout canvas.
  *
  * Power is stored as an integer percentage of FTP (e.g. 88 for 88% FTP),
- * matching the units used by {@code zoneColours} and the Y-axis.
+ * matching the units used by {@code zoneColours} and the Y-axis. For ramp
+ * bars {@code powerPercent} is the midpoint (used for zone colouring) and
+ * {@code startPowerPercent}/{@code endPowerPercent} carry the gradient
+ * endpoints. For Free Ride bars the power values are placeholders and the
+ * renderer draws a fixed grey wavy block instead.
  */
 export interface ChartBar {
     durationSeconds: number
     powerPercent: number
+    style: ChartBarStyle
+    /** Ramp start power as %FTP. Only set when style is 'ramp'. */
+    startPowerPercent: number | null
+    /** Ramp end power as %FTP. Only set when style is 'ramp'. */
+    endPowerPercent: number | null
     /**
      * Shared identifier for bars that came from the same IntervalsT
      * interval, so the renderer can apply a smaller inter-bar gap within
      * a group. Null for bars not inside an IntervalsT group.
      */
     groupId: string | null
+    /**
+     * Index of the source interval inside its block, or null when the bar
+     * does not map back to a single editable interval (e.g. an IntervalsT
+     * group expands into many bars but is still one interval to edit).
+     */
+    sourceIntervalIndex: number | null
 }
 
 /**
@@ -58,24 +76,62 @@ export function expandIntervalsToBars(
             const offPower = toPercent(interval.offPower)
 
             for (let i = 0; i < repeat; i++) {
-                bars.push({ durationSeconds: onDuration, powerPercent: onPower, groupId })
-                bars.push({ durationSeconds: offDuration, powerPercent: offPower, groupId })
+                bars.push({
+                    durationSeconds: onDuration,
+                    powerPercent: onPower,
+                    style: 'flat',
+                    startPowerPercent: null,
+                    endPowerPercent: null,
+                    groupId,
+                    sourceIntervalIndex: index,
+                })
+                bars.push({
+                    durationSeconds: offDuration,
+                    powerPercent: offPower,
+                    style: 'flat',
+                    startPowerPercent: null,
+                    endPowerPercent: null,
+                    groupId,
+                    sourceIntervalIndex: index,
+                })
             }
             return
         }
 
-        // Ramp-style intervals use a midpoint power for MVP
+        if (interval.type === 'FreeRide') {
+            bars.push({
+                durationSeconds: interval.durationSeconds,
+                // FreeRide has no specific power; use a mid-zone value so
+                // the bar still has visible height under the wavy fill
+                powerPercent: 50,
+                style: 'freeride',
+                startPowerPercent: null,
+                endPowerPercent: null,
+                groupId: null,
+                sourceIntervalIndex: index,
+            })
+            return
+        }
+
         const isRamp =
             interval.type === 'Warmup' ||
             interval.type === 'Cooldown' ||
             interval.type === 'Ramp'
 
         if (isRamp && interval.power !== null && interval.powerHigh !== null) {
-            const midpoint = (interval.power + interval.powerHigh) / 2
+            const startPercent = toPercent(interval.power)
+            const endPercent = toPercent(interval.powerHigh)
+            // Midpoint is used for zone colouring; the renderer reads the
+            // start/end percentages to draw the gradient and the bar shape
+            const midpoint = Math.round((startPercent + endPercent) / 2)
             bars.push({
                 durationSeconds: interval.durationSeconds,
-                powerPercent: toPercent(midpoint),
+                powerPercent: midpoint,
+                style: 'ramp',
+                startPowerPercent: startPercent,
+                endPowerPercent: endPercent,
                 groupId: null,
+                sourceIntervalIndex: index,
             })
             return
         }
@@ -83,7 +139,11 @@ export function expandIntervalsToBars(
         bars.push({
             durationSeconds: interval.durationSeconds,
             powerPercent: toPercent(interval.power),
+            style: 'flat',
+            startPowerPercent: null,
+            endPowerPercent: null,
             groupId: null,
+            sourceIntervalIndex: index,
         })
     })
 

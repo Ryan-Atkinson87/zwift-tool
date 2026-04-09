@@ -32,6 +32,12 @@ public class WorkoutDetailResponse {
     /** True when the cool-down section has a previous block to undo to. */
     private boolean hasPrevCooldown;
     private boolean isDraft;
+    /**
+     * JSON array of text events shown over the workout timeline. Stored as
+     * the raw JSON string as persisted in the database; the frontend parses
+     * it on load. Null or empty means "no text events".
+     */
+    private String textEvents;
     private Instant createdAt;
     private Instant updatedAt;
 }

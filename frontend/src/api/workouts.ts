@@ -3,6 +3,7 @@ import type {
     BlockDetail,
     ParsedInterval,
     SectionType,
+    TextEvent,
     WorkoutDetail,
     WorkoutSummary,
 } from '../types/workout'
@@ -97,6 +98,7 @@ interface WorkoutDetailPayload {
     hasPrevMainset: boolean
     hasPrevCooldown: boolean
     isDraft: boolean
+    textEvents: string | null
     createdAt: string
     updatedAt: string
 }
@@ -107,6 +109,19 @@ export interface UpdateWorkoutSectionRequest {
     content: string
     durationSeconds: number
     intervalCount: number
+}
+
+/** Request body for updating the metadata fields of an existing workout. */
+export interface UpdateWorkoutMetadataRequest {
+    name: string
+    author: string | null
+    description: string | null
+    /**
+     * Optional JSON-encoded text event array. When {@code null}, the
+     * backend leaves the existing value untouched, so components that
+     * only update name or description do not need to resend events.
+     */
+    textEvents?: string | null
 }
 
 /**
@@ -160,6 +175,33 @@ export async function updateWorkoutSection(
 }
 
 /**
+ * Updates the metadata fields (name, author, description) of an existing
+ * workout. Used by the editor's inline metadata editor on blur.
+ *
+ * @param workoutId the ID of the workout to update
+ * @param request   the new metadata values
+ * @throws Error if the workout does not exist, the user is not
+ *               authorised, or the request fails
+ */
+export async function updateWorkoutMetadata(
+    workoutId: string,
+    request: UpdateWorkoutMetadataRequest,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/metadata`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to update workout metadata: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
+/**
  * Reverts the most recent change to a single section by swapping the
  * current and previous block IDs on the backend. Pressing undo a second
  * time acts as a redo.
@@ -201,8 +243,29 @@ function mapWorkoutDetailPayload(payload: WorkoutDetailPayload): WorkoutDetail {
         hasPrevMainset: payload.hasPrevMainset,
         hasPrevCooldown: payload.hasPrevCooldown,
         isDraft: payload.isDraft,
+        textEvents: parseTextEvents(payload.textEvents),
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,
+    }
+}
+
+/**
+ * Parses the raw JSON string returned by the backend into a typed text
+ * event array. Missing, empty, or malformed values are treated as "no
+ * events" so the editor never has to guard against a null list.
+ */
+function parseTextEvents(raw: string | null): TextEvent[] {
+    if (raw === null || raw.trim().length === 0) {
+        return []
+    }
+    try {
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+            return parsed as TextEvent[]
+        }
+        return []
+    } catch {
+        return []
     }
 }
 

@@ -92,6 +92,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles zone preset customisation requests with an %FTP value that
+     * falls outside the documented band for the zone, or with an invalid
+     * zone number or non-positive duration.
+     *
+     * @param ex the exception
+     * @return HTTP 400 Bad Request
+     */
+    @ExceptionHandler(InvalidZoneFtpException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidZoneFtp(InvalidZoneFtpException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Handles undo requests on a section that has no previous state.
      *
      * @param ex the exception

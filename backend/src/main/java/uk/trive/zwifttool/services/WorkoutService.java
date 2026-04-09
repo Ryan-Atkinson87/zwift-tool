@@ -2,6 +2,7 @@ package uk.trive.zwifttool.services;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
+import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.exceptions.NoPreviousStateException;
@@ -98,7 +100,7 @@ public class WorkoutService {
         Block warmupBlock = null;
         if (request.getWarmupContent() != null) {
             warmupBlock = createBlock(
-                    request.getName() + " - Warm-Up",
+                    sectionBlockName(SectionType.WARMUP),
                     SectionType.WARMUP,
                     request.getWarmupContent(),
                     request.getWarmupDurationSeconds(),
@@ -109,7 +111,7 @@ public class WorkoutService {
         }
 
         Block mainsetBlock = createBlock(
-                request.getName() + " - Main Set",
+                sectionBlockName(SectionType.MAINSET),
                 SectionType.MAINSET,
                 request.getMainsetContent(),
                 request.getMainsetDurationSeconds(),
@@ -121,7 +123,7 @@ public class WorkoutService {
         Block cooldownBlock = null;
         if (request.getCooldownContent() != null) {
             cooldownBlock = createBlock(
-                    request.getName() + " - Cool-Down",
+                    sectionBlockName(SectionType.COOLDOWN),
                     SectionType.COOLDOWN,
                     request.getCooldownContent(),
                     request.getCooldownDurationSeconds(),
@@ -193,7 +195,7 @@ public class WorkoutService {
         Block displacedPrev = prevBlockFor(workout, request.getSectionType());
 
         Block newBlock = createBlock(
-                sectionBlockName(workout, request.getSectionType()),
+                sectionBlockName(request.getSectionType()),
                 request.getSectionType(),
                 request.getContent(),
                 request.getDurationSeconds(),
@@ -214,6 +216,52 @@ public class WorkoutService {
         }
 
         return saved;
+    }
+
+    /**
+     * Updates the metadata fields (name, author, description) of an existing
+     * workout. Used by the editor when the user edits these fields inline.
+     *
+     * <p>If every supplied field already matches the workout's current value,
+     * the call short-circuits as a no-op so a blur with no real change does
+     * not bump {@code updated_at}. Metadata edits do not interact with the
+     * per-section undo state and never touch any block rows.</p>
+     *
+     * @param workoutId the ID of the workout to update
+     * @param userId    the authenticated user's ID
+     * @param request   the new metadata values
+     * @return the updated workout
+     * @throws WorkoutNotFoundException if no workout exists for this user
+     */
+    @Transactional
+    public Workout updateWorkoutMetadata(UUID workoutId, UUID userId, UpdateWorkoutMetadataRequest request) {
+        log.info("Updating metadata on workout {} for user {}", workoutId, userId);
+
+        Workout workout = getWorkoutForUser(workoutId, userId);
+
+        // A null textEvents in the request means "leave as-is", so compare
+        // the effective next value against the current one to decide whether
+        // this is a genuine no-op.
+        String nextTextEvents = request.getTextEvents() != null
+                ? request.getTextEvents()
+                : workout.getTextEvents();
+
+        // No-op short-circuit: a blur with unchanged values should not
+        // bump updated_at or churn the database
+        if (Objects.equals(workout.getName(), request.getName())
+                && Objects.equals(workout.getAuthor(), request.getAuthor())
+                && Objects.equals(workout.getDescription(), request.getDescription())
+                && Objects.equals(workout.getTextEvents(), nextTextEvents)) {
+            log.debug("Skipping metadata update on workout {}: values unchanged", workoutId);
+            return workout;
+        }
+
+        workout.setName(request.getName());
+        workout.setAuthor(request.getAuthor());
+        workout.setDescription(request.getDescription());
+        workout.setTextEvents(nextTextEvents);
+
+        return workoutRepository.save(workout);
     }
 
     /**
@@ -295,16 +343,18 @@ public class WorkoutService {
     }
 
     /**
-     * Builds the canonical name for an auto-generated section block, used
-     * to keep block listings readable in the database.
+     * Returns the display name for an auto-generated section block.
+     *
+     * <p>Non-library blocks use the section type as their label, keeping the
+     * name stable regardless of workout renames. Library blocks have
+     * user-defined names set through a separate flow.</p>
      */
-    private String sectionBlockName(Workout workout, SectionType sectionType) {
-        String suffix = switch (sectionType) {
-            case WARMUP -> " - Warm-Up";
-            case MAINSET -> " - Main Set";
-            case COOLDOWN -> " - Cool-Down";
+    private String sectionBlockName(SectionType sectionType) {
+        return switch (sectionType) {
+            case WARMUP -> "Warm-Up";
+            case MAINSET -> "Main Set";
+            case COOLDOWN -> "Cool-Down";
         };
-        return workout.getName() + suffix;
     }
 
     /**

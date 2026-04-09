@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
+import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutDetailResponse;
 import uk.trive.zwifttool.controllers.dto.WorkoutResponse;
@@ -119,6 +120,26 @@ public class WorkoutController {
     }
 
     /**
+     * Updates the metadata fields (name, author, description) of an existing
+     * workout. Used by the editor when the user edits these fields inline,
+     * with auto-save on blur.
+     *
+     * @param workoutId the ID of the workout to update
+     * @param request   the new metadata values
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated workout detail
+     */
+    @PutMapping("/{workoutId}/metadata")
+    public ResponseEntity<WorkoutDetailResponse> updateWorkoutMetadata(
+            @PathVariable UUID workoutId,
+            @Valid @RequestBody UpdateWorkoutMetadataRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.updateWorkoutMetadata(workoutId, userId, request);
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
      * Reverts the most recent change to a single section of a workout by
      * swapping the current and previous block IDs. Pressing undo a second
      * time acts as a redo, since both blocks remain referenced.
@@ -155,6 +176,7 @@ public class WorkoutController {
                 .hasPrevMainset(workout.getPrevMainsetBlock() != null)
                 .hasPrevCooldown(workout.getPrevCooldownBlock() != null)
                 .isDraft(workout.isDraft())
+                .textEvents(workout.getTextEvents())
                 .createdAt(workout.getCreatedAt())
                 .updatedAt(workout.getUpdatedAt())
                 .build();

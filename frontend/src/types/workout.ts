@@ -105,6 +105,24 @@ export interface WorkoutDetail {
     /** True when the cool-down section has a previous block to undo to. */
     hasPrevCooldown: boolean
     isDraft: boolean
+    /**
+     * Text events shown over the workout timeline. Parsed from the raw
+     * JSON string returned by the backend; an empty array represents
+     * "no events".
+     */
+    textEvents: TextEvent[]
     createdAt: string
     updatedAt: string
+}
+
+/**
+ * A single timed text event shown over the workout timeline, such as
+ * a coaching cue or instruction. The offset is measured in seconds from
+ * the start of the workout (warm-up t=0).
+ */
+export interface TextEvent {
+    /** Seconds from the start of the workout at which the message appears. */
+    timeOffsetSeconds: number
+    /** Message body shown on the timeline. */
+    message: string
 }

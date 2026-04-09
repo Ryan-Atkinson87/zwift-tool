@@ -139,21 +139,22 @@ public class AuthService {
      * Refreshes an existing session, issuing a new refresh token.
      *
      * <p>The old session record is deleted and replaced with a new one (rotation).
-     * If the incoming token is not found (already rotated), a 10-second grace
-     * window checks whether a new session was created recently for the same user,
-     * covering concurrent requests that arrived with the old token.</p>
-     *
-     * <p>The user ID is extracted from the access token cookie (which may be expired
-     * but is still signed) and used to look up recent sessions during the grace window.</p>
+     * The user ID is resolved directly from the refresh token row so the endpoint
+     * works even when the access token cookie has expired and been removed by the
+     * browser. If the incoming token is not found (already rotated), a 10-second
+     * grace window checks whether a new session was created recently for the user
+     * identified by the optional access token, covering concurrent requests that
+     * arrived with the old token.</p>
      *
      * @param oldRefreshToken the refresh token from the HttpOnly cookie
-     * @param userId          the user ID extracted from the access token (may be expired)
+     * @param accessTokenUserId the user ID extracted from the access token if present,
+     *                          used only as a fallback for the grace window lookup
      * @return the new session containing a fresh refresh token
      * @throws InvalidRefreshTokenException if the token is invalid, expired, or
      *         outside the grace window
      */
     @Transactional
-    public UserSession refreshSession(String oldRefreshToken, UUID userId) {
+    public UserSession refreshSession(String oldRefreshToken, Optional<UUID> accessTokenUserId) {
         Optional<UserSession> existingSession = userSessionRepository.findByRefreshToken(oldRefreshToken);
 
         if (existingSession.isPresent()) {
@@ -164,11 +165,7 @@ public class AuthService {
                 throw new InvalidRefreshTokenException();
             }
 
-            // Verify the session belongs to the user identified by the access token
-            if (!session.getUserId().equals(userId)) {
-                throw new InvalidRefreshTokenException();
-            }
-
+            UUID userId = session.getUserId();
             userSessionRepository.delete(session);
 
             log.info("Refresh token rotated for user {}", userId);
@@ -176,8 +173,10 @@ public class AuthService {
         }
 
         // Token not found: it may have been rotated by a concurrent request.
-        // Check if a new session was created within the grace window.
-        return handleGraceWindow(userId);
+        // The grace window needs a user ID to query recent sessions; fall back to
+        // the access token subject if available, otherwise reject the request.
+        UUID graceUserId = accessTokenUserId.orElseThrow(InvalidRefreshTokenException::new);
+        return handleGraceWindow(graceUserId);
     }
 
     /**
