@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import { SignInModal } from './components/auth/SignInModal.tsx'
 import { SignUpModal } from './components/auth/SignUpModal.tsx'
 import { FileUploader } from './components/import/FileUploader.tsx'
@@ -10,9 +10,17 @@ import { useWorkout } from './hooks/useWorkout.ts'
 import { WorkoutList } from './components/workout/WorkoutList.tsx'
 import { WorkoutCanvas } from './components/workout/WorkoutCanvas.tsx'
 import { WorkoutMetadataEditor } from './components/workout/WorkoutMetadataEditor.tsx'
+import { AddBlockModal } from './components/workout/AddBlockModal.tsx'
+import { IntervalEditor } from './components/workout/IntervalEditor.tsx'
+import { IntervalListEditor } from './components/workout/IntervalListEditor.tsx'
+import { TextEventEditor } from './components/workout/TextEventEditor.tsx'
+import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
 import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata } from './api/workouts'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
-import type { ParsedWorkout, ParsedInterval, SectionType } from './types/workout'
+import { useZonePresets } from './hooks/useZonePresets.ts'
+import type { ParsedWorkout, ParsedInterval, SectionType, TextEvent } from './types/workout'
+import { type Zone } from './utils/zonePresets'
+import { buildSectionDraft, currentSectionBlock, sumIntervalDuration as sumDuration } from './utils/editorDraft'
 
 /**
  * Root application component. Renders the top-level layout and entry point
@@ -45,13 +53,33 @@ export function App(): JSX.Element {
     const [undoError, setUndoError] = useState<string | null>(null)
     const [isSavingMetadata, setIsSavingMetadata] = useState(false)
     const [metadataError, setMetadataError] = useState<string | null>(null)
-    // Auto-save loop. The hook is wired here so the editor UI can call
-    // queueSectionUpdate as soon as the interval editor lands; for now it
-    // is dormant since no edits are emitted yet.
-    const { status: autosaveStatus, error: autosaveError } = useWorkoutAutosave(
-        selectedWorkout,
-        applySelectedWorkoutUpdate,
-    )
+    const [addBlockSection, setAddBlockSection] = useState<SectionType | null>(null)
+    const [selectedInterval, setSelectedInterval] = useState<{
+        sectionType: SectionType
+        intervalIndex: number
+    } | null>(null)
+    const [isZonePresetSettingsOpen, setIsZonePresetSettingsOpen] = useState(false)
+    const {
+        presets: zonePresets,
+        getPreset: getEffectiveZonePreset,
+        savePreset: saveEffectiveZonePreset,
+        resetPreset: resetEffectiveZonePreset,
+    } = useZonePresets(isAuthenticated)
+
+    // Clear the selected interval whenever the user switches workout so a
+    // stale index from a previous workout cannot leak into the editor.
+    useEffect(() => {
+        setSelectedInterval(null)
+    }, [selectedWorkoutId])
+    // Auto-save loop. The editor pushes section content into queueSectionUpdate
+    // every time the user adds, edits, or removes an interval. Updates are
+    // debounced inside the hook and the response is fed back into the cached
+    // workout state via applySelectedWorkoutUpdate.
+    const {
+        queueSectionUpdate,
+        status: autosaveStatus,
+        error: autosaveError,
+    } = useWorkoutAutosave(selectedWorkout, applySelectedWorkoutUpdate)
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
@@ -176,8 +204,174 @@ export function App(): JSX.Element {
         }
     }
 
-    function sumDuration(intervals: ParsedInterval[]): number {
-        return Math.round(intervals.reduce((sum, i) => sum + i.durationSeconds, 0))
+    /**
+     * Persists an updated text event list for the selected workout. Text
+     * events piggyback on the metadata endpoint so their current value is
+     * round-tripped as part of the existing metadata save pipeline.
+     */
+    async function handleSaveTextEvents(nextEvents: TextEvent[]): Promise<void> {
+        if (selectedWorkoutId === null || selectedWorkout === null) {
+            return
+        }
+        setIsSavingMetadata(true)
+        setMetadataError(null)
+        // Optimistic patch so the row reflects the edit before the round-trip
+        applySelectedWorkoutUpdate({ ...selectedWorkout, textEvents: nextEvents })
+        try {
+            const updated = await updateWorkoutMetadata(selectedWorkoutId, {
+                name: selectedWorkout.name,
+                author: selectedWorkout.author,
+                description: selectedWorkout.description,
+                textEvents: JSON.stringify(nextEvents),
+            })
+            applySelectedWorkoutUpdate(updated)
+        } catch (error) {
+            setMetadataError(
+                error instanceof Error ? error.message : 'Failed to save text events.',
+            )
+        } finally {
+            setIsSavingMetadata(false)
+        }
+    }
+
+    /**
+     * Replaces a section's interval list, optimistically patches the cached
+     * workout so the canvas re-renders immediately, and queues an auto-save.
+     * All editor mutations (preset add, block add, edit, reorder, delete)
+     * funnel through this single helper.
+     */
+    function commitSectionIntervals(
+        sectionType: SectionType,
+        nextIntervals: ParsedInterval[],
+    ): void {
+        if (selectedWorkout === null) {
+            return
+        }
+
+        const draft = buildSectionDraft(selectedWorkout, sectionType, nextIntervals)
+        applySelectedWorkoutUpdate(draft.patchedWorkout)
+        queueSectionUpdate(sectionType, {
+            content: draft.content,
+            durationSeconds: draft.durationSeconds,
+            intervalCount: draft.intervalCount,
+        })
+    }
+
+    /**
+     * Appends a new SteadyState interval to the chosen section using the
+     * default duration and %FTP for the supplied zone.
+     */
+    function handleAddZonePreset(sectionType: SectionType, zone: Zone): void {
+        if (selectedWorkout === null) {
+            return
+        }
+
+        const preset = getEffectiveZonePreset(zone)
+        const newInterval: ParsedInterval = {
+            type: 'SteadyState',
+            durationSeconds: preset.durationSeconds,
+            // Stored as a fraction of FTP to match the .zwo file format
+            power: preset.ftpPercent / 100,
+            powerHigh: null,
+            cadence: null,
+            repeat: null,
+            onDuration: null,
+            offDuration: null,
+            onPower: null,
+            offPower: null,
+        }
+
+        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const nextIntervals: ParsedInterval[] = currentBlock !== null
+            ? [...currentBlock.intervals, newInterval]
+            : [newInterval]
+
+        commitSectionIntervals(sectionType, nextIntervals)
+    }
+
+    /**
+     * Appends a new non-preset interval (Ramp, IntervalsT, or Free Ride) to
+     * the chosen section. The caller is responsible for constructing a
+     * fully-populated {@link ParsedInterval} of the desired type.
+     */
+    function handleAddInterval(sectionType: SectionType, interval: ParsedInterval): void {
+        if (selectedWorkout === null) {
+            return
+        }
+        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const nextIntervals: ParsedInterval[] = currentBlock !== null
+            ? [...currentBlock.intervals, interval]
+            : [interval]
+        commitSectionIntervals(sectionType, nextIntervals)
+    }
+
+    /**
+     * Replaces a single interval inside a section with an edited copy.
+     * Used by the inline interval editor when the user changes duration,
+     * power, or cadence.
+     */
+    function handleUpdateInterval(
+        sectionType: SectionType,
+        index: number,
+        next: ParsedInterval,
+    ): void {
+        if (selectedWorkout === null) {
+            return
+        }
+        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        if (currentBlock === null) {
+            return
+        }
+        const nextIntervals = currentBlock.intervals.map((interval, i) =>
+            i === index ? next : interval,
+        )
+        commitSectionIntervals(sectionType, nextIntervals)
+    }
+
+    /**
+     * Removes a single interval from a section. Deleting the last interval
+     * in the main set is blocked because the main set is mandatory and the
+     * editor must always have at least one interval to anchor.
+     */
+    function handleDeleteInterval(sectionType: SectionType, index: number): void {
+        if (selectedWorkout === null) {
+            return
+        }
+        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        if (currentBlock === null) {
+            return
+        }
+        if (sectionType === 'MAINSET' && currentBlock.intervals.length <= 1) {
+            return
+        }
+        const nextIntervals = currentBlock.intervals.filter((_, i) => i !== index)
+        commitSectionIntervals(sectionType, nextIntervals)
+    }
+
+    /**
+     * Reorders a section's interval list by moving the interval at
+     * {@code fromIndex} to {@code toIndex}. Cross-section drags are not
+     * permitted; the caller must constrain drags to a single section.
+     */
+    function handleReorderIntervals(
+        sectionType: SectionType,
+        fromIndex: number,
+        toIndex: number,
+    ): void {
+        if (selectedWorkout === null) {
+            return
+        }
+        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        if (currentBlock === null) {
+            return
+        }
+        if (fromIndex === toIndex) {
+            return
+        }
+        const nextIntervals = [...currentBlock.intervals]
+        const [moved] = nextIntervals.splice(fromIndex, 1)
+        nextIntervals.splice(toIndex, 0, moved)
+        commitSectionIntervals(sectionType, nextIntervals)
     }
 
     /**
@@ -249,20 +443,34 @@ export function App(): JSX.Element {
                         </button>
                     </div>
 
-                    <button
-                        onClick={() => void handleCreateBlankWorkout()}
-                        disabled={isSaving}
-                        className={`
-                            px-4 py-2
-                            bg-indigo-600 text-white
-                            text-sm font-medium
-                            rounded-md
-                            hover:bg-indigo-500 transition-colors
-                            disabled:opacity-50 disabled:cursor-not-allowed
-                        `}
-                    >
-                        New workout
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => void handleCreateBlankWorkout()}
+                            disabled={isSaving}
+                            className={`
+                                px-4 py-2
+                                bg-indigo-600 text-white
+                                text-sm font-medium
+                                rounded-md
+                                hover:bg-indigo-500 transition-colors
+                                disabled:opacity-50 disabled:cursor-not-allowed
+                            `}
+                        >
+                            New workout
+                        </button>
+                        <button
+                            onClick={() => setIsZonePresetSettingsOpen(true)}
+                            className={`
+                                px-4 py-2
+                                bg-zinc-700 text-white
+                                text-sm font-medium
+                                rounded-md
+                                hover:bg-zinc-600 transition-colors
+                            `}
+                        >
+                            Zone presets
+                        </button>
+                    </div>
 
                     <WorkoutList
                         workouts={savedWorkouts}
@@ -287,7 +495,55 @@ export function App(): JSX.Element {
                         error={selectedWorkoutError}
                         onUndoSection={(section) => void handleUndoSection(section)}
                         isUndoing={isUndoing}
+                        onAddZonePreset={handleAddZonePreset}
+                        zonePresets={zonePresets}
+                        onOpenAddBlock={(section) => setAddBlockSection(section)}
+                        onSelectInterval={(section, index) =>
+                            setSelectedInterval({ sectionType: section, intervalIndex: index })
+                        }
+                        selectedInterval={selectedInterval}
                     />
+
+                    {selectedWorkout !== null && (
+                        <IntervalListEditor
+                            workout={selectedWorkout}
+                            onReorder={handleReorderIntervals}
+                            onDelete={(section, index) => {
+                                handleDeleteInterval(section, index)
+                                if (
+                                    selectedInterval?.sectionType === section
+                                    && selectedInterval.intervalIndex === index
+                                ) {
+                                    setSelectedInterval(null)
+                                }
+                            }}
+                            onSelect={(section, index) =>
+                                setSelectedInterval({ sectionType: section, intervalIndex: index })
+                            }
+                            selectedInterval={selectedInterval}
+                        />
+                    )}
+
+                    {selectedWorkout !== null && (
+                        <TextEventEditor
+                            events={selectedWorkout.textEvents}
+                            onChange={(next) => void handleSaveTextEvents(next)}
+                            isSaving={isSavingMetadata}
+                        />
+                    )}
+
+                    {selectedWorkout !== null && selectedInterval !== null && (
+                        <IntervalEditor
+                            workout={selectedWorkout}
+                            selection={selectedInterval}
+                            onChange={handleUpdateInterval}
+                            onClose={() => setSelectedInterval(null)}
+                            onDelete={(section, index) => {
+                                handleDeleteInterval(section, index)
+                                setSelectedInterval(null)
+                            }}
+                        />
+                    )}
 
                     {metadataError && (
                         <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
@@ -365,6 +621,21 @@ export function App(): JSX.Element {
                     </button>
                 </div>
             )}
+
+            <AddBlockModal
+                isOpen={addBlockSection !== null}
+                sectionType={addBlockSection}
+                onClose={() => setAddBlockSection(null)}
+                onConfirm={(section, interval) => handleAddInterval(section, interval)}
+            />
+
+            <ZonePresetSettings
+                isOpen={isZonePresetSettingsOpen}
+                onClose={() => setIsZonePresetSettingsOpen(false)}
+                presets={zonePresets}
+                onSave={saveEffectiveZonePreset}
+                onReset={resetEffectiveZonePreset}
+            />
 
             <SignInModal
                 isOpen={showSignIn}

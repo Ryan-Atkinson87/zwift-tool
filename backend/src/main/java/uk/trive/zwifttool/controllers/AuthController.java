@@ -112,18 +112,18 @@ public class AuthController {
             throw new InvalidRefreshTokenException();
         }
 
-        // Extract user ID from the access token, even if expired.
-        // The signature is still verified to prevent tampering.
-        Optional<UUID> userId = Optional.empty();
+        // Extract user ID from the access token if it is present. The token may be
+        // expired — the signature is still verified to prevent tampering. This is
+        // optional because the access token cookie expires after 15 minutes and the
+        // browser drops it; the service resolves the user from the refresh token row
+        // directly in that case. The extracted ID is only needed as a fallback for
+        // the concurrent-refresh grace window lookup.
+        Optional<UUID> accessTokenUserId = Optional.empty();
         if (accessToken != null && !accessToken.isBlank()) {
-            userId = jwtUtil.extractUserIdIgnoringExpiry(accessToken);
+            accessTokenUserId = jwtUtil.extractUserIdIgnoringExpiry(accessToken);
         }
 
-        if (userId.isEmpty()) {
-            throw new InvalidRefreshTokenException();
-        }
-
-        UserSession session = authService.refreshSession(refreshToken, userId.get());
+        UserSession session = authService.refreshSession(refreshToken, accessTokenUserId);
 
         // Look up the user for the response body
         User user = authService.getUserById(session.getUserId());

@@ -28,4 +28,12 @@ public class UpdateWorkoutMetadataRequest {
     /** New description. Optional, capped at 2000 chars. */
     @Size(max = 2000, message = "Description must be 2000 characters or fewer.")
     private String description;
+
+    /**
+     * JSON array of text events shown over the workout timeline. Sent as a
+     * raw JSON string so the backend stores it verbatim in the {@code jsonb}
+     * column without re-serialising. Null leaves the existing value
+     * unchanged; an empty string or {@code "[]"} clears all events.
+     */
+    private String textEvents;
 }

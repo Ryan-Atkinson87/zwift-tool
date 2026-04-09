@@ -176,6 +176,7 @@ public class WorkoutController {
                 .hasPrevMainset(workout.getPrevMainsetBlock() != null)
                 .hasPrevCooldown(workout.getPrevCooldownBlock() != null)
                 .isDraft(workout.isDraft())
+                .textEvents(workout.getTextEvents())
                 .createdAt(workout.getCreatedAt())
                 .updatedAt(workout.getUpdatedAt())
                 .build();

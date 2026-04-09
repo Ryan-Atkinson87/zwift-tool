@@ -3,6 +3,7 @@ import type {
     BlockDetail,
     ParsedInterval,
     SectionType,
+    TextEvent,
     WorkoutDetail,
     WorkoutSummary,
 } from '../types/workout'
@@ -97,6 +98,7 @@ interface WorkoutDetailPayload {
     hasPrevMainset: boolean
     hasPrevCooldown: boolean
     isDraft: boolean
+    textEvents: string | null
     createdAt: string
     updatedAt: string
 }
@@ -114,6 +116,12 @@ export interface UpdateWorkoutMetadataRequest {
     name: string
     author: string | null
     description: string | null
+    /**
+     * Optional JSON-encoded text event array. When {@code null}, the
+     * backend leaves the existing value untouched, so components that
+     * only update name or description do not need to resend events.
+     */
+    textEvents?: string | null
 }
 
 /**
@@ -235,8 +243,29 @@ function mapWorkoutDetailPayload(payload: WorkoutDetailPayload): WorkoutDetail {
         hasPrevMainset: payload.hasPrevMainset,
         hasPrevCooldown: payload.hasPrevCooldown,
         isDraft: payload.isDraft,
+        textEvents: parseTextEvents(payload.textEvents),
         createdAt: payload.createdAt,
         updatedAt: payload.updatedAt,
+    }
+}
+
+/**
+ * Parses the raw JSON string returned by the backend into a typed text
+ * event array. Missing, empty, or malformed values are treated as "no
+ * events" so the editor never has to guard against a null list.
+ */
+function parseTextEvents(raw: string | null): TextEvent[] {
+    if (raw === null || raw.trim().length === 0) {
+        return []
+    }
+    try {
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+            return parsed as TextEvent[]
+        }
+        return []
+    } catch {
+        return []
     }
 }
 

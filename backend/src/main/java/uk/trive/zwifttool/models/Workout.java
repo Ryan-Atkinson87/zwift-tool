@@ -3,6 +3,9 @@ package uk.trive.zwifttool.models;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -71,6 +74,16 @@ public class Workout {
 
     @Column(name = "is_draft", nullable = false)
     private boolean isDraft;
+
+    /**
+     * JSON array of text events displayed over the workout timeline.
+     * Stored as a JSON string in a {@code jsonb} column so we can add,
+     * edit, and delete entries without a schema migration per event type.
+     * Null or empty means "no text events".
+     */
+    @Column(name = "text_events", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String textEvents;
 
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
