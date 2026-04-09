@@ -106,6 +106,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles requests for a block that does not exist, or that exists
+     * but belongs to a different user. Both cases collapse to 404 to avoid
+     * leaking the existence of other users' blocks.
+     *
+     * @param ex the exception
+     * @return HTTP 404 Not Found
+     */
+    @ExceptionHandler(BlockNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleBlockNotFound(BlockNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * Handles replacement requests where the library block's section type
+     * does not match the target section on the workout.
+     *
+     * @param ex the exception
+     * @return HTTP 400 Bad Request
+     */
+    @ExceptionHandler(InvalidSectionTypeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidSectionType(InvalidSectionTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Handles undo requests on a section that has no previous state.
      *
      * @param ex the exception

@@ -17,7 +17,8 @@ import { TextEventEditor } from './components/workout/TextEventEditor.tsx'
 import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
 import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
 import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata } from './api/workouts'
+import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
@@ -76,6 +77,9 @@ export function App(): JSX.Element {
         reload: reloadBlocks,
     } = useBlocks(isAuthenticated)
     const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
+    const [replaceSectionType, setReplaceSectionType] = useState<SectionType | null>(null)
+    const [isReplacing, setIsReplacing] = useState(false)
+    const [replaceError, setReplaceError] = useState<string | null>(null)
 
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
@@ -449,8 +453,42 @@ export function App(): JSX.Element {
             intervalCount: block.intervalCount,
         })
 
+        await reloadBlocks()
         setSaveToLibrarySection(null)
-        void reloadBlocks()
+    }
+
+    /**
+     * Opens the replace modal for the given section.
+     */
+    function handleReplaceSection(sectionType: SectionType): void {
+        setReplaceSectionType(sectionType)
+        setReplaceError(null)
+    }
+
+    /**
+     * Replaces the targeted section with the chosen library block, applies
+     * the updated workout to the canvas, and closes the modal.
+     */
+    async function handleConfirmReplace(blockId: string): Promise<void> {
+        if (selectedWorkoutId === null || replaceSectionType === null) {
+            return
+        }
+
+        setIsReplacing(true)
+        setReplaceError(null)
+
+        try {
+            const updated = await replaceWorkoutSection(selectedWorkoutId, {
+                sectionType: replaceSectionType,
+                blockId,
+            })
+            applySelectedWorkoutUpdate(updated)
+            setReplaceSectionType(null)
+        } catch (err) {
+            setReplaceError(err instanceof Error ? err.message : 'Failed to replace section.')
+        } finally {
+            setIsReplacing(false)
+        }
     }
 
     if (isLoading) {
@@ -545,6 +583,7 @@ export function App(): JSX.Element {
                         }
                         selectedInterval={selectedInterval}
                         onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
+                        onReplaceSection={handleReplaceSection}
                     />
 
                     {selectedWorkout !== null && (
@@ -683,6 +722,17 @@ export function App(): JSX.Element {
                 sectionType={saveToLibrarySection}
                 onClose={() => setSaveToLibrarySection(null)}
                 onConfirm={(name, description) => handleConfirmSaveToLibrary(name, description)}
+            />
+
+            <ReplaceWithBlockModal
+                key={replaceSectionType}
+                isOpen={replaceSectionType !== null}
+                sectionType={replaceSectionType}
+                blocks={libraryBlocks}
+                isReplacing={isReplacing}
+                error={replaceError}
+                onClose={() => setReplaceSectionType(null)}
+                onConfirm={(blockId) => void handleConfirmReplace(blockId)}
             />
 
             <ZonePresetSettings

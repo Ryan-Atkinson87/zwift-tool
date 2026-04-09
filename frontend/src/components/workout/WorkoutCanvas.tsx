@@ -61,6 +61,12 @@ interface Props {
      * Only shown for non-empty sections.
      */
     onSaveToLibrary?: (sectionType: SectionType) => void
+    /**
+     * Called when the user clicks the "Replace" button for a section.
+     * The parent is responsible for opening the replacement modal.
+     * Only shown when a workout is loaded.
+     */
+    onReplaceSection?: (sectionType: SectionType) => void
 }
 
 /** Default Y-axis upper bound in percent FTP. Expands if any bar exceeds it. */
@@ -110,6 +116,7 @@ export function WorkoutCanvas({
     onSelectInterval,
     selectedInterval = null,
     onSaveToLibrary,
+    onReplaceSection,
 }: Props): JSX.Element {
     if (isLoading) {
         return (
@@ -166,6 +173,7 @@ export function WorkoutCanvas({
                 onSelectInterval={onSelectInterval}
                 selectedInterval={selectedInterval}
                 onSaveToLibrary={onSaveToLibrary}
+                onReplaceSection={onReplaceSection}
             />
 
             <WorkoutFooter totalSeconds={total} normalisedPower={np} />
@@ -235,6 +243,7 @@ interface ChartAreaProps {
     onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
     selectedInterval: { sectionType: SectionType; intervalIndex: number } | null
     onSaveToLibrary?: (sectionType: SectionType) => void
+    onReplaceSection?: (sectionType: SectionType) => void
 }
 
 /**
@@ -255,6 +264,7 @@ function ChartArea({
     onSelectInterval,
     selectedInterval,
     onSaveToLibrary,
+    onReplaceSection,
 }: ChartAreaProps): JSX.Element {
     const sectionWidths = sections.map((section) =>
         widthForBars(section.bars, totalSeconds),
@@ -284,18 +294,27 @@ function ChartArea({
                         className={`flex flex-col ${alignment} gap-1 min-w-0`}
                         style={{ flex: '1 1 0' }}
                     >
+                        <p
+                            className={`
+                                text-xs font-semibold tracking-wide uppercase
+                                text-zinc-300 truncate
+                            `}
+                        >
+                            {section.label}
+                        </p>
                         <div className="flex items-center gap-2">
-                            <p
-                                className={`
-                                    text-xs font-semibold tracking-wide uppercase
-                                    text-zinc-300 truncate
-                                `}
-                            >
-                                {section.label}
-                            </p>
                             <UndoButton
                                 sectionType={section.type}
-                                disabled={!section.hasPrev || isUndoing || onUndoSection === undefined}
+                                disabled={
+                                    // Main set undo is only available when a previous block exists.
+                                    // For optional sections, undo is disabled only when the section is
+                                    // empty AND there is no previous block to restore. When the section
+                                    // has been removed via undo (isEmptySection=true, hasPrev=true),
+                                    // the button must stay enabled so the user can restore it.
+                                    section.type === 'MAINSET'
+                                        ? !section.hasPrev || isUndoing || onUndoSection === undefined
+                                        : (section.isEmptySection && !section.hasPrev) || isUndoing || onUndoSection === undefined
+                                }
                                 onClick={onUndoSection}
                             />
                             {onOpenAddBlock !== undefined && (
@@ -328,6 +347,22 @@ function ChartArea({
                                     `}
                                 >
                                     Save
+                                </button>
+                            )}
+                            {onReplaceSection !== undefined && (
+                                <button
+                                    type="button"
+                                    onClick={() => onReplaceSection(section.type)}
+                                    title="Replace this section with a saved library block"
+                                    className={`
+                                        px-2 py-0.5
+                                        bg-zinc-700 text-zinc-200
+                                        text-[10px] font-semibold uppercase tracking-wide
+                                        rounded
+                                        hover:bg-zinc-600 transition-colors
+                                    `}
+                                >
+                                    Replace
                                 </button>
                             )}
                         </div>

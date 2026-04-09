@@ -296,6 +296,40 @@ function mapBlock(block: BlockDetailPayload | null): BlockDetail | null {
     }
 }
 
+/** Request body for replacing a section with a saved library block. */
+export interface ReplaceWithBlockRequest {
+    sectionType: SectionType
+    blockId: string
+}
+
+/**
+ * Replaces a single section of an existing workout with a saved library block.
+ * The current section block is rotated into the prev slot for undo.
+ *
+ * @param workoutId the ID of the workout to update
+ * @param request   the target section and the library block ID to use
+ * @throws Error if the block does not exist, the section type mismatches,
+ *               the user is not authorised, or the request fails
+ */
+export async function replaceWorkoutSection(
+    workoutId: string,
+    request: ReplaceWithBlockRequest,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/replace-section`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to replace section: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

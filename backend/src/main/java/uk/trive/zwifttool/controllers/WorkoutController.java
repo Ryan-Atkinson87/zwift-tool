@@ -18,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
+import uk.trive.zwifttool.controllers.dto.ReplaceWithBlockRequest;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
@@ -160,6 +161,28 @@ public class WorkoutController {
     }
 
     /**
+     * Replaces a single section of an existing workout with a saved library
+     * block. The current block for the section is rotated into the prev slot
+     * for single-step undo. The library block must be owned by the authenticated
+     * user and its section type must match the target section.
+     *
+     * @param workoutId the ID of the workout to update
+     * @param request   the target section and the library block ID to use
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated workout detail
+     */
+    @PutMapping("/{workoutId}/replace-section")
+    public ResponseEntity<WorkoutDetailResponse> replaceWorkoutSection(
+            @PathVariable UUID workoutId,
+            @Valid @RequestBody ReplaceWithBlockRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.replaceWorkoutSectionWithBlock(
+                workoutId, userId, request.getSectionType(), request.getBlockId());
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
      * Maps a Workout entity to the full detail response, including the
      * content of every section block.
      */
@@ -173,7 +196,12 @@ public class WorkoutController {
                 .mainsetBlock(toBlockResponse(workout.getMainsetBlock()))
                 .cooldownBlock(toBlockResponse(workout.getCooldownBlock()))
                 .hasPrevWarmup(workout.getPrevWarmupBlock() != null)
-                .hasPrevMainset(workout.getPrevMainsetBlock() != null)
+                // Only consider prev mainset available for undo if it has actual intervals.
+                // An empty prev block (0 intervals) means the workout was created from scratch
+                // with no initial content, so there is nothing meaningful to undo to.
+                .hasPrevMainset(workout.getPrevMainsetBlock() != null
+                        && workout.getPrevMainsetBlock().getIntervalCount() != null
+                        && workout.getPrevMainsetBlock().getIntervalCount() > 0)
                 .hasPrevCooldown(workout.getPrevCooldownBlock() != null)
                 .isDraft(workout.isDraft())
                 .textEvents(workout.getTextEvents())

@@ -14,6 +14,8 @@ import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
+import uk.trive.zwifttool.exceptions.BlockNotFoundException;
+import uk.trive.zwifttool.exceptions.InvalidSectionTypeException;
 import uk.trive.zwifttool.exceptions.NoPreviousStateException;
 import uk.trive.zwifttool.exceptions.WorkoutNotFoundException;
 import uk.trive.zwifttool.models.Block;
@@ -219,6 +221,73 @@ public class WorkoutService {
     }
 
     /**
+     * Replaces a single section of an existing workout with a saved library block.
+     * The current block for the section is rotated into the matching {@code prev_*}
+     * column to support single-step undo, exactly as with a content edit.
+     *
+     * <p>The library block must belong to the authenticated user and its section
+     * type must match the target section. If the section is already using the
+     * requested block, the call short-circuits as a no-op.</p>
+     *
+     * <p>If a previous block was already in the {@code prev_*} slot, that block
+     * is dropped as an orphan provided it is not itself a library block.</p>
+     *
+     * @param workoutId   the ID of the workout to update
+     * @param userId      the authenticated user's ID
+     * @param sectionType the section to replace
+     * @param blockId     the ID of the library block to use as the replacement
+     * @return the updated workout
+     * @throws WorkoutNotFoundException    if no workout exists for this user
+     * @throws BlockNotFoundException      if the block does not exist or belongs to a different user
+     * @throws InvalidSectionTypeException if the block's section type does not match the target section
+     */
+    @Transactional
+    public Workout replaceWorkoutSectionWithBlock(UUID workoutId, UUID userId,
+                                                  SectionType sectionType, UUID blockId) {
+        log.info("Replacing section {} on workout {} with block {} for user {}",
+                sectionType, workoutId, blockId, userId);
+
+        Workout workout = getWorkoutForUser(workoutId, userId);
+
+        Block libraryBlock = blockRepository.findById(blockId)
+                .orElseThrow(() -> new BlockNotFoundException(blockId));
+
+        // Ownership check: a block belonging to a different user must not be linked
+        if (!libraryBlock.getUserId().equals(userId)) {
+            throw new BlockNotFoundException(blockId);
+        }
+
+        // Section type check: the block must match the section being replaced
+        if (libraryBlock.getSectionType() != sectionType) {
+            throw new InvalidSectionTypeException(
+                    "Block section type " + libraryBlock.getSectionType()
+                    + " does not match target section " + sectionType + ".");
+        }
+
+        Block currentBlock = currentBlockFor(workout, sectionType);
+
+        // No-op short-circuit: if this block is already the active one, do nothing
+        if (currentBlock != null && currentBlock.getId().equals(blockId)) {
+            log.debug("Skipping replace on workout {} section {}: block already active", workoutId, sectionType);
+            return workout;
+        }
+
+        Block displacedPrev = prevBlockFor(workout, sectionType);
+
+        applySectionUpdate(workout, sectionType, libraryBlock, currentBlock);
+
+        Workout saved = workoutRepository.save(workout);
+
+        // Drop the displaced previous block as an orphan, but never touch a
+        // library block since the user saved it intentionally
+        if (displacedPrev != null && !displacedPrev.isLibraryBlock()) {
+            blockRepository.delete(displacedPrev);
+        }
+
+        return saved;
+    }
+
+    /**
      * Updates the metadata fields (name, author, description) of an existing
      * workout. Used by the editor when the user edits these fields inline.
      *
@@ -265,9 +334,16 @@ public class WorkoutService {
     }
 
     /**
-     * Reverts the most recent change to a single workout section by swapping
-     * the current and previous block IDs. Pressing undo a second time
-     * therefore acts as a redo, since both blocks are still referenced.
+     * Reverts the most recent change to a single workout section.
+     *
+     * <p>For the main set, a previous block must exist. Pressing undo a second
+     * time acts as a redo, since both blocks remain referenced.</p>
+     *
+     * <p>For the optional warm-up and cool-down sections, undo with no previous
+     * block removes the section entirely: the current block moves to the prev
+     * slot so it can be restored by pressing undo again. This lets the user
+     * undo the very first addition to an optional section without needing to
+     * manually delete every interval.</p>
      *
      * <p>Undo never deletes any blocks; orphan cleanup only happens during a
      * real edit via {@link #updateWorkoutSection}.</p>
@@ -276,8 +352,8 @@ public class WorkoutService {
      * @param userId      the authenticated user's ID
      * @param sectionType the section to revert
      * @return the updated workout after the swap
-     * @throws WorkoutNotFoundException  if no workout exists for this user
-     * @throws NoPreviousStateException  if the section has no previous block
+     * @throws WorkoutNotFoundException if no workout exists for this user
+     * @throws NoPreviousStateException if the main set has no previous block
      */
     @Transactional
     public Workout undoWorkoutSection(UUID workoutId, UUID userId, SectionType sectionType) {
@@ -286,12 +362,19 @@ public class WorkoutService {
         Workout workout = getWorkoutForUser(workoutId, userId);
         Block prev = prevBlockFor(workout, sectionType);
 
-        if (prev == null) {
+        if (prev == null && sectionType == SectionType.MAINSET) {
             throw new NoPreviousStateException(sectionType);
         }
 
         Block current = currentBlockFor(workout, sectionType);
-        applySectionUpdate(workout, sectionType, prev, current);
+
+        if (prev == null) {
+            // No previous block for an optional section: remove it and park
+            // the current block in the prev slot so it can be restored.
+            applySectionUpdate(workout, sectionType, null, current);
+        } else {
+            applySectionUpdate(workout, sectionType, prev, current);
+        }
 
         return workoutRepository.save(workout);
     }
