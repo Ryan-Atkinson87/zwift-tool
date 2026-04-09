@@ -15,9 +15,13 @@ import { IntervalEditor } from './components/workout/IntervalEditor.tsx'
 import { IntervalListEditor } from './components/workout/IntervalListEditor.tsx'
 import { TextEventEditor } from './components/workout/TextEventEditor.tsx'
 import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
+import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
+import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata } from './api/workouts'
+import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
+import { useBlocks } from './hooks/useBlocks.ts'
 import type { ParsedWorkout, ParsedInterval, SectionType, TextEvent } from './types/workout'
 import { type Zone } from './utils/zonePresets'
 import { buildSectionDraft, currentSectionBlock, sumIntervalDuration as sumDuration } from './utils/editorDraft'
@@ -65,6 +69,13 @@ export function App(): JSX.Element {
         savePreset: saveEffectiveZonePreset,
         resetPreset: resetEffectiveZonePreset,
     } = useZonePresets(isAuthenticated)
+    const {
+        blocks: libraryBlocks,
+        isLoading: isLoadingBlocks,
+        error: blocksError,
+        reload: reloadBlocks,
+    } = useBlocks(isAuthenticated)
+    const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
 
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
@@ -411,6 +422,37 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Saves the current section to the block library using the name and
+     * description provided by the user in the save modal. Reloads the
+     * library panel immediately after a successful save.
+     */
+    async function handleConfirmSaveToLibrary(
+        name: string,
+        description: string | null,
+    ): Promise<void> {
+        if (selectedWorkout === null || saveToLibrarySection === null) {
+            return
+        }
+
+        const block = currentSectionBlock(selectedWorkout, saveToLibrarySection)
+        if (block === null) {
+            return
+        }
+
+        await saveBlock({
+            name,
+            description,
+            sectionType: saveToLibrarySection,
+            content: JSON.stringify(block.intervals),
+            durationSeconds: block.durationSeconds,
+            intervalCount: block.intervalCount,
+        })
+
+        setSaveToLibrarySection(null)
+        void reloadBlocks()
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -502,6 +544,7 @@ export function App(): JSX.Element {
                             setSelectedInterval({ sectionType: section, intervalIndex: index })
                         }
                         selectedInterval={selectedInterval}
+                        onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
                     />
 
                     {selectedWorkout !== null && (
@@ -562,6 +605,12 @@ export function App(): JSX.Element {
                             Auto-save failed: {autosaveError}
                         </p>
                     )}
+
+                    <BlockLibrary
+                        blocks={libraryBlocks}
+                        isLoading={isLoadingBlocks}
+                        error={blocksError}
+                    />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />
 
@@ -627,6 +676,13 @@ export function App(): JSX.Element {
                 sectionType={addBlockSection}
                 onClose={() => setAddBlockSection(null)}
                 onConfirm={(section, interval) => handleAddInterval(section, interval)}
+            />
+
+            <SaveToLibraryModal
+                isOpen={saveToLibrarySection !== null}
+                sectionType={saveToLibrarySection}
+                onClose={() => setSaveToLibrarySection(null)}
+                onConfirm={(name, description) => handleConfirmSaveToLibrary(name, description)}
             />
 
             <ZonePresetSettings
