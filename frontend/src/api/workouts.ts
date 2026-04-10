@@ -330,6 +330,53 @@ export async function replaceWorkoutSection(
     return mapWorkoutDetailPayload(payload)
 }
 
+/** Request body for bulk-replacing a section across multiple workouts. */
+export interface BulkReplaceRequest {
+    workoutIds: string[]
+    sectionType: SectionType
+    blockId: string
+}
+
+/**
+ * Replaces the same section across multiple workouts using a saved library
+ * block. The backend updates each workout and stores the previous block for undo.
+ *
+ * <p>When {@code download} is true, the zip of updated .zwo files returned by
+ * the backend is offered to the browser as a file download. When false, the
+ * response body is discarded and only the database updates take effect.</p>
+ *
+ * @param request  the workout IDs, target section type, and replacement block ID
+ * @param download when true, triggers a browser download of the returned zip
+ * @throws Error if any ownership check fails, the section type mismatches,
+ *               or the request fails
+ */
+export async function bulkReplaceSection(request: BulkReplaceRequest, download: boolean): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/bulk-replace`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to bulk replace section: ${response.status}`)
+    }
+
+    if (!download) {
+        return
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'workouts.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

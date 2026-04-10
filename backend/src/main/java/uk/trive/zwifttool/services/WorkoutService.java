@@ -1,6 +1,8 @@
 package uk.trive.zwifttool.services;
 
+import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -15,6 +17,7 @@ import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutSectionRequest;
 import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.exceptions.BlockNotFoundException;
+import uk.trive.zwifttool.exceptions.BulkReplaceException;
 import uk.trive.zwifttool.exceptions.InvalidSectionTypeException;
 import uk.trive.zwifttool.exceptions.NoPreviousStateException;
 import uk.trive.zwifttool.exceptions.WorkoutNotFoundException;
@@ -38,6 +41,7 @@ public class WorkoutService {
 
     private final WorkoutRepository workoutRepository;
     private final BlockRepository blockRepository;
+    private final ZwoExporter zwoExporter;
 
     /**
      * Returns a summary list of all workouts owned by the given user,
@@ -377,6 +381,93 @@ public class WorkoutService {
         }
 
         return workoutRepository.save(workout);
+    }
+
+    /**
+     * Replaces the same section across multiple workouts using a saved library
+     * block, then returns a zip archive of the updated .zwo files.
+     *
+     * <p>All ownership checks are performed before any mutations are applied.
+     * If any workout ID does not belong to the authenticated user, the entire
+     * operation is rejected and no changes are written.</p>
+     *
+     * <p>For each workout, the current block for the target section is rotated
+     * into the matching {@code prev_*} column (supporting single-step undo),
+     * and the displaced previous block is deleted as an orphan unless it is a
+     * library block.</p>
+     *
+     * @param workoutIds  IDs of the workouts to update
+     * @param sectionType the section to replace on every workout
+     * @param blockId     the ID of the library block to use as the replacement
+     * @param userId      the authenticated user's ID
+     * @return a zip archive containing the updated .zwo file for each workout
+     * @throws WorkoutNotFoundException    if any workout ID does not exist for this user
+     * @throws BlockNotFoundException      if the block does not exist or belongs to a different user
+     * @throws InvalidSectionTypeException if the block's section type does not match the target section
+     * @throws BulkReplaceException        if the zip cannot be assembled after the database updates
+     */
+    @Transactional
+    public byte[] bulkReplaceSection(List<UUID> workoutIds, SectionType sectionType,
+                                     UUID blockId, UUID userId) {
+        log.info("Bulk-replacing section {} across {} workouts with block {} for user {}",
+                sectionType, workoutIds.size(), blockId, userId);
+
+        Block libraryBlock = blockRepository.findById(blockId)
+                .orElseThrow(() -> new BlockNotFoundException(blockId));
+
+        if (!libraryBlock.getUserId().equals(userId)) {
+            throw new BlockNotFoundException(blockId);
+        }
+
+        if (libraryBlock.getSectionType() != sectionType) {
+            throw new InvalidSectionTypeException(
+                    "Block section type " + libraryBlock.getSectionType()
+                    + " does not match target section " + sectionType + ".");
+        }
+
+        // Fetch and validate all workouts before making any changes.
+        // A single unauthorised ID rejects the entire request.
+        List<Workout> workouts = new ArrayList<>(workoutIds.size());
+        for (UUID workoutId : workoutIds) {
+            workouts.add(getWorkoutForUser(workoutId, userId));
+        }
+
+        // Apply the same undo rotation used by replaceWorkoutSectionWithBlock,
+        // one workout at a time inside the shared transaction.
+        List<Block> orphansToDelete = new ArrayList<>();
+        for (Workout workout : workouts) {
+            Block currentBlock = currentBlockFor(workout, sectionType);
+
+            // Skip if this section already uses the requested block
+            if (currentBlock != null && currentBlock.getId().equals(blockId)) {
+                log.debug("Skipping workout {} section {}: block already active", workout.getId(), sectionType);
+                continue;
+            }
+
+            Block displacedPrev = prevBlockFor(workout, sectionType);
+            applySectionUpdate(workout, sectionType, libraryBlock, currentBlock);
+            workoutRepository.save(workout);
+
+            if (displacedPrev != null && !displacedPrev.isLibraryBlock()) {
+                orphansToDelete.add(displacedPrev);
+            }
+        }
+
+        // Delete orphaned previous blocks only after all workouts are saved
+        // so a mid-loop failure does not leave blocks deleted but workouts un-updated
+        for (Block orphan : orphansToDelete) {
+            blockRepository.delete(orphan);
+        }
+
+        // Re-fetch updated workouts so the block relations reflect the committed state
+        List<Workout> updatedWorkouts = workoutRepository.findAllById(workoutIds);
+
+        try {
+            return zwoExporter.buildZip(updatedWorkouts);
+        } catch (IOException e) {
+            log.error("Failed to build zip for bulk replace by user {}: {}", userId, e.getMessage(), e);
+            throw new BulkReplaceException("Failed to build zip archive after updating workouts.");
+        }
     }
 
     /**

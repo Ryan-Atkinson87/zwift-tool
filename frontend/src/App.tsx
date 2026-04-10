@@ -18,9 +18,10 @@ import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
 import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
 import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
+import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
 import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection } from './api/workouts'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
@@ -85,6 +86,9 @@ export function App(): JSX.Element {
     const [isCreateBlockOpen, setIsCreateBlockOpen] = useState(false)
     const [isReplacing, setIsReplacing] = useState(false)
     const [replaceError, setReplaceError] = useState<string | null>(null)
+    const [isBulkReplaceOpen, setIsBulkReplaceOpen] = useState(false)
+    const [isBulkReplacing, setIsBulkReplacing] = useState(false)
+    const [bulkReplaceError, setBulkReplaceError] = useState<string | null>(null)
 
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
@@ -506,6 +510,34 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Bulk-replaces the same section across all selected workouts using the
+     * chosen library block, then downloads the updated .zwo files as a zip.
+     * Clears the selection and closes the modal on success.
+     */
+    async function handleConfirmBulkReplace(sectionType: SectionType, blockId: string, download: boolean): Promise<void> {
+        setIsBulkReplacing(true)
+        setBulkReplaceError(null)
+
+        try {
+            await bulkReplaceSection({
+                workoutIds: selectedWorkoutIds,
+                sectionType,
+                blockId,
+            }, download)
+            setIsBulkReplaceOpen(false)
+            setBulkReplaceError(null)
+            setSelectedWorkoutIds([])
+            void reloadWorkouts()
+        } catch (err) {
+            setBulkReplaceError(
+                err instanceof Error ? err.message : 'Failed to bulk replace section.',
+            )
+        } finally {
+            setIsBulkReplacing(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -571,6 +603,10 @@ export function App(): JSX.Element {
                         <BulkActionsToolbar
                             selectedCount={selectedWorkoutIds.length}
                             onClearSelection={handleClearSelection}
+                            onBulkReplace={() => {
+                                setBulkReplaceError(null)
+                                setIsBulkReplaceOpen(true)
+                            }}
                         />
                     )}
 
@@ -765,6 +801,20 @@ export function App(): JSX.Element {
                 isOpen={isCreateBlockOpen}
                 onClose={() => setIsCreateBlockOpen(false)}
                 onSaved={() => void reloadBlocks()}
+            />
+
+            <BulkReplaceModal
+                isOpen={isBulkReplaceOpen}
+                selectedWorkoutIds={selectedWorkoutIds}
+                workouts={savedWorkouts}
+                blocks={libraryBlocks}
+                isBulkReplacing={isBulkReplacing}
+                error={bulkReplaceError}
+                onClose={() => {
+                    setIsBulkReplaceOpen(false)
+                    setBulkReplaceError(null)
+                }}
+                onConfirm={(sectionType, blockId, download) => void handleConfirmBulkReplace(sectionType, blockId, download)}
             />
 
             <ZonePresetSettings

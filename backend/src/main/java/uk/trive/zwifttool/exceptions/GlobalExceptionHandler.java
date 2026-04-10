@@ -145,6 +145,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles failures assembling the zip archive after a bulk section
+     * replacement has been applied to the database.
+     *
+     * @param ex the exception
+     * @return HTTP 500 Internal Server Error
+     */
+    @ExceptionHandler(BulkReplaceException.class)
+    public ResponseEntity<Map<String, String>> handleBulkReplace(BulkReplaceException ex) {
+        log.error("Bulk replace zip assembly failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Catches all unhandled exceptions and logs them at ERROR level with
      * full stack traces before returning a generic error response.
      *

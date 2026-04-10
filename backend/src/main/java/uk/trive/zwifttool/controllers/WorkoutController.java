@@ -3,7 +3,9 @@ package uk.trive.zwifttool.controllers;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
+import uk.trive.zwifttool.controllers.dto.BulkReplaceRequest;
 import uk.trive.zwifttool.controllers.dto.ReplaceWithBlockRequest;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
@@ -180,6 +183,35 @@ public class WorkoutController {
         Workout workout = workoutService.replaceWorkoutSectionWithBlock(
                 workoutId, userId, request.getSectionType(), request.getBlockId());
         return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Replaces the same section across multiple workouts using a saved library
+     * block and returns a zip archive of the updated .zwo files for download.
+     *
+     * <p>All workout IDs and the replacement block must belong to the
+     * authenticated user. If any ownership check fails, the entire request
+     * is rejected with no changes applied.</p>
+     *
+     * @param request the workout IDs, target section, and replacement block ID
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the zip archive as an attachment
+     */
+    @PostMapping("/bulk-replace")
+    public ResponseEntity<byte[]> bulkReplaceSection(
+            @Valid @RequestBody BulkReplaceRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        byte[] zip = workoutService.bulkReplaceSection(
+                request.getWorkoutIds(),
+                request.getSectionType(),
+                request.getBlockId(),
+                userId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"workouts.zip\"")
+                .body(zip);
     }
 
     /**
