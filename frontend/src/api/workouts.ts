@@ -296,6 +296,154 @@ function mapBlock(block: BlockDetailPayload | null): BlockDetail | null {
     }
 }
 
+/** Request body for replacing a section with a saved library block. */
+export interface ReplaceWithBlockRequest {
+    sectionType: SectionType
+    blockId: string
+}
+
+/**
+ * Replaces a single section of an existing workout with a saved library block.
+ * The current section block is rotated into the prev slot for undo.
+ *
+ * @param workoutId the ID of the workout to update
+ * @param request   the target section and the library block ID to use
+ * @throws Error if the block does not exist, the section type mismatches,
+ *               the user is not authorised, or the request fails
+ */
+export async function replaceWorkoutSection(
+    workoutId: string,
+    request: ReplaceWithBlockRequest,
+): Promise<WorkoutDetail> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/replace-section`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to replace section: ${response.status}`)
+    }
+
+    const payload: WorkoutDetailPayload = await response.json()
+    return mapWorkoutDetailPayload(payload)
+}
+
+/** Request body for bulk-replacing a section across multiple workouts. */
+export interface BulkReplaceRequest {
+    workoutIds: string[]
+    sectionType: SectionType
+    blockId: string
+}
+
+/**
+ * Replaces the same section across multiple workouts using a saved library
+ * block. The backend updates each workout and stores the previous block for undo.
+ *
+ * <p>When {@code download} is true, the zip of updated .zwo files returned by
+ * the backend is offered to the browser as a file download. When false, the
+ * response body is discarded and only the database updates take effect.</p>
+ *
+ * @param request  the workout IDs, target section type, and replacement block ID
+ * @param download when true, triggers a browser download of the returned zip
+ * @throws Error if any ownership check fails, the section type mismatches,
+ *               or the request fails
+ */
+export async function bulkReplaceSection(request: BulkReplaceRequest, download: boolean): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/bulk-replace`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to bulk replace section: ${response.status}`)
+    }
+
+    if (!download) {
+        return
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'workouts.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
+/**
+ * Downloads the specified workout as a .zwo file. The backend generates
+ * the XML and returns it as an attachment; this function triggers a browser
+ * download using the filename from the Content-Disposition header.
+ *
+ * @param workoutId   the ID of the workout to export
+ * @param workoutName the workout name, used as a fallback filename
+ * @throws Error if the workout does not exist, the user is not authorised,
+ *               or the request fails
+ */
+export async function exportWorkout(workoutId: string, workoutName: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/export`, {
+        method: 'GET',
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to export workout: ${response.status}`)
+    }
+
+    // Use the filename from Content-Disposition if the browser provides it,
+    // otherwise fall back to the workout name sanitised client-side.
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const match = disposition.match(/filename="([^"]+)"/)
+    const filename = match ? match[1] : `${workoutName.replace(/[^a-zA-Z0-9 _-]/g, '_').trim()}.zwo`
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
+/**
+ * Exports a set of workouts as a zip archive of .zwo files and triggers
+ * a browser download. The backend verifies ownership of every ID before
+ * generating the archive.
+ *
+ * @param workoutIds the IDs of the workouts to include in the zip
+ * @throws Error if any workout is not found, the user is not authorised,
+ *               or the request fails
+ */
+export async function exportWorkouts(workoutIds: string[]): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workoutIds }),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to export workouts: ${response.status}`)
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'zwift-workouts.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

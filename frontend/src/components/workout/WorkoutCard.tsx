@@ -4,45 +4,69 @@ import type { WorkoutSummary } from '../../types/workout'
 interface Props {
     workout: WorkoutSummary
     isSelected: boolean
+    isChecked: boolean
     onSelect: (id: string) => void
+    onToggle: (id: string) => void
 }
 
 /**
  * Displays a single saved workout as a clickable card in the workout
  * list panel. Shows the workout name, the formatted last-updated date,
  * total duration, and a draft indicator if the workout is still a draft.
- * Calls {@code onSelect} with the workout ID on click.
+ * Calls {@code onSelect} with the workout ID on card body click. Calls
+ * {@code onToggle} with the workout ID when the checkbox is toggled,
+ * allowing the card body and checkbox to act as independent targets.
  */
-export function WorkoutCard({ workout, isSelected, onSelect }: Props): JSX.Element {
+export function WorkoutCard({ workout, isSelected, isChecked, onSelect, onToggle }: Props): JSX.Element {
     return (
-        <button
-            type="button"
-            onClick={() => onSelect(workout.id)}
+        <div
             className={`
-                flex flex-col items-start
-                w-full px-4 py-3
-                text-left
+                flex items-stretch
+                w-full
                 rounded-md border transition-colors
                 ${isSelected
                     ? 'bg-zinc-700 border-indigo-500'
-                    : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}
+                    : 'bg-zinc-800 border-zinc-700'}
             `}
         >
-            <div className="flex items-center justify-between w-full gap-2">
-                <span className="text-sm font-medium text-white truncate">
-                    {workout.name}
-                </span>
-                {workout.isDraft && (
-                    <span className="px-2 py-0.5 bg-amber-900/50 text-amber-300 text-xs rounded">
-                        Draft
+            {/* Checkbox — independent click target; does not open the workout */}
+            <label className="flex items-center px-3 cursor-pointer shrink-0">
+                <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => onToggle(workout.id)}
+                    aria-label={`Select ${workout.name}`}
+                    className="w-4 h-4 rounded accent-indigo-500 cursor-pointer"
+                />
+            </label>
+
+            {/* Card body — opens the workout */}
+            <button
+                type="button"
+                onClick={() => onSelect(workout.id)}
+                className={`
+                    flex flex-col items-start flex-1 min-w-0
+                    px-3 py-3
+                    text-left
+                    hover:bg-zinc-700 transition-colors rounded-r-md
+                `}
+            >
+                <div className="flex items-center justify-between w-full gap-2">
+                    <span className="text-sm font-medium text-white truncate">
+                        {workout.name}
                     </span>
-                )}
-            </div>
-            <div className="flex items-center justify-between w-full mt-1 text-xs text-zinc-400">
-                <span>Updated {formatRelativeDate(workout.updatedAt)}</span>
-                <span>{formatDuration(workout.durationSeconds)}</span>
-            </div>
-        </button>
+                    {workout.isDraft && (
+                        <span className="px-2 py-0.5 bg-amber-900/50 text-amber-300 text-xs rounded">
+                            Draft
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center justify-between w-full mt-1 text-xs text-zinc-400">
+                    <span>Updated {formatRelativeDate(workout.updatedAt)}</span>
+                    <span>{formatDuration(workout.durationSeconds)}</span>
+                </div>
+            </button>
+        </div>
     )
 }
 

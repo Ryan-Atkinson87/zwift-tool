@@ -97,13 +97,13 @@ export function IntervalEditor({
     )
 }
 
-interface FieldsProps {
+export interface IntervalFieldsProps {
     draft: ParsedInterval
     onChange: (next: ParsedInterval) => void
 }
 
 /** Renders the per-type field set for the interval being edited. */
-function IntervalFields({ draft, onChange }: FieldsProps): JSX.Element {
+export function IntervalFields({ draft, onChange }: IntervalFieldsProps): JSX.Element {
     if (draft.type === 'IntervalsT') {
         return (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

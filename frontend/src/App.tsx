@@ -15,9 +15,17 @@ import { IntervalEditor } from './components/workout/IntervalEditor.tsx'
 import { IntervalListEditor } from './components/workout/IntervalListEditor.tsx'
 import { TextEventEditor } from './components/workout/TextEventEditor.tsx'
 import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata } from './api/workouts'
+import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
+import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
+import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
+import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
+import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
+import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts } from './api/workouts'
+import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
+import { useBlocks } from './hooks/useBlocks.ts'
 import type { ParsedWorkout, ParsedInterval, SectionType, TextEvent } from './types/workout'
 import { type Zone } from './utils/zonePresets'
 import { buildSectionDraft, currentSectionBlock, sumIntervalDuration as sumDuration } from './utils/editorDraft'
@@ -37,6 +45,7 @@ export function App(): JSX.Element {
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+    const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([])
     const {
         workouts: savedWorkouts,
         isLoading: isLoadingWorkouts,
@@ -65,6 +74,23 @@ export function App(): JSX.Element {
         savePreset: saveEffectiveZonePreset,
         resetPreset: resetEffectiveZonePreset,
     } = useZonePresets(isAuthenticated)
+    const {
+        blocks: libraryBlocks,
+        isLoading: isLoadingBlocks,
+        error: blocksError,
+        reload: reloadBlocks,
+        deleteBlock: deleteLibraryBlock,
+    } = useBlocks(isAuthenticated)
+    const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
+    const [replaceSectionType, setReplaceSectionType] = useState<SectionType | null>(null)
+    const [isCreateBlockOpen, setIsCreateBlockOpen] = useState(false)
+    const [isReplacing, setIsReplacing] = useState(false)
+    const [replaceError, setReplaceError] = useState<string | null>(null)
+    const [isBulkReplaceOpen, setIsBulkReplaceOpen] = useState(false)
+    const [isBulkReplacing, setIsBulkReplacing] = useState(false)
+    const [bulkReplaceError, setBulkReplaceError] = useState<string | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
+    const [exportError, setExportError] = useState<string | null>(null)
 
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
@@ -90,6 +116,16 @@ export function App(): JSX.Element {
 
     async function handleSignIn(email: string, password: string): Promise<void> {
         await signIn({ email, password })
+    }
+
+    function handleToggleWorkoutSelect(id: string): void {
+        setSelectedWorkoutIds((prev) =>
+            prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id],
+        )
+    }
+
+    function handleClearSelection(): void {
+        setSelectedWorkoutIds([])
     }
 
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
@@ -411,6 +447,140 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Saves the current section to the block library using the name and
+     * description provided by the user in the save modal. Reloads the
+     * library panel immediately after a successful save.
+     */
+    async function handleConfirmSaveToLibrary(
+        name: string,
+        description: string | null,
+    ): Promise<void> {
+        if (selectedWorkout === null || saveToLibrarySection === null) {
+            return
+        }
+
+        const block = currentSectionBlock(selectedWorkout, saveToLibrarySection)
+        if (block === null) {
+            return
+        }
+
+        await saveBlock({
+            name,
+            description,
+            sectionType: saveToLibrarySection,
+            content: JSON.stringify(block.intervals),
+            durationSeconds: block.durationSeconds,
+            intervalCount: block.intervalCount,
+        })
+
+        await reloadBlocks()
+        setSaveToLibrarySection(null)
+    }
+
+    /**
+     * Opens the replace modal for the given section.
+     */
+    function handleReplaceSection(sectionType: SectionType): void {
+        setReplaceSectionType(sectionType)
+        setReplaceError(null)
+    }
+
+    /**
+     * Replaces the targeted section with the chosen library block, applies
+     * the updated workout to the canvas, and closes the modal.
+     */
+    async function handleConfirmReplace(blockId: string): Promise<void> {
+        if (selectedWorkoutId === null || replaceSectionType === null) {
+            return
+        }
+
+        setIsReplacing(true)
+        setReplaceError(null)
+
+        try {
+            const updated = await replaceWorkoutSection(selectedWorkoutId, {
+                sectionType: replaceSectionType,
+                blockId,
+            })
+            applySelectedWorkoutUpdate(updated)
+            setReplaceSectionType(null)
+        } catch (err) {
+            setReplaceError(err instanceof Error ? err.message : 'Failed to replace section.')
+        } finally {
+            setIsReplacing(false)
+        }
+    }
+
+    /**
+     * Bulk-replaces the same section across all selected workouts using the
+     * chosen library block, then downloads the updated .zwo files as a zip.
+     * Clears the selection and closes the modal on success.
+     */
+    async function handleConfirmBulkReplace(sectionType: SectionType, blockId: string, download: boolean): Promise<void> {
+        setIsBulkReplacing(true)
+        setBulkReplaceError(null)
+
+        try {
+            await bulkReplaceSection({
+                workoutIds: selectedWorkoutIds,
+                sectionType,
+                blockId,
+            }, download)
+            setIsBulkReplaceOpen(false)
+            setBulkReplaceError(null)
+            setSelectedWorkoutIds([])
+            void reloadWorkouts()
+        } catch (err) {
+            setBulkReplaceError(
+                err instanceof Error ? err.message : 'Failed to bulk replace section.',
+            )
+        } finally {
+            setIsBulkReplacing(false)
+        }
+    }
+
+    /**
+     * Requests the selected workout as a .zwo file from the backend and
+     * triggers a browser download. Disabled while a download is in progress.
+     */
+    async function handleExportWorkout(): Promise<void> {
+        if (selectedWorkoutId === null || selectedWorkout === null) {
+            return
+        }
+        setIsExporting(true)
+        setExportError(null)
+        try {
+            await exportWorkout(selectedWorkoutId, selectedWorkout.name)
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : 'Failed to export workout.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
+    /**
+     * Exports a set of workouts as a zip archive. When called from the
+     * bulk actions toolbar, only the checked workouts are included. When
+     * called from the "Export all" button, all saved workouts are included.
+     *
+     * @param workoutIds the IDs to include in the zip
+     */
+    async function handleExportSelected(workoutIds: string[]): Promise<void> {
+        if (workoutIds.length === 0) {
+            return
+        }
+        setIsExporting(true)
+        setExportError(null)
+        try {
+            await exportWorkouts(workoutIds)
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : 'Failed to export workouts.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -430,7 +600,7 @@ export function App(): JSX.Element {
                             Signed in as <span className="text-white font-medium">{user?.email}</span>
                         </p>
                         <button
-                            onClick={() => void signOut()}
+                            onClick={() => { handleClearSelection(); void signOut() }}
                             className={`
                                 px-4 py-2
                                 bg-zinc-700 text-white
@@ -458,6 +628,22 @@ export function App(): JSX.Element {
                         >
                             New workout
                         </button>
+                        {savedWorkouts.length > 0 && (
+                            <button
+                                onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
+                                disabled={isExporting}
+                                className={`
+                                    px-4 py-2
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                `}
+                            >
+                                {isExporting ? 'Exporting...' : 'Export all'}
+                            </button>
+                        )}
                         <button
                             onClick={() => setIsZonePresetSettingsOpen(true)}
                             className={`
@@ -472,12 +658,27 @@ export function App(): JSX.Element {
                         </button>
                     </div>
 
+                    {selectedWorkoutIds.length > 1 && (
+                        <BulkActionsToolbar
+                            selectedCount={selectedWorkoutIds.length}
+                            isExporting={isExporting}
+                            onClearSelection={handleClearSelection}
+                            onBulkReplace={() => {
+                                setBulkReplaceError(null)
+                                setIsBulkReplaceOpen(true)
+                            }}
+                            onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
+                        />
+                    )}
+
                     <WorkoutList
                         workouts={savedWorkouts}
                         isLoading={isLoadingWorkouts}
                         error={workoutsError}
                         selectedWorkoutId={selectedWorkoutId}
+                        selectedWorkoutIds={selectedWorkoutIds}
                         onSelect={setSelectedWorkoutId}
+                        onToggleSelect={handleToggleWorkoutSelect}
                     />
 
                     {selectedWorkout !== null && (
@@ -487,6 +688,29 @@ export function App(): JSX.Element {
                             onSave={(next) => void handleSaveMetadata(next)}
                             isSaving={isSavingMetadata}
                         />
+                    )}
+
+                    {selectedWorkout !== null && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => void handleExportWorkout()}
+                                disabled={isExporting}
+                                className={`
+                                    px-4 py-2
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                `}
+                            >
+                                {isExporting ? 'Exporting...' : 'Export .zwo'}
+                            </button>
+                        </div>
+                    )}
+
+                    {exportError !== null && (
+                        <p className="text-sm text-red-300">{exportError}</p>
                     )}
 
                     <WorkoutCanvas
@@ -502,6 +726,8 @@ export function App(): JSX.Element {
                             setSelectedInterval({ sectionType: section, intervalIndex: index })
                         }
                         selectedInterval={selectedInterval}
+                        onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
+                        onReplaceSection={handleReplaceSection}
                     />
 
                     {selectedWorkout !== null && (
@@ -562,6 +788,14 @@ export function App(): JSX.Element {
                             Auto-save failed: {autosaveError}
                         </p>
                     )}
+
+                    <BlockLibrary
+                        blocks={libraryBlocks}
+                        isLoading={isLoadingBlocks}
+                        error={blocksError}
+                        onCreateBlock={() => setIsCreateBlockOpen(true)}
+                        onDeleteBlock={deleteLibraryBlock}
+                    />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />
 
@@ -627,6 +861,44 @@ export function App(): JSX.Element {
                 sectionType={addBlockSection}
                 onClose={() => setAddBlockSection(null)}
                 onConfirm={(section, interval) => handleAddInterval(section, interval)}
+            />
+
+            <SaveToLibraryModal
+                isOpen={saveToLibrarySection !== null}
+                sectionType={saveToLibrarySection}
+                onClose={() => setSaveToLibrarySection(null)}
+                onConfirm={(name, description) => handleConfirmSaveToLibrary(name, description)}
+            />
+
+            <ReplaceWithBlockModal
+                key={replaceSectionType}
+                isOpen={replaceSectionType !== null}
+                sectionType={replaceSectionType}
+                blocks={libraryBlocks}
+                isReplacing={isReplacing}
+                error={replaceError}
+                onClose={() => setReplaceSectionType(null)}
+                onConfirm={(blockId) => void handleConfirmReplace(blockId)}
+            />
+
+            <CreateBlockModal
+                isOpen={isCreateBlockOpen}
+                onClose={() => setIsCreateBlockOpen(false)}
+                onSaved={() => void reloadBlocks()}
+            />
+
+            <BulkReplaceModal
+                isOpen={isBulkReplaceOpen}
+                selectedWorkoutIds={selectedWorkoutIds}
+                workouts={savedWorkouts}
+                blocks={libraryBlocks}
+                isBulkReplacing={isBulkReplacing}
+                error={bulkReplaceError}
+                onClose={() => {
+                    setIsBulkReplaceOpen(false)
+                    setBulkReplaceError(null)
+                }}
+                onConfirm={(sectionType, blockId, download) => void handleConfirmBulkReplace(sectionType, blockId, download)}
             />
 
             <ZonePresetSettings

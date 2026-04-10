@@ -4,9 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import uk.trive.zwifttool.repositories.BlockRepository;
 import uk.trive.zwifttool.repositories.UserIdentityRepository;
 import uk.trive.zwifttool.repositories.UserRepository;
 import uk.trive.zwifttool.repositories.UserSessionRepository;
+import uk.trive.zwifttool.repositories.WorkoutRepository;
+import uk.trive.zwifttool.repositories.ZonePresetRepository;
 
 /**
  * Smoke tests that verify the Spring application context loads without errors.
@@ -25,6 +28,15 @@ class ZwiftToolApplicationTests {
 
     @MockitoBean
     private UserSessionRepository userSessionRepository;
+
+    @MockitoBean
+    private WorkoutRepository workoutRepository;
+
+    @MockitoBean
+    private BlockRepository blockRepository;
+
+    @MockitoBean
+    private ZonePresetRepository zonePresetRepository;
 
     @Test
     void contextLoads() {

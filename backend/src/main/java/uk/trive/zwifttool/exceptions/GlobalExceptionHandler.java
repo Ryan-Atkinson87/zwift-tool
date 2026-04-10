@@ -106,6 +106,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles requests for a block that does not exist, or that exists
+     * but belongs to a different user. Both cases collapse to 404 to avoid
+     * leaking the existence of other users' blocks.
+     *
+     * @param ex the exception
+     * @return HTTP 404 Not Found
+     */
+    @ExceptionHandler(BlockNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleBlockNotFound(BlockNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * Handles replacement requests where the library block's section type
+     * does not match the target section on the workout.
+     *
+     * @param ex the exception
+     * @return HTTP 400 Bad Request
+     */
+    @ExceptionHandler(InvalidSectionTypeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidSectionType(InvalidSectionTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
      * Handles undo requests on a section that has no previous state.
      *
      * @param ex the exception
@@ -114,6 +141,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoPreviousStateException.class)
     public ResponseEntity<Map<String, String>> handleNoPreviousState(NoPreviousStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * Handles failures assembling the zip archive after a bulk section
+     * replacement has been applied to the database.
+     *
+     * @param ex the exception
+     * @return HTTP 500 Internal Server Error
+     */
+    @ExceptionHandler(BulkReplaceException.class)
+    public ResponseEntity<Map<String, String>> handleBulkReplace(BulkReplaceException ex) {
+        log.error("Bulk replace zip assembly failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", ex.getMessage()));
     }
 

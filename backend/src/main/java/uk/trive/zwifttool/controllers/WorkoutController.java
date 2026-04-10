@@ -1,9 +1,12 @@
 package uk.trive.zwifttool.controllers;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +21,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
+import uk.trive.zwifttool.controllers.dto.BulkReplaceRequest;
+import uk.trive.zwifttool.controllers.dto.ExportWorkoutsRequest;
+import uk.trive.zwifttool.controllers.dto.ReplaceWithBlockRequest;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
 import uk.trive.zwifttool.controllers.dto.UpdateWorkoutMetadataRequest;
@@ -28,6 +34,7 @@ import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.Workout;
 import uk.trive.zwifttool.services.WorkoutService;
+import uk.trive.zwifttool.services.ZwoExporter;
 
 /**
  * Handles workout endpoints: saving, updating, deleting, and bulk operations.
@@ -42,6 +49,7 @@ import uk.trive.zwifttool.services.WorkoutService;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final ZwoExporter zwoExporter;
 
     /**
      * Returns all workouts for the authenticated user as a lightweight
@@ -80,6 +88,59 @@ public class WorkoutController {
     ) {
         Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
         return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Generates and returns a .zwo file for the specified workout. The file
+     * contains all sections (warm-up if present, main set, cool-down if present)
+     * and any text events, serialised to the Zwift XML format.
+     *
+     * <p>Returns HTTP 404 when the workout does not exist or belongs to a
+     * different user, to avoid leaking existence.</p>
+     *
+     * @param workoutId the ID of the workout to export
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the .zwo XML file as an attachment
+     */
+    @GetMapping("/{workoutId}/export")
+    public ResponseEntity<byte[]> exportWorkout(
+            @PathVariable UUID workoutId,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
+        byte[] content = zwoExporter.buildZwoXml(workout).getBytes(StandardCharsets.UTF_8);
+        String filename = zwoExporter.sanitiseFilename(workout.getName()) + ".zwo";
+        log.info("Exporting workout {} as .zwo for user {}", workoutId, userId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/xml"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(content);
+    }
+
+    /**
+     * Exports a set of workouts as a zip archive of .zwo files. Each workout
+     * is verified to belong to the authenticated user. The archive is named
+     * {@code zwift-workouts.zip} and returned as an attachment.
+     *
+     * <p>Returns HTTP 404 if any workout ID does not exist or belongs to a
+     * different user, rejecting the entire request with no files returned.</p>
+     *
+     * @param request the list of workout IDs to export
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the zip archive as an attachment
+     */
+    @PostMapping("/export")
+    public ResponseEntity<byte[]> exportWorkouts(
+            @Valid @RequestBody ExportWorkoutsRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        log.info("Export request for {} workout(s) by user {}", request.getWorkoutIds().size(), userId);
+        byte[] zip = workoutService.exportWorkouts(request.getWorkoutIds(), userId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zwift-workouts.zip\"")
+                .body(zip);
     }
 
     /**
@@ -160,6 +221,57 @@ public class WorkoutController {
     }
 
     /**
+     * Replaces a single section of an existing workout with a saved library
+     * block. The current block for the section is rotated into the prev slot
+     * for single-step undo. The library block must be owned by the authenticated
+     * user and its section type must match the target section.
+     *
+     * @param workoutId the ID of the workout to update
+     * @param request   the target section and the library block ID to use
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated workout detail
+     */
+    @PutMapping("/{workoutId}/replace-section")
+    public ResponseEntity<WorkoutDetailResponse> replaceWorkoutSection(
+            @PathVariable UUID workoutId,
+            @Valid @RequestBody ReplaceWithBlockRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.replaceWorkoutSectionWithBlock(
+                workoutId, userId, request.getSectionType(), request.getBlockId());
+        return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Replaces the same section across multiple workouts using a saved library
+     * block and returns a zip archive of the updated .zwo files for download.
+     *
+     * <p>All workout IDs and the replacement block must belong to the
+     * authenticated user. If any ownership check fails, the entire request
+     * is rejected with no changes applied.</p>
+     *
+     * @param request the workout IDs, target section, and replacement block ID
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the zip archive as an attachment
+     */
+    @PostMapping("/bulk-replace")
+    public ResponseEntity<byte[]> bulkReplaceSection(
+            @Valid @RequestBody BulkReplaceRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        byte[] zip = workoutService.bulkReplaceSection(
+                request.getWorkoutIds(),
+                request.getSectionType(),
+                request.getBlockId(),
+                userId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"workouts.zip\"")
+                .body(zip);
+    }
+
+    /**
      * Maps a Workout entity to the full detail response, including the
      * content of every section block.
      */
@@ -173,7 +285,12 @@ public class WorkoutController {
                 .mainsetBlock(toBlockResponse(workout.getMainsetBlock()))
                 .cooldownBlock(toBlockResponse(workout.getCooldownBlock()))
                 .hasPrevWarmup(workout.getPrevWarmupBlock() != null)
-                .hasPrevMainset(workout.getPrevMainsetBlock() != null)
+                // Only consider prev mainset available for undo if it has actual intervals.
+                // An empty prev block (0 intervals) means the workout was created from scratch
+                // with no initial content, so there is nothing meaningful to undo to.
+                .hasPrevMainset(workout.getPrevMainsetBlock() != null
+                        && workout.getPrevMainsetBlock().getIntervalCount() != null
+                        && workout.getPrevMainsetBlock().getIntervalCount() > 0)
                 .hasPrevCooldown(workout.getPrevCooldownBlock() != null)
                 .isDraft(workout.isDraft())
                 .textEvents(workout.getTextEvents())
