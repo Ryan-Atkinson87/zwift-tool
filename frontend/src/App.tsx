@@ -21,7 +21,7 @@ import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal
 import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
 import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection } from './api/workouts'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
@@ -89,6 +89,8 @@ export function App(): JSX.Element {
     const [isBulkReplaceOpen, setIsBulkReplaceOpen] = useState(false)
     const [isBulkReplacing, setIsBulkReplacing] = useState(false)
     const [bulkReplaceError, setBulkReplaceError] = useState<string | null>(null)
+    const [isExporting, setIsExporting] = useState(false)
+    const [exportError, setExportError] = useState<string | null>(null)
 
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
@@ -538,6 +540,25 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Requests the selected workout as a .zwo file from the backend and
+     * triggers a browser download. Disabled while a download is in progress.
+     */
+    async function handleExportWorkout(): Promise<void> {
+        if (selectedWorkoutId === null || selectedWorkout === null) {
+            return
+        }
+        setIsExporting(true)
+        setExportError(null)
+        try {
+            await exportWorkout(selectedWorkoutId, selectedWorkout.name)
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : 'Failed to export workout.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -627,6 +648,28 @@ export function App(): JSX.Element {
                             onSave={(next) => void handleSaveMetadata(next)}
                             isSaving={isSavingMetadata}
                         />
+                    )}
+
+                    {selectedWorkout !== null && (
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => void handleExportWorkout()}
+                                disabled={isExporting}
+                                className={`
+                                    px-4 py-2
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                `}
+                            >
+                                {isExporting ? 'Exporting...' : 'Export .zwo'}
+                            </button>
+                            {exportError !== null && (
+                                <p className="text-sm text-red-300">{exportError}</p>
+                            )}
+                        </div>
                     )}
 
                     <WorkoutCanvas

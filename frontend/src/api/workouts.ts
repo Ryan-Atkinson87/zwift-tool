@@ -377,6 +377,42 @@ export async function bulkReplaceSection(request: BulkReplaceRequest, download: 
     URL.revokeObjectURL(url)
 }
 
+/**
+ * Downloads the specified workout as a .zwo file. The backend generates
+ * the XML and returns it as an attachment; this function triggers a browser
+ * download using the filename from the Content-Disposition header.
+ *
+ * @param workoutId   the ID of the workout to export
+ * @param workoutName the workout name, used as a fallback filename
+ * @throws Error if the workout does not exist, the user is not authorised,
+ *               or the request fails
+ */
+export async function exportWorkout(workoutId: string, workoutName: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}/export`, {
+        method: 'GET',
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to export workout: ${response.status}`)
+    }
+
+    // Use the filename from Content-Disposition if the browser provides it,
+    // otherwise fall back to the workout name sanitised client-side.
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const match = disposition.match(/filename="([^"]+)"/)
+    const filename = match ? match[1] : `${workoutName.replace(/[^a-zA-Z0-9 _-]/g, '_').trim()}.zwo`
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

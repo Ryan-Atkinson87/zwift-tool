@@ -1,5 +1,6 @@
 package uk.trive.zwifttool.controllers;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +33,7 @@ import uk.trive.zwifttool.controllers.dto.WorkoutSummaryResponse;
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.Workout;
 import uk.trive.zwifttool.services.WorkoutService;
+import uk.trive.zwifttool.services.ZwoExporter;
 
 /**
  * Handles workout endpoints: saving, updating, deleting, and bulk operations.
@@ -46,6 +48,7 @@ import uk.trive.zwifttool.services.WorkoutService;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final ZwoExporter zwoExporter;
 
     /**
      * Returns all workouts for the authenticated user as a lightweight
@@ -84,6 +87,33 @@ public class WorkoutController {
     ) {
         Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
         return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Generates and returns a .zwo file for the specified workout. The file
+     * contains all sections (warm-up if present, main set, cool-down if present)
+     * and any text events, serialised to the Zwift XML format.
+     *
+     * <p>Returns HTTP 404 when the workout does not exist or belongs to a
+     * different user, to avoid leaking existence.</p>
+     *
+     * @param workoutId the ID of the workout to export
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the .zwo XML file as an attachment
+     */
+    @GetMapping("/{workoutId}/export")
+    public ResponseEntity<byte[]> exportWorkout(
+            @PathVariable UUID workoutId,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
+        byte[] content = zwoExporter.buildZwoXml(workout).getBytes(StandardCharsets.UTF_8);
+        String filename = zwoExporter.sanitiseFilename(workout.getName()) + ".zwo";
+        log.info("Exporting workout {} as .zwo for user {}", workoutId, userId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/xml"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(content);
     }
 
     /**

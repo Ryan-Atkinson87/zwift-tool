@@ -61,7 +61,8 @@ public class ZwoExporter {
 
     /**
      * Generates .zwo XML for a single workout. Outputs sections in the
-     * canonical order: warm-up (if present), main set, cool-down (if present).
+     * canonical order: warm-up (if present), main set, cool-down (if present),
+     * followed by any text events.
      *
      * @param workout the workout to serialise
      * @return the .zwo XML string
@@ -87,6 +88,7 @@ public class ZwoExporter {
         if (workout.getCooldownBlock() != null) {
             appendBlockIntervals(sb, workout.getCooldownBlock());
         }
+        appendTextEvents(sb, workout.getTextEvents());
 
         sb.append("  </workout>\n");
         sb.append("</workout_file>\n");
@@ -225,10 +227,38 @@ public class ZwoExporter {
     }
 
     /**
+     * Appends text event elements to the workout XML. Events are emitted in
+     * the order they are stored. Missing, null, or malformed event JSON is
+     * skipped silently so a bad text event cannot break the entire export.
+     *
+     * @param sb             the XML string builder to append to
+     * @param textEventsJson JSON array of text event objects, or null
+     */
+    private void appendTextEvents(StringBuilder sb, String textEventsJson) {
+        if (textEventsJson == null || textEventsJson.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode events = objectMapper.readTree(textEventsJson);
+            for (JsonNode event : events) {
+                int timeOffset = event.path("timeOffsetSeconds").asInt();
+                String message = event.path("message").asText("");
+                sb.append("    <textevent timeoffset=\"").append(timeOffset)
+                        .append("\" message=\"").append(escapeXml(message)).append("\"/>\n");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse text events during .zwo export: {}", e.getMessage());
+        }
+    }
+
+    /**
      * Replaces characters that are unsafe in file system names with underscores.
      * Preserves alphanumeric characters, spaces, hyphens, and underscores.
+     *
+     * @param name the raw workout name
+     * @return the sanitised name, safe for use as a filename
      */
-    private String sanitiseFilename(String name) {
+    public String sanitiseFilename(String name) {
         return name.replaceAll("[^a-zA-Z0-9 _-]", "_").trim();
     }
 
