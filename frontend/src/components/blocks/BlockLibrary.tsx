@@ -8,6 +8,8 @@ interface Props {
     blocks: LibraryBlock[]
     isLoading: boolean
     error: string | null
+    /** Called when the user clicks the "New block" button. */
+    onCreateBlock: () => void
 }
 
 /** Filter options for the section type tabs. 'ALL' shows every block. */
@@ -21,13 +23,13 @@ const FILTER_TABS: Array<{ value: SectionFilter; label: string }> = [
 ]
 
 /**
- * Renders the user's block library with section type filter tabs and an
- * inline interval preview for the selected block.
+ * Renders the user's block library with section type filter tabs, a button
+ * to create new blocks, and an inline interval preview for the selected block.
  *
  * <p>Filtering is applied client-side since all blocks are already loaded.
  * The selected block is cleared when the active filter changes.</p>
  */
-export function BlockLibrary({ blocks, isLoading, error }: Props): JSX.Element {
+export function BlockLibrary({ blocks, isLoading, error, onCreateBlock }: Props): JSX.Element {
     const [activeFilter, setActiveFilter] = useState<SectionFilter>('ALL')
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
 
@@ -69,9 +71,24 @@ export function BlockLibrary({ blocks, isLoading, error }: Props): JSX.Element {
 
     return (
         <div className="flex flex-col w-full max-w-4xl gap-3">
-            <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
-                Block Library
-            </h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
+                    Block Library
+                </h2>
+                <button
+                    type="button"
+                    onClick={onCreateBlock}
+                    className={`
+                        px-3 py-1
+                        bg-indigo-600 text-white
+                        text-xs font-medium
+                        rounded-md
+                        hover:bg-indigo-500 transition-colors
+                    `}
+                >
+                    + New block
+                </button>
+            </div>
 
             {/* Section type filter tabs */}
             <div className="flex gap-1">

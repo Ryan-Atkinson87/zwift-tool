@@ -18,6 +18,7 @@ import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
 import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
 import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
+import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
 import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
@@ -78,6 +79,7 @@ export function App(): JSX.Element {
     } = useBlocks(isAuthenticated)
     const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
     const [replaceSectionType, setReplaceSectionType] = useState<SectionType | null>(null)
+    const [isCreateBlockOpen, setIsCreateBlockOpen] = useState(false)
     const [isReplacing, setIsReplacing] = useState(false)
     const [replaceError, setReplaceError] = useState<string | null>(null)
 
@@ -649,6 +651,7 @@ export function App(): JSX.Element {
                         blocks={libraryBlocks}
                         isLoading={isLoadingBlocks}
                         error={blocksError}
+                        onCreateBlock={() => setIsCreateBlockOpen(true)}
                     />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />
@@ -733,6 +736,12 @@ export function App(): JSX.Element {
                 error={replaceError}
                 onClose={() => setReplaceSectionType(null)}
                 onConfirm={(blockId) => void handleConfirmReplace(blockId)}
+            />
+
+            <CreateBlockModal
+                isOpen={isCreateBlockOpen}
+                onClose={() => setIsCreateBlockOpen(false)}
+                onSaved={() => void reloadBlocks()}
             />
 
             <ZonePresetSettings
