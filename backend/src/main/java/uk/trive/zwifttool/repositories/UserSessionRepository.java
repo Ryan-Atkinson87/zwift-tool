@@ -40,4 +40,15 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
      * @param userId the user whose sessions should be removed
      */
     void deleteByUserId(UUID userId);
+
+    /**
+     * Deletes all sessions that have passed their expiry time.
+     *
+     * <p>Called periodically by the scheduled cleanup task to prevent unbounded
+     * growth of the user_sessions table.</p>
+     *
+     * @param now the current time; all sessions with expiresAt before this are removed
+     * @return the number of rows deleted
+     */
+    int deleteByExpiresAtBefore(Instant now);
 }
