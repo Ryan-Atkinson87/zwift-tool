@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.BlockResponse;
 import uk.trive.zwifttool.controllers.dto.BulkReplaceRequest;
+import uk.trive.zwifttool.controllers.dto.ExportWorkoutsRequest;
 import uk.trive.zwifttool.controllers.dto.ReplaceWithBlockRequest;
 import uk.trive.zwifttool.controllers.dto.SaveWorkoutRequest;
 import uk.trive.zwifttool.controllers.dto.UndoSectionRequest;
@@ -114,6 +115,32 @@ public class WorkoutController {
                 .contentType(MediaType.parseMediaType("application/xml"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .body(content);
+    }
+
+    /**
+     * Exports a set of workouts as a zip archive of .zwo files. Each workout
+     * is verified to belong to the authenticated user. The archive is named
+     * {@code zwift-workouts.zip} and returned as an attachment.
+     *
+     * <p>Returns HTTP 404 if any workout ID does not exist or belongs to a
+     * different user, rejecting the entire request with no files returned.</p>
+     *
+     * @param request the list of workout IDs to export
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the zip archive as an attachment
+     */
+    @PostMapping("/export")
+    public ResponseEntity<byte[]> exportWorkouts(
+            @Valid @RequestBody ExportWorkoutsRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        log.info("Export request for {} workout(s) by user {}", request.getWorkoutIds().size(), userId);
+        byte[] zip = workoutService.exportWorkouts(request.getWorkoutIds(), userId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"zwift-workouts.zip\"")
+                .body(zip);
     }
 
     /**

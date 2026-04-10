@@ -21,7 +21,7 @@ import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal
 import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
 import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout } from './api/workouts'
+import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
@@ -559,6 +559,28 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Exports a set of workouts as a zip archive. When called from the
+     * bulk actions toolbar, only the checked workouts are included. When
+     * called from the "Export all" button, all saved workouts are included.
+     *
+     * @param workoutIds the IDs to include in the zip
+     */
+    async function handleExportSelected(workoutIds: string[]): Promise<void> {
+        if (workoutIds.length === 0) {
+            return
+        }
+        setIsExporting(true)
+        setExportError(null)
+        try {
+            await exportWorkouts(workoutIds)
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : 'Failed to export workouts.')
+        } finally {
+            setIsExporting(false)
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
@@ -606,6 +628,22 @@ export function App(): JSX.Element {
                         >
                             New workout
                         </button>
+                        {savedWorkouts.length > 0 && (
+                            <button
+                                onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
+                                disabled={isExporting}
+                                className={`
+                                    px-4 py-2
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                `}
+                            >
+                                {isExporting ? 'Exporting...' : 'Export all'}
+                            </button>
+                        )}
                         <button
                             onClick={() => setIsZonePresetSettingsOpen(true)}
                             className={`
@@ -623,11 +661,13 @@ export function App(): JSX.Element {
                     {selectedWorkoutIds.length > 1 && (
                         <BulkActionsToolbar
                             selectedCount={selectedWorkoutIds.length}
+                            isExporting={isExporting}
                             onClearSelection={handleClearSelection}
                             onBulkReplace={() => {
                                 setBulkReplaceError(null)
                                 setIsBulkReplaceOpen(true)
                             }}
+                            onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
                         />
                     )}
 
@@ -666,10 +706,11 @@ export function App(): JSX.Element {
                             >
                                 {isExporting ? 'Exporting...' : 'Export .zwo'}
                             </button>
-                            {exportError !== null && (
-                                <p className="text-sm text-red-300">{exportError}</p>
-                            )}
                         </div>
+                    )}
+
+                    {exportError !== null && (
+                        <p className="text-sm text-red-300">{exportError}</p>
                     )}
 
                     <WorkoutCanvas

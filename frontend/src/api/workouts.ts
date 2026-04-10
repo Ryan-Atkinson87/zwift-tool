@@ -413,6 +413,37 @@ export async function exportWorkout(workoutId: string, workoutName: string): Pro
     URL.revokeObjectURL(url)
 }
 
+/**
+ * Exports a set of workouts as a zip archive of .zwo files and triggers
+ * a browser download. The backend verifies ownership of every ID before
+ * generating the archive.
+ *
+ * @param workoutIds the IDs of the workouts to include in the zip
+ * @throws Error if any workout is not found, the user is not authorised,
+ *               or the request fails
+ */
+export async function exportWorkouts(workoutIds: string[]): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workoutIds }),
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to export workouts: ${response.status}`)
+    }
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'zwift-workouts.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

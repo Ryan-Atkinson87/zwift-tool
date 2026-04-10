@@ -37,9 +37,10 @@ public class ZwoExporter {
      * Builds a zip archive containing one .zwo file per workout.
      *
      * <p>Each file is named after the workout with characters that are unsafe
-     * in filenames replaced by underscores. Duplicate names within the same
-     * zip are possible if two workouts share a sanitised name; Zwift will
-     * accept both files if placed in the correct folder.</p>
+     * in filenames replaced by underscores. When two or more workouts produce
+     * the same sanitised name, a numeric suffix is appended to each duplicate
+     * (e.g. {@code My_Workout_2.zwo}, {@code My_Workout_3.zwo}) so every
+     * entry in the archive has a unique filename.</p>
      *
      * @param workouts the workouts to include in the zip
      * @return the zip archive as a byte array
@@ -48,9 +49,14 @@ public class ZwoExporter {
     public byte[] buildZip(List<Workout> workouts) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
+            // Track how many times each base name has been used so duplicates
+            // can be suffixed with an incrementing counter.
+            java.util.Map<String, Integer> nameCounts = new java.util.HashMap<>();
             for (Workout workout : workouts) {
                 String xml = buildZwoXml(workout);
-                String filename = sanitiseFilename(workout.getName()) + ".zwo";
+                String baseName = sanitiseFilename(workout.getName());
+                int count = nameCounts.merge(baseName, 1, Integer::sum);
+                String filename = count == 1 ? baseName + ".zwo" : baseName + "_" + count + ".zwo";
                 zip.putNextEntry(new ZipEntry(filename));
                 zip.write(xml.getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();

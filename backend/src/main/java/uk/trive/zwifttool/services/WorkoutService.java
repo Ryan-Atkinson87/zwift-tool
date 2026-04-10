@@ -86,6 +86,35 @@ public class WorkoutService {
     }
 
     /**
+     * Exports a set of workouts as a zip archive of .zwo files.
+     *
+     * <p>Each workout in the list is verified to belong to the authenticated
+     * user before any file generation begins. If any ID fails ownership, the
+     * entire request is rejected.</p>
+     *
+     * @param workoutIds the IDs of the workouts to export
+     * @param userId     the authenticated user's ID
+     * @return a zip archive containing one .zwo file per workout
+     * @throws WorkoutNotFoundException if any workout ID does not exist for this user
+     * @throws BulkReplaceException     if the zip archive cannot be assembled
+     */
+    public byte[] exportWorkouts(List<UUID> workoutIds, UUID userId) {
+        log.info("Exporting {} workout(s) as zip for user {}", workoutIds.size(), userId);
+
+        List<Workout> workouts = new ArrayList<>(workoutIds.size());
+        for (UUID workoutId : workoutIds) {
+            workouts.add(getWorkoutForUser(workoutId, userId));
+        }
+
+        try {
+            return zwoExporter.buildZip(workouts);
+        } catch (IOException e) {
+            log.error("Failed to build zip for export by user {}: {}", userId, e.getMessage(), e);
+            throw new BulkReplaceException("Failed to build zip archive for export.");
+        }
+    }
+
+    /**
      * Saves a new workout from the import flow. Creates non-library blocks
      * for each section present (warm-up, main set, cool-down) and links
      * them to a new workout record.
