@@ -19,6 +19,7 @@ import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
 import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
+import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
 import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection } from './api/workouts'
 import { saveBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
@@ -43,6 +44,7 @@ export function App(): JSX.Element {
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+    const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([])
     const {
         workouts: savedWorkouts,
         isLoading: isLoadingWorkouts,
@@ -108,6 +110,16 @@ export function App(): JSX.Element {
 
     async function handleSignIn(email: string, password: string): Promise<void> {
         await signIn({ email, password })
+    }
+
+    function handleToggleWorkoutSelect(id: string): void {
+        setSelectedWorkoutIds((prev) =>
+            prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id],
+        )
+    }
+
+    function handleClearSelection(): void {
+        setSelectedWorkoutIds([])
     }
 
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
@@ -513,7 +525,7 @@ export function App(): JSX.Element {
                             Signed in as <span className="text-white font-medium">{user?.email}</span>
                         </p>
                         <button
-                            onClick={() => void signOut()}
+                            onClick={() => { handleClearSelection(); void signOut() }}
                             className={`
                                 px-4 py-2
                                 bg-zinc-700 text-white
@@ -555,12 +567,21 @@ export function App(): JSX.Element {
                         </button>
                     </div>
 
+                    {selectedWorkoutIds.length > 1 && (
+                        <BulkActionsToolbar
+                            selectedCount={selectedWorkoutIds.length}
+                            onClearSelection={handleClearSelection}
+                        />
+                    )}
+
                     <WorkoutList
                         workouts={savedWorkouts}
                         isLoading={isLoadingWorkouts}
                         error={workoutsError}
                         selectedWorkoutId={selectedWorkoutId}
+                        selectedWorkoutIds={selectedWorkoutIds}
                         onSelect={setSelectedWorkoutId}
+                        onToggleSelect={handleToggleWorkoutSelect}
                     />
 
                     {selectedWorkout !== null && (

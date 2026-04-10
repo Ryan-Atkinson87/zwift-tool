@@ -7,20 +7,24 @@ interface Props {
     isLoading: boolean
     error: string | null
     selectedWorkoutId: string | null
+    selectedWorkoutIds: string[]
     onSelect: (id: string) => void
+    onToggleSelect: (id: string) => void
 }
 
 /**
- * Renders the list of saved workouts in the left panel. Handles
- * loading, error, and empty states, and delegates the click handler
- * down to each {@link WorkoutCard}.
+ * Renders the list of saved workouts in the left panel. Handles loading,
+ * error, and empty states, and delegates both the open handler and the
+ * multi-select toggle handler down to each {@link WorkoutCard}.
  */
 export function WorkoutList({
     workouts,
     isLoading,
     error,
     selectedWorkoutId,
+    selectedWorkoutIds,
     onSelect,
+    onToggleSelect,
 }: Props): JSX.Element {
     return (
         <div className="flex flex-col w-full max-w-md gap-3">
@@ -55,7 +59,9 @@ export function WorkoutList({
                             <WorkoutCard
                                 workout={workout}
                                 isSelected={workout.id === selectedWorkoutId}
+                                isChecked={selectedWorkoutIds.includes(workout.id)}
                                 onSelect={onSelect}
+                                onToggle={onToggleSelect}
                             />
                         </li>
                     ))}
