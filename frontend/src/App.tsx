@@ -76,6 +76,7 @@ export function App(): JSX.Element {
         isLoading: isLoadingBlocks,
         error: blocksError,
         reload: reloadBlocks,
+        deleteBlock: deleteLibraryBlock,
     } = useBlocks(isAuthenticated)
     const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
     const [replaceSectionType, setReplaceSectionType] = useState<SectionType | null>(null)
@@ -652,6 +653,7 @@ export function App(): JSX.Element {
                         isLoading={isLoadingBlocks}
                         error={blocksError}
                         onCreateBlock={() => setIsCreateBlockOpen(true)}
+                        onDeleteBlock={deleteLibraryBlock}
                     />
 
                     <FileUploader onFilesParsed={handleFilesParsed} />

@@ -48,6 +48,27 @@ export async function saveBlock(request: SaveBlockRequest): Promise<LibraryBlock
 }
 
 /**
+ * Deletes a library block by ID.
+ *
+ * <p>If the block is still referenced by a workout, the backend soft-deletes
+ * it by removing it from the library without affecting the workout. If it is
+ * not referenced, it is removed entirely.</p>
+ *
+ * @param blockId the ID of the block to delete
+ * @throws Error if the request fails or the block is not found
+ */
+export async function deleteBlock(blockId: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/blocks/${blockId}`, {
+        method: 'DELETE',
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to delete block: ${response.status}`)
+    }
+}
+
+/**
  * Fetches library blocks for the authenticated user, ordered by most
  * recently created first. Optionally filtered to a single section type.
  *

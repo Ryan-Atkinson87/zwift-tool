@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.SectionType;
@@ -32,4 +34,27 @@ public interface BlockRepository extends JpaRepository<Block, UUID> {
      */
     List<Block> findByUserIdAndIsLibraryBlockTrueAndSectionTypeOrderByCreatedAtDesc(
             UUID userId, SectionType sectionType);
+
+    /**
+     * Returns {@code true} if the given block is referenced by at least one
+     * workout in any of the six section FK columns (current or previous).
+     *
+     * <p>This check is used before hard-deleting a block to determine whether
+     * it is safe to remove entirely or should instead be soft-deleted by
+     * setting {@code is_library_block = false}.</p>
+     *
+     * @param blockId the block ID to check
+     * @return true if the block is referenced by at least one workout
+     */
+    @Query("""
+            SELECT COUNT(w) > 0
+            FROM Workout w
+            WHERE w.warmupBlock.id    = :blockId
+               OR w.mainsetBlock.id   = :blockId
+               OR w.cooldownBlock.id  = :blockId
+               OR w.prevWarmupBlock.id  = :blockId
+               OR w.prevMainsetBlock.id = :blockId
+               OR w.prevCooldownBlock.id = :blockId
+            """)
+    boolean isReferencedByAnyWorkout(@Param("blockId") UUID blockId);
 }

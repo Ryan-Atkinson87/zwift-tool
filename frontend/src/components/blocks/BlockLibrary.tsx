@@ -10,6 +10,8 @@ interface Props {
     error: string | null
     /** Called when the user clicks the "New block" button. */
     onCreateBlock: () => void
+    /** Called when the user confirms deletion of a block. */
+    onDeleteBlock: (blockId: string) => Promise<void>
 }
 
 /** Filter options for the section type tabs. 'ALL' shows every block. */
@@ -29,7 +31,7 @@ const FILTER_TABS: Array<{ value: SectionFilter; label: string }> = [
  * <p>Filtering is applied client-side since all blocks are already loaded.
  * The selected block is cleared when the active filter changes.</p>
  */
-export function BlockLibrary({ blocks, isLoading, error, onCreateBlock }: Props): JSX.Element {
+export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDeleteBlock }: Props): JSX.Element {
     const [activeFilter, setActiveFilter] = useState<SectionFilter>('ALL')
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
 
@@ -67,6 +69,14 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock }: Props)
     function handleSelectBlock(id: string): void {
         // Clicking an already-selected block collapses the preview
         setSelectedBlockId((prev) => (prev === id ? null : id))
+    }
+
+    async function handleDeleteBlock(blockId: string): Promise<void> {
+        await onDeleteBlock(blockId)
+        // Clear selection if the deleted block was selected
+        if (selectedBlockId === blockId) {
+            setSelectedBlockId(null)
+        }
     }
 
     return (
@@ -130,6 +140,7 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock }: Props)
                                 block={block}
                                 isSelected={selectedBlockId === block.id}
                                 onClick={() => handleSelectBlock(block.id)}
+                                onDelete={() => void handleDeleteBlock(block.id)}
                             />
                             {selectedBlock !== null && selectedBlock.id === block.id && (
                                 <div className="mt-1 px-1">

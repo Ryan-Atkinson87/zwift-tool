@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -78,6 +80,26 @@ public class BlockController {
         return blocks.isEmpty()
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.ok(blocks);
+    }
+
+    /**
+     * Deletes a library block owned by the authenticated user.
+     *
+     * <p>If the block is still referenced by a workout, it is soft-deleted
+     * (removed from the library without affecting the workout). If not
+     * referenced, it is removed from the database entirely.</p>
+     *
+     * @param blockId the ID of the block to delete
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 204 No Content on success
+     */
+    @DeleteMapping("/{blockId}")
+    public ResponseEntity<Void> deleteBlock(
+            @PathVariable UUID blockId,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        blockService.deleteLibraryBlock(blockId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     /**

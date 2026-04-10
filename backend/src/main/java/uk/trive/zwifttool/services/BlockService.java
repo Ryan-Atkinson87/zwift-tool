@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import uk.trive.zwifttool.controllers.dto.SaveBlockRequest;
+import uk.trive.zwifttool.exceptions.BlockNotFoundException;
 import uk.trive.zwifttool.models.Block;
 import uk.trive.zwifttool.models.SectionType;
 import uk.trive.zwifttool.repositories.BlockRepository;
@@ -71,5 +72,37 @@ public class BlockService {
         return sectionType
                 .map(type -> blockRepository.findByUserIdAndIsLibraryBlockTrueAndSectionTypeOrderByCreatedAtDesc(userId, type))
                 .orElseGet(() -> blockRepository.findByUserIdAndIsLibraryBlockTrueOrderByCreatedAtDesc(userId));
+    }
+
+    /**
+     * Deletes a library block owned by the given user.
+     *
+     * <p>If the block is still referenced by any workout (in any current or
+     * previous section column), it is soft-deleted by setting
+     * {@code is_library_block = false} so the block no longer appears in the
+     * library but the workout data remains intact. If the block is not
+     * referenced by any workout, it is hard-deleted from the database.</p>
+     *
+     * @param blockId the ID of the block to delete
+     * @param userId  the authenticated user's ID, used for ownership verification
+     * @throws BlockNotFoundException if no block exists with the given ID for this user
+     */
+    public void deleteLibraryBlock(UUID blockId, UUID userId) {
+        Block block = blockRepository.findById(blockId)
+                .filter(b -> b.getUserId().equals(userId))
+                .orElseThrow(() -> new BlockNotFoundException(blockId));
+
+        log.info("Deleting library block '{}' ({}) for user {}", block.getName(), blockId, userId);
+
+        if (blockRepository.isReferencedByAnyWorkout(blockId)) {
+            // Block is still referenced by at least one workout: soft-delete by
+            // removing it from the library without breaking the workout data.
+            block.setLibraryBlock(false);
+            blockRepository.save(block);
+            log.debug("Block {} is referenced by a workout: soft-deleted (is_library_block = false)", blockId);
+        } else {
+            blockRepository.delete(block);
+            log.debug("Block {} has no workout references: hard-deleted", blockId);
+        }
     }
 }

@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { fetchLibraryBlocks, type LibraryBlock } from '../api/blocks'
+import { fetchLibraryBlocks, deleteBlock as deleteBlockApi, type LibraryBlock } from '../api/blocks'
 
 /**
  * Manages the list of library blocks for the authenticated user.
  * Fetches on mount when authenticated, clears on sign-out, and exposes
- * a reload function to refresh the list after a block is saved.
+ * a reload function to refresh the list after a block is saved and a
+ * deleteBlock action to remove a block optimistically from local state.
  */
 export function useBlocks(isAuthenticated: boolean): {
     blocks: LibraryBlock[]
     isLoading: boolean
     error: string | null
     reload: () => Promise<void>
+    deleteBlock: (blockId: string) => Promise<void>
 } {
     const [blocks, setBlocks] = useState<LibraryBlock[]>([])
     const [isLoading, setIsLoading] = useState(false)
@@ -29,6 +31,13 @@ export function useBlocks(isAuthenticated: boolean): {
         }
     }
 
+    async function deleteBlock(blockId: string): Promise<void> {
+        await deleteBlockApi(blockId)
+        // Optimistically remove the block from local state so the panel
+        // updates immediately without a round-trip fetch.
+        setBlocks((prev) => prev.filter((b) => b.id !== blockId))
+    }
+
     useEffect(() => {
         if (!isAuthenticated) {
             setBlocks([])
@@ -37,5 +46,5 @@ export function useBlocks(isAuthenticated: boolean): {
         void load()
     }, [isAuthenticated])
 
-    return { blocks, isLoading, error, reload: load }
+    return { blocks, isLoading, error, reload: load, deleteBlock }
 }
