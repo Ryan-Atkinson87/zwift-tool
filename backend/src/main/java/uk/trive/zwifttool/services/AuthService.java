@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -238,6 +239,21 @@ public class AuthService {
 
         log.debug("Refresh token not found and no session within grace window for user {}", userId);
         throw new InvalidRefreshTokenException();
+    }
+
+    /**
+     * Removes all expired sessions from the database.
+     *
+     * <p>Runs every hour. Without this, the user_sessions table grows indefinitely
+     * because sessions are only removed on sign-out or rotation, not on expiry.</p>
+     */
+    @Scheduled(fixedRate = 3_600_000)
+    @Transactional
+    public void purgeExpiredSessions() {
+        int deleted = userSessionRepository.deleteByExpiresAtBefore(Instant.now());
+        if (deleted > 0) {
+            log.info("Purged {} expired session(s)", deleted);
+        }
     }
 
     /**
