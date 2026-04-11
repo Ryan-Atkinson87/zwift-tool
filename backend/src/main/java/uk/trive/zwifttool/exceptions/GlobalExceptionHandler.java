@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -75,6 +76,25 @@ public class GlobalExceptionHandler {
         log.warn("Invalid refresh token: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", ex.getMessage()));
+    }
+
+    /**
+     * Safety-net handler for optimistic locking failures on the user_sessions table.
+     *
+     * <p>The primary fix is in {@code AuthService.refreshSession()}, which uses a
+     * count-returning DELETE to detect concurrent rotation before JPA can throw.
+     * This handler catches any residual cases and returns HTTP 401, matching the
+     * behaviour of a token-not-found response. A 500 would cause the frontend to
+     * treat the session as broken rather than triggering a re-login prompt.</p>
+     *
+     * @param ex the exception
+     * @return HTTP 401 Unauthorised
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
+        log.warn("Optimistic locking failure on session table, likely concurrent refresh: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "Session conflict. Please sign in again."));
     }
 
     /**

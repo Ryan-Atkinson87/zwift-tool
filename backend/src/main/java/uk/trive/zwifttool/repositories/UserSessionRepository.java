@@ -5,6 +5,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import uk.trive.zwifttool.models.UserSession;
 
@@ -20,6 +23,21 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
      * @return the matching session, or empty if the token is invalid or has been rotated
      */
     Optional<UserSession> findByRefreshToken(String refreshToken);
+
+    /**
+     * Deletes a session by its primary key and returns the number of rows deleted.
+     *
+     * <p>Used instead of JPA's {@code delete(entity)} so that a concurrent deletion
+     * (where another transaction already removed the row) returns 0 rather than
+     * throwing an {@code ObjectOptimisticLockingFailureException}. A return value
+     * of 0 signals that the token was already rotated by a concurrent request.</p>
+     *
+     * @param id the session primary key
+     * @return the number of rows deleted (1 on success, 0 if already gone)
+     */
+    @Modifying
+    @Query("DELETE FROM UserSession s WHERE s.id = :id")
+    int removeById(@Param("id") UUID id);
 
     /**
      * Finds the most recently created session for a user that was created after a given timestamp.
