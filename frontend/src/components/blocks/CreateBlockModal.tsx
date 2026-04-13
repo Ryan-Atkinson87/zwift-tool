@@ -15,7 +15,7 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { saveBlock, type LibraryBlock } from '../../api/blocks'
+import { saveBlock, updateBlock, type LibraryBlock } from '../../api/blocks'
 import { IntervalFields } from '../workout/IntervalEditor'
 import { ZonePresetButtons } from '../workout/ZonePresetButtons'
 import { AddBlockModal } from '../workout/AddBlockModal'
@@ -27,8 +27,13 @@ import { sumIntervalDuration } from '../../utils/editorDraft'
 interface Props {
     isOpen: boolean
     onClose: () => void
-    /** Called after the block is successfully saved. The parent should reload the library. */
+    /** Called after the block is successfully saved or updated. The parent should reload the library. */
     onSaved: () => void
+    /**
+     * When provided, the modal opens in edit mode pre-populated with the
+     * block's existing values. The save action calls PUT instead of POST.
+     */
+    initialBlock?: LibraryBlock | null
 }
 
 const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
@@ -38,16 +43,24 @@ const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
 ]
 
 /**
- * Modal for creating a new library block from scratch. The user selects a
- * section type, provides a name and optional description, and builds up
- * intervals using the same editing tools as the main workout editor.
- * The block is saved directly to the library on confirmation.
+ * Modal for creating a new library block from scratch, or editing an existing
+ * one. When {@code initialBlock} is supplied the form is pre-populated and the
+ * save action calls PUT instead of POST. The title and footer button label
+ * update accordingly.
+ *
+ * <p>The parent should pass a stable {@code key} tied to the block ID (or a
+ * constant for the create case) so React remounts the modal — and resets all
+ * local state — when switching between blocks.</p>
  */
-export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Element | null {
-    const [sectionType, setSectionType] = useState<SectionType>('MAINSET')
-    const [intervals, setIntervals] = useState<ParsedInterval[]>([])
-    const [name, setName] = useState('')
-    const [description, setDescription] = useState('')
+export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null }: Props): JSX.Element | null {
+    const [sectionType, setSectionType] = useState<SectionType>(initialBlock?.sectionType ?? 'MAINSET')
+    const [intervals, setIntervals] = useState<ParsedInterval[]>(
+        initialBlock !== null && initialBlock.content.trim().length > 0
+            ? (JSON.parse(initialBlock.content) as ParsedInterval[])
+            : [],
+    )
+    const [name, setName] = useState(initialBlock?.name ?? '')
+    const [description, setDescription] = useState(initialBlock?.description ?? '')
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
     const [isAddIntervalOpen, setIsAddIntervalOpen] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
@@ -58,10 +71,14 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
     }
 
     function handleClose(): void {
-        setSectionType('MAINSET')
-        setIntervals([])
-        setName('')
-        setDescription('')
+        setSectionType(initialBlock?.sectionType ?? 'MAINSET')
+        setIntervals(
+            initialBlock !== null && initialBlock.content.trim().length > 0
+                ? (JSON.parse(initialBlock.content) as ParsedInterval[])
+                : [],
+        )
+        setName(initialBlock?.name ?? '')
+        setDescription(initialBlock?.description ?? '')
         setSelectedIndex(null)
         setIsAddIntervalOpen(false)
         setError(null)
@@ -143,15 +160,21 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
         setIsSaving(true)
         setError(null)
 
+        const payload = {
+            name: name.trim(),
+            description: description.trim().length > 0 ? description.trim() : null,
+            sectionType,
+            content: JSON.stringify(intervals),
+            durationSeconds: sumIntervalDuration(intervals),
+            intervalCount: intervals.length,
+        }
+
         try {
-            await saveBlock({
-                name: name.trim(),
-                description: description.trim().length > 0 ? description.trim() : null,
-                sectionType,
-                content: JSON.stringify(intervals),
-                durationSeconds: sumIntervalDuration(intervals),
-                intervalCount: intervals.length,
-            })
+            if (initialBlock !== null) {
+                await updateBlock(initialBlock.id, payload)
+            } else {
+                await saveBlock(payload)
+            }
             onSaved()
             handleClose()
         } catch (err) {
@@ -161,7 +184,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
         }
     }
 
-    // Synthetic block for BlockPreview — uses the current state to render a live preview
+    // Synthetic block for BlockPreview, uses the current state to render a live preview
     const previewBlock: LibraryBlock = {
         id: 'preview',
         name,
@@ -186,11 +209,13 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
             >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">Create library block</h2>
+                    <h2 className="text-xl font-semibold">
+                        {initialBlock !== null ? 'Edit library block' : 'Create library block'}
+                    </h2>
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="text-zinc-400 hover:text-white transition-colors"
+                        className="text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
                         aria-label="Close modal"
                     >
                         &#x2715;
@@ -211,8 +236,9 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                         flex-1 px-3 py-2
                                         text-sm font-medium
                                         rounded-md transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                         ${sectionType === option.value
-                                            ? 'bg-indigo-600 text-white'
+                                            ? 'bg-brand-600 text-white'
                                             : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
                                         }
                                     `}
@@ -241,7 +267,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                 text-sm
                                 rounded-md border border-zinc-600
                                 placeholder:text-zinc-500
-                                focus:outline-none focus:border-indigo-500
+                                focus:outline-none focus:border-brand-500
                             `}
                         />
                     </div>
@@ -263,7 +289,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                 text-sm
                                 rounded-md border border-zinc-600
                                 placeholder:text-zinc-500
-                                focus:outline-none focus:border-indigo-500
+                                focus:outline-none focus:border-brand-500
                                 resize-none
                             `}
                         />
@@ -282,6 +308,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                     text-xs font-medium
                                     rounded
                                     hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                 `}
                             >
                                 + Add interval
@@ -333,6 +360,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                             text-xs font-medium
                                             rounded
                                             hover:bg-red-800 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                         `}
                                     >
                                         Delete
@@ -346,6 +374,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                             text-xs font-medium
                                             rounded
                                             hover:bg-zinc-600 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                         `}
                                     >
                                         Close
@@ -385,6 +414,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                                 text-sm font-medium
                                 rounded-md
                                 hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                 disabled:opacity-50 disabled:cursor-not-allowed
                             `}
                         >
@@ -396,19 +426,20 @@ export function CreateBlockModal({ isOpen, onClose, onSaved }: Props): JSX.Eleme
                             disabled={isSaving}
                             className={`
                                 px-4 py-2
-                                bg-indigo-600 text-white
+                                bg-brand-600 text-white
                                 text-sm font-medium
                                 rounded-md
-                                hover:bg-indigo-500 transition-colors
+                                hover:bg-brand-500 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                 disabled:opacity-50 disabled:cursor-not-allowed
                             `}
                         >
-                            {isSaving ? 'Saving...' : 'Save to library'}
+                            {isSaving ? 'Saving...' : initialBlock !== null ? 'Save changes' : 'Save to library'}
                         </button>
                     </div>
                 </div>
 
-                {/* Add interval modal — nested so its backdrop stops at the panel boundary */}
+                {/* Add interval modal, nested so its backdrop stops at the panel boundary */}
                 <AddBlockModal
                     isOpen={isAddIntervalOpen}
                     sectionType={sectionType}
@@ -440,7 +471,7 @@ function SortableIntervalList({
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     )
-    // Stable string IDs using index — intervals have no intrinsic ID
+    // Stable string IDs using index, intervals have no intrinsic ID
     const itemIds = intervals.map((_, i) => `interval-${i}`)
 
     function handleDragEnd(event: DragEndEvent): void {
@@ -513,7 +544,7 @@ function SortableIntervalRow({
                 flex items-center justify-between gap-3
                 px-3 py-2
                 bg-zinc-800 border rounded
-                ${isSelected ? 'border-indigo-500' : 'border-zinc-700'}
+                ${isSelected ? 'border-brand-500' : 'border-zinc-700'}
             `}
         >
             <button
@@ -521,14 +552,14 @@ function SortableIntervalRow({
                 {...attributes}
                 {...listeners}
                 aria-label="Drag to reorder"
-                className="text-zinc-500 hover:text-zinc-300 cursor-grab"
+                className="text-zinc-500 hover:text-zinc-300 cursor-grab focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
             >
                 ⋮⋮
             </button>
             <button
                 type="button"
                 onClick={onSelect}
-                className="flex-1 text-left text-sm text-white truncate"
+                className="flex-1 text-left text-sm text-white truncate focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
             >
                 {summariseInterval(interval)}
             </button>
@@ -538,9 +569,10 @@ function SortableIntervalRow({
                 className={`
                     px-2 py-1
                     bg-red-900/50 text-red-200
-                    text-[10px] font-semibold uppercase tracking-wide
+                    label-tiny
                     rounded
                     hover:bg-red-800 transition-colors
+                    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                 `}
             >
                 Delete

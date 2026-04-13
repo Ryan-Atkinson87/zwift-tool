@@ -58,10 +58,11 @@ export function IntervalList({ workouts, onSelectWorkout }: Props): JSX.Element 
                                 onClick={() => onSelectWorkout(workout)}
                                 className={`
                                     px-4 py-1.5
-                                    bg-indigo-600 text-white
+                                    bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md
-                                    hover:bg-indigo-500 transition-colors
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                 `}
                             >
                                 Define sections
@@ -106,8 +107,8 @@ function formatPower(interval: ParsedInterval): string {
     }
 
     if (interval.type === 'IntervalsT') {
-        const on = interval.onPower !== null ? `${Math.round(interval.onPower * 100)}%` : '—'
-        const off = interval.offPower !== null ? `${Math.round(interval.offPower * 100)}%` : '—'
+        const on = interval.onPower !== null ? `${Math.round(interval.onPower * 100)}%` : '–'
+        const off = interval.offPower !== null ? `${Math.round(interval.offPower * 100)}%` : '–'
         const repeats = interval.repeat ?? 0
         return `${repeats}× ${on} / ${off}`
     }
@@ -122,7 +123,7 @@ function formatPower(interval: ParsedInterval): string {
         return `${Math.round(interval.power * 100)}%`
     }
 
-    return '—'
+    return '–'
 }
 
 /** Calculates and formats total duration across all intervals. */

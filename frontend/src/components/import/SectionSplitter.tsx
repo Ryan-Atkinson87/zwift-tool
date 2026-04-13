@@ -80,7 +80,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
 
     function getSectionColour(index: number): string {
         if (index < warmupEnd) return 'border-l-blue-500'
-        if (index < cooldownStart) return 'border-l-indigo-500'
+        if (index < cooldownStart) return 'border-l-brand-500'
         return 'border-l-purple-500'
     }
 
@@ -99,7 +99,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                 {/* Warm-up divider at top of list when not yet placed */}
                 {warmupEnd === 0 && (
                     <InlineDivider
-                        label="Warm-Up End — drag down to set warm-up"
+                        label="Warm-Up End: drag down to set warm-up"
                         type="warmup"
                         onDragStart={() => setDragging('warmup')}
                         onDragEnd={() => setDragging(null)}
@@ -153,7 +153,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                 {/* Cool-down divider at bottom of list when not yet placed */}
                 {cooldownStart === intervalCount && (
                     <InlineDivider
-                        label="Cool-Down Start — drag up to set cool-down"
+                        label="Cool-Down Start: drag up to set cool-down"
                         type="cooldown"
                         onDragStart={() => setDragging('cooldown')}
                         onDragEnd={() => setDragging(null)}
@@ -172,7 +172,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                 <SectionSummary
                     label="Main Set"
                     intervals={workout.intervals.slice(warmupEnd, cooldownStart)}
-                    colour="text-indigo-400"
+                    colour="text-brand-400"
                 />
                 <SectionSummary
                     label="Cool-Down"
@@ -193,10 +193,10 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                     disabled={mainsetIsEmpty || isSaving}
                     className={`
                         px-6 py-2
-                        bg-indigo-600 text-white
+                        bg-brand-600 text-white
                         text-sm font-medium
                         rounded-md
-                        hover:bg-indigo-500 transition-colors
+                        hover:bg-brand-500 transition-colors
                         ${mainsetIsEmpty || isSaving ? 'opacity-50 cursor-not-allowed' : ''}
                     `}
                 >
@@ -283,7 +283,7 @@ function DividerDropZone({ position, onDrop, isActive }: {
             }}
             className={`
                 h-3 transition-all
-                ${isOver ? 'h-5 bg-indigo-500/30 border border-dashed border-indigo-500 rounded' : ''}
+                ${isOver ? 'h-5 bg-brand-500/30 border border-dashed border-brand-500 rounded' : ''}
             `}
         />
     )

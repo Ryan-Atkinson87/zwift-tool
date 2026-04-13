@@ -75,6 +75,34 @@ public class BlockService {
     }
 
     /**
+     * Updates the name, description, section type, and interval content of an
+     * existing library block owned by the given user. Duration and interval
+     * count are recalculated by the frontend and sent with the request.
+     *
+     * @param blockId the ID of the block to update
+     * @param request the updated block data
+     * @param userId  the authenticated user's ID, used for ownership verification
+     * @return the updated block record
+     * @throws BlockNotFoundException if no library block exists with the given ID for this user
+     */
+    public Block updateLibraryBlock(UUID blockId, SaveBlockRequest request, UUID userId) {
+        Block block = blockRepository.findById(blockId)
+                .filter(b -> b.getUserId().equals(userId) && b.isLibraryBlock())
+                .orElseThrow(() -> new BlockNotFoundException(blockId));
+
+        log.info("Updating library block '{}' ({}) for user {}", request.getName(), blockId, userId);
+
+        block.setName(request.getName());
+        block.setDescription(request.getDescription());
+        block.setSectionType(request.getSectionType());
+        block.setContent(request.getContent());
+        block.setDurationSeconds(request.getDurationSeconds());
+        block.setIntervalCount(request.getIntervalCount());
+
+        return blockRepository.save(block);
+    }
+
+    /**
      * Deletes a library block owned by the given user.
      *
      * <p>If the block is still referenced by any workout (in any current or

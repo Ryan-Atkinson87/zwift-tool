@@ -52,10 +52,11 @@ export function ZonePresetButtons({
                     style={{ backgroundColor: getColourForZone(preset.zone) }}
                     className={`
                         px-1.5 py-0.5
-                        text-[10px] font-semibold uppercase tracking-wide text-white
+                        label-tiny text-white
                         rounded
                         hover:opacity-90 transition-opacity
-                        disabled:opacity-40 disabled:cursor-not-allowed
+                        focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1 focus:ring-offset-zinc-900
+                        disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
                     Z{preset.zone}

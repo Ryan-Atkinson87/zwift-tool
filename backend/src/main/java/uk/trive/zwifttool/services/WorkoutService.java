@@ -86,6 +86,38 @@ public class WorkoutService {
     }
 
     /**
+     * Deletes a workout and all of its non-library section blocks.
+     *
+     * <p>Library blocks are never deleted by this flow. They are owned
+     * by the user independently and may be shared across workouts.</p>
+     *
+     * @param workoutId the ID of the workout to delete
+     * @param userId    the authenticated user's ID
+     * @throws WorkoutNotFoundException if no workout exists with the given ID for this user
+     */
+    @Transactional
+    public void deleteWorkout(UUID workoutId, UUID userId) {
+        Workout workout = getWorkoutForUser(workoutId, userId);
+
+        List<Block> blocksToDelete = List.of(
+                workout.getWarmupBlock(),
+                workout.getMainsetBlock(),
+                workout.getCooldownBlock(),
+                workout.getPrevWarmupBlock(),
+                workout.getPrevMainsetBlock(),
+                workout.getPrevCooldownBlock()
+        ).stream()
+                .filter(Objects::nonNull)
+                .filter(block -> !block.isLibraryBlock())
+                .toList();
+
+        workoutRepository.delete(workout);
+        blockRepository.deleteAll(blocksToDelete);
+
+        log.info("Deleted workout {} and {} orphaned block(s) for user {}", workoutId, blocksToDelete.size(), userId);
+    }
+
+    /**
      * Exports a set of workouts as a zip archive of .zwo files.
      *
      * <p>Each workout in the list is verified to belong to the authenticated

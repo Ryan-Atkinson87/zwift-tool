@@ -36,7 +36,7 @@ export function TextEventEditor({
     }
 
     return (
-        <div className="flex flex-col w-full max-w-4xl gap-2">
+        <div className="flex flex-col w-full gap-2">
             <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold tracking-wide uppercase text-zinc-300">
                     Text events
@@ -48,10 +48,11 @@ export function TextEventEditor({
                     className={`
                         px-2 py-0.5
                         bg-zinc-700 text-zinc-200
-                        text-[10px] font-semibold uppercase tracking-wide
+                        label-tiny
                         rounded
                         hover:bg-zinc-600 transition-colors
-                        disabled:opacity-40 disabled:cursor-not-allowed
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                        disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
                     + Event
@@ -108,7 +109,7 @@ function TextEventRow({ event, disabled, onChange, onDelete }: RowProps): JSX.El
                             })
                         }
                     }}
-                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-indigo-500"
+                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
                 />
                 <span className="text-zinc-500 text-xs">m</span>
                 <input
@@ -126,7 +127,7 @@ function TextEventRow({ event, disabled, onChange, onDelete }: RowProps): JSX.El
                             })
                         }
                     }}
-                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-indigo-500"
+                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
                 />
                 <span className="text-zinc-500 text-xs">s</span>
             </div>
@@ -137,7 +138,7 @@ function TextEventRow({ event, disabled, onChange, onDelete }: RowProps): JSX.El
                 value={event.message}
                 placeholder="Message..."
                 onChange={(e) => onChange({ ...event, message: e.target.value })}
-                className="flex-1 px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-indigo-500"
+                className="flex-1 px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
             />
 
             <button
@@ -148,10 +149,11 @@ function TextEventRow({ event, disabled, onChange, onDelete }: RowProps): JSX.El
                 className={`
                     px-2 py-1
                     bg-red-900/50 text-red-200
-                    text-[10px] font-semibold uppercase tracking-wide
+                    label-tiny
                     rounded
                     hover:bg-red-800 transition-colors
-                    disabled:opacity-30 disabled:cursor-not-allowed
+                    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
+                    disabled:opacity-50 disabled:cursor-not-allowed
                 `}
             >
                 Delete

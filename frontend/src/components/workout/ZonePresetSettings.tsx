@@ -134,19 +134,19 @@ function ZoneRow({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <span
-                        className="w-6 h-6 rounded text-[10px] font-semibold text-white flex items-center justify-center"
+                        className="w-6 h-6 rounded label-tiny text-white flex items-center justify-center"
                         style={{ backgroundColor: getColourForZone(zone) }}
                     >
                         Z{zone}
                     </span>
                     <span className="text-sm font-medium text-white">{name}</span>
                     {current.isCustom && (
-                        <span className="text-[10px] uppercase tracking-wide text-indigo-300">
+                        <span className="label-tiny text-brand-300">
                             Custom
                         </span>
                     )}
                 </div>
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                <span className="label-tiny text-zinc-500">
                     {rangeLabel}
                 </span>
             </div>
@@ -164,7 +164,7 @@ function ZoneRow({
                                 setDurationMinutes(next)
                             }
                         }}
-                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-indigo-500"
+                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
                     />
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
@@ -180,7 +180,7 @@ function ZoneRow({
                                 setFtpPercent(next)
                             }
                         }}
-                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-indigo-500"
+                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
                     />
                 </label>
             </div>
@@ -190,7 +190,7 @@ function ZoneRow({
                     type="button"
                     onClick={() => void handleReset()}
                     disabled={isBusy || !current.isCustom}
-                    className="px-3 py-1 bg-zinc-700 text-zinc-100 text-xs rounded hover:bg-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1 bg-zinc-700 text-zinc-100 text-xs rounded hover:bg-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     Reset
                 </button>
@@ -198,7 +198,7 @@ function ZoneRow({
                     type="button"
                     onClick={() => void handleSave()}
                     disabled={isBusy}
-                    className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-3 py-1 bg-brand-600 text-white text-xs rounded hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     Save
                 </button>

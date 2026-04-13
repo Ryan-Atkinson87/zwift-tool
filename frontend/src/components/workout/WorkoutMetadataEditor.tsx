@@ -73,7 +73,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX
     }
 
     return (
-        <div className="flex flex-col w-full max-w-4xl gap-2">
+        <div className="flex flex-col w-full gap-2">
             <input
                 type="text"
                 value={name}
@@ -88,7 +88,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX
                     bg-transparent text-white
                     text-lg font-semibold
                     border border-transparent rounded
-                    hover:border-zinc-700 focus:border-indigo-500
+                    hover:border-zinc-700 focus:border-brand-500
                     focus:outline-none transition-colors
                     disabled:opacity-60
                 `}
@@ -108,7 +108,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX
                     bg-transparent text-zinc-300
                     text-sm
                     border border-transparent rounded
-                    hover:border-zinc-700 focus:border-indigo-500
+                    hover:border-zinc-700 focus:border-brand-500
                     focus:outline-none transition-colors
                     disabled:opacity-60
                 `}
@@ -128,7 +128,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX
                     bg-transparent text-zinc-300
                     text-sm
                     border border-transparent rounded
-                    hover:border-zinc-700 focus:border-indigo-500
+                    hover:border-zinc-700 focus:border-brand-500
                     focus:outline-none transition-colors resize-y
                     disabled:opacity-60
                 `}

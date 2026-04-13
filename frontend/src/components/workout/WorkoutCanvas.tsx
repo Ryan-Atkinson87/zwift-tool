@@ -120,7 +120,7 @@ export function WorkoutCanvas({
 }: Props): JSX.Element {
     if (isLoading) {
         return (
-            <div className="w-full max-w-4xl px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
+            <div className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
                 <p className="text-sm text-zinc-400">Loading workout...</p>
             </div>
         )
@@ -128,7 +128,7 @@ export function WorkoutCanvas({
 
     if (error) {
         return (
-            <div className="w-full max-w-4xl px-4 py-12 bg-red-900/30 border border-red-800 rounded-lg text-center">
+            <div className="w-full px-4 py-12 bg-red-900/30 border border-red-800 rounded-lg text-center">
                 <p className="text-sm text-red-300">{error}</p>
             </div>
         )
@@ -136,7 +136,7 @@ export function WorkoutCanvas({
 
     if (workout === null) {
         return (
-            <div className="w-full max-w-4xl px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
+            <div className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
                 <p className="text-sm text-zinc-400">
                     Select a workout from the list to load it into the editor.
                 </p>
@@ -151,7 +151,7 @@ export function WorkoutCanvas({
     const yMax = computeYMax(allBars)
 
     return (
-        <div className="flex flex-col w-full max-w-4xl gap-3">
+        <div className="flex flex-col w-full gap-3">
             {workout.isDraft && (
                 <div className="flex justify-end">
                     <span className="px-2 py-0.5 bg-zinc-700 text-zinc-300 text-xs font-medium rounded">
@@ -282,7 +282,7 @@ function ChartArea({
             {/* Labels row uses equal thirds so every section name is always
                 fully visible, regardless of how short that section's bars are.
                 The chart row below uses duration-based ratios independently. */}
-            <div className="flex mb-1" style={{ gap: '8px' }}>
+            <div className="flex gap-2 mb-1">
                 {sections.map((section) => {
                     const alignment =
                         section.type === 'WARMUP' ? 'items-start' :
@@ -291,8 +291,7 @@ function ChartArea({
                     return (
                     <div
                         key={section.type}
-                        className={`flex flex-col ${alignment} gap-1 min-w-0`}
-                        style={{ flex: '1 1 0' }}
+                        className={`flex flex-1 flex-col ${alignment} gap-1 min-w-0`}
                     >
                         <p
                             className={`
@@ -325,9 +324,10 @@ function ChartArea({
                                     className={`
                                         px-2 py-0.5
                                         bg-zinc-700 text-zinc-200
-                                        text-[10px] font-semibold uppercase tracking-wide
+                                        label-tiny
                                         rounded
                                         hover:bg-zinc-600 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                     `}
                                 >
                                     + Block
@@ -341,9 +341,10 @@ function ChartArea({
                                     className={`
                                         px-2 py-0.5
                                         bg-zinc-700 text-zinc-200
-                                        text-[10px] font-semibold uppercase tracking-wide
+                                        label-tiny
                                         rounded
                                         hover:bg-zinc-600 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                     `}
                                 >
                                     Save
@@ -357,9 +358,10 @@ function ChartArea({
                                     className={`
                                         px-2 py-0.5
                                         bg-zinc-700 text-zinc-200
-                                        text-[10px] font-semibold uppercase tracking-wide
+                                        label-tiny
                                         rounded
                                         hover:bg-zinc-600 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                     `}
                                 >
                                     Replace
@@ -379,9 +381,9 @@ function ChartArea({
                 })}
             </div>
 
-            <div className="flex" style={{ gap: '8px' }}>
+            <div className="flex gap-2">
                 <YAxisLegend yMax={yMax} />
-                <div className="flex flex-1 min-w-0" style={{ gap: '8px' }}>
+                <div className="flex flex-1 min-w-0 gap-2">
                     {sections.map((section, i) => (
                         <div
                             key={section.type}
@@ -650,7 +652,7 @@ interface YAxisLegendProps {
 function YAxisLegend({ yMax }: YAxisLegendProps): JSX.Element {
     return (
         <div
-            className="flex flex-col justify-between items-end text-[10px] text-zinc-500 shrink-0"
+            className="flex flex-col justify-between items-end text-tiny text-zinc-500 shrink-0"
             style={{ height: `${PLOT_HEIGHT}px` }}
         >
             <span>{yMax}%</span>
@@ -680,10 +682,11 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
             className={`
                 px-2 py-0.5
                 bg-zinc-700 text-zinc-200
-                text-[10px] font-semibold uppercase tracking-wide
+                label-tiny
                 rounded
                 hover:bg-zinc-600 transition-colors
-                disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-700
+                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-700
             `}
         >
             Undo

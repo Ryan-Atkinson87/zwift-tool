@@ -52,7 +52,7 @@ export function IntervalEditor({
     return (
         <div
             className={`
-                flex flex-col w-full max-w-4xl gap-3
+                flex flex-col w-full gap-3
                 px-4 py-3
                 bg-zinc-800/60 border border-zinc-700
                 rounded-lg
@@ -72,6 +72,7 @@ export function IntervalEditor({
                             text-xs font-medium
                             rounded
                             hover:bg-red-800 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                         `}
                     >
                         Delete
@@ -85,6 +86,7 @@ export function IntervalEditor({
                             text-xs font-medium
                             rounded
                             hover:bg-zinc-600 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                         `}
                     >
                         Close
@@ -256,7 +258,7 @@ function DurationField({ label, seconds, onChange }: DurationFieldProps): JSX.El
                         w-full px-2 py-1
                         bg-zinc-900 text-white text-sm
                         border border-zinc-700 rounded
-                        focus:outline-none focus:border-indigo-500
+                        focus:outline-none focus:border-brand-500
                     `}
                 />
                 <span className="text-zinc-500 text-xs">m</span>
@@ -275,7 +277,7 @@ function DurationField({ label, seconds, onChange }: DurationFieldProps): JSX.El
                         w-full px-2 py-1
                         bg-zinc-900 text-white text-sm
                         border border-zinc-700 rounded
-                        focus:outline-none focus:border-indigo-500
+                        focus:outline-none focus:border-brand-500
                     `}
                 />
                 <span className="text-zinc-500 text-xs">s</span>
@@ -333,7 +335,7 @@ function CadenceField({ cadence, onChange }: CadenceFieldProps): JSX.Element {
                     px-2 py-1
                     bg-zinc-900 text-white text-sm
                     border border-zinc-700 rounded
-                    focus:outline-none focus:border-indigo-500
+                    focus:outline-none focus:border-brand-500
                 `}
             />
         </label>
@@ -368,7 +370,7 @@ function NumberField({ label, value, onChange, min, max }: NumberFieldProps): JS
                     px-2 py-1
                     bg-zinc-900 text-white text-sm
                     border border-zinc-700 rounded
-                    focus:outline-none focus:border-indigo-500
+                    focus:outline-none focus:border-brand-500
                 `}
             />
         </label>

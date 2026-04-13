@@ -103,7 +103,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp }: Props): JSX.Element {
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-indigo-500
+                            outline-none focus:ring-2 focus:ring-brand-500
                             ${emailError ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="you@example.com"
@@ -132,7 +132,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp }: Props): JSX.Element {
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-indigo-500
+                            outline-none focus:ring-2 focus:ring-brand-500
                             ${passwordError ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="Minimum 8 characters"
@@ -152,10 +152,10 @@ export function SignUpModal({ isOpen, onClose, onSignUp }: Props): JSX.Element {
                     disabled={isSubmitting}
                     className={`
                         w-full py-2 mt-2
-                        bg-indigo-600 text-white
+                        bg-brand-600 text-white
                         text-sm font-medium
                         rounded-md
-                        hover:bg-indigo-500 transition-colors
+                        hover:bg-brand-500 transition-colors
                         disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >

@@ -725,6 +725,82 @@ Tailwind uses a 4px base unit. Use this scale consistently rather than mixing ar
 | `12` | 48px |
 | `16` | 64px |
 
+#### Arbitrary values
+
+Do not use bracket notation (`text-[10px]`, `w-[72px]`, etc.) for values that map to a standard scale class. Only use bracket notation when there is genuinely no standard class available, for example SVG-specific pixel heights driven by JS constants.
+
+If the same arbitrary value is needed in more than one place, extract a CSS utility class using `@layer components` in `index.css` rather than repeating the bracket value.
+
+```css
+/* index.css - good: extracted instead of repeated text-[10px] */
+@layer components {
+    .label-tiny {
+        @apply text-[10px] font-semibold uppercase tracking-wide;
+    }
+}
+```
+
+#### Inline styles
+
+Only use `style={{}}` for values that are computed at runtime and cannot be expressed as static Tailwind classes, for example SVG dimensions derived from a JS constant or a section width calculated from interval durations. Do not use inline styles for values that have a direct Tailwind equivalent.
+
+```tsx
+// Bad - Tailwind class exists
+<div style={{ gap: '8px' }}>
+
+// Good
+<div className="gap-2">
+
+// Acceptable - computed value with no static Tailwind equivalent
+<svg style={{ height: `${PLOT_HEIGHT}px` }}>
+```
+
+---
+
+### Buttons and interactive elements
+
+#### Focus rings
+
+Every interactive element — buttons, links, and inputs — must have a visible focus ring so that keyboard users can see which element is active. Use the standard ring pattern and always pair it with `focus:outline-none` to suppress the browser default.
+
+```tsx
+// Standard pattern for buttons
+<button
+    className="
+        px-3 py-1.5 rounded-md text-sm font-medium
+        bg-indigo-600 text-white
+        hover:bg-indigo-500
+        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+        disabled:opacity-50 disabled:cursor-not-allowed
+        transition-colors
+    "
+>
+    Save
+</button>
+```
+
+Do not use `focus:outline-none` alone without a replacement ring. This removes the browser default and leaves keyboard users with no visual indicator.
+
+#### Disabled states
+
+Always use `disabled:opacity-50` for disabled buttons. Do not mix `opacity-40` or `opacity-60` — pick one value and apply it consistently.
+
+#### Icon-only buttons
+
+Any button that contains only an icon or a symbol character (trash, close, drag handle) with no visible text label must have an `aria-label` attribute.
+
+```tsx
+// Good
+<button aria-label="Delete block" onClick={onDelete}>
+    <TrashIcon className="w-4 h-4" />
+</button>
+
+// Bad - no label for screen readers
+<button onClick={onDelete}>
+    <TrashIcon className="w-4 h-4" />
+</button>
+```
+
 ---
 
 ### Hooks
@@ -770,3 +846,8 @@ Hook files are named `use` + the thing they manage: `useWorkouts.ts`, `useBlocks
 - One primary component per file
 - JSDoc on every exported component, hook, and API function
 - No commented-out code committed to the repository
+- Every button must include `focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 focus:ring-offset-zinc-900`
+- Disabled buttons always use `disabled:opacity-50` - do not use `opacity-40` or `opacity-60`
+- Icon-only buttons must have an `aria-label`
+- No arbitrary bracket values (`text-[10px]`) where a standard scale class exists - extract repeated arbitrary values to a CSS utility class in `index.css`
+- No inline `style={{}}` props for values that have a Tailwind equivalent
