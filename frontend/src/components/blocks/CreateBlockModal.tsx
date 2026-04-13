@@ -394,7 +394,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
                                 Preview
                             </p>
-                            <BlockPreview block={previewBlock} />
+                            <BlockPreview block={previewBlock} onReorder={handleReorder} />
                         </div>
                     )}
 

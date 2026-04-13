@@ -20,7 +20,7 @@ import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
 import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
-import { saveWorkout, deleteWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts } from './api/workouts'
+import { saveWorkout, deleteWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts, updateWorkoutSection, type UpdateWorkoutSectionRequest } from './api/workouts'
 import { saveBlock, type LibraryBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
@@ -426,6 +426,114 @@ export function App(): JSX.Element {
     }
 
     /**
+     * Moves a single interval from one section to another via canvas drag.
+     * Removes the interval from the source section at {@code fromIndex} and
+     * inserts it into the target section before {@code toIndex}. Both
+     * sections are updated via the auto-save queue.
+     *
+     * <p>Blocked when the move would leave the main set empty.</p>
+     */
+    function handleMoveInterval(
+        fromSection: SectionType,
+        fromIndex: number,
+        toSection: SectionType,
+        toIndex: number,
+    ): void {
+        if (selectedWorkout === null) {
+            return
+        }
+        const fromBlock = currentSectionBlock(selectedWorkout, fromSection)
+        if (fromBlock === null) {
+            return
+        }
+        const interval = fromBlock.intervals[fromIndex]
+        if (interval === undefined) {
+            return
+        }
+        const newFromIntervals = fromBlock.intervals.filter((_, i) => i !== fromIndex)
+        // The main set must always keep at least one interval
+        if (fromSection === 'MAINSET' && newFromIntervals.length === 0) {
+            return
+        }
+        const toBlock = currentSectionBlock(selectedWorkout, toSection)
+        const toIntervals = toBlock?.intervals ?? []
+        const clampedIndex = Math.min(toIndex, toIntervals.length)
+        const newToIntervals = [
+            ...toIntervals.slice(0, clampedIndex),
+            interval,
+            ...toIntervals.slice(clampedIndex),
+        ]
+        commitSectionIntervals(fromSection, newFromIntervals)
+        commitSectionIntervals(toSection, newToIntervals)
+    }
+
+    /**
+     * Saves a moved section boundary by persisting the re-partitioned
+     * interval arrays for all three sections. Unlike regular auto-saves,
+     * this involves two sequential PUT calls (one per affected section),
+     * so it calls the API directly rather than going through the auto-save
+     * queue to avoid the second call overwriting the first.
+     *
+     * <p>If the first call fails the second is not attempted. If the
+     * second call fails after the first succeeds, an error is shown and
+     * the user can retry via the undo controls.</p>
+     */
+    async function handleSaveBoundaries(
+        warmupIntervals: ParsedInterval[],
+        mainsetIntervals: ParsedInterval[],
+        cooldownIntervals: ParsedInterval[],
+    ): Promise<void> {
+        if (selectedWorkout === null || selectedWorkoutId === null) {
+            return
+        }
+
+        setIsSaving(true)
+        setSaveError(null)
+
+        try {
+            const warmupDraft = buildSectionDraft(selectedWorkout, 'WARMUP', warmupIntervals)
+            const warmupRequest: UpdateWorkoutSectionRequest = {
+                sectionType: 'WARMUP',
+                content: warmupDraft.content,
+                durationSeconds: warmupDraft.durationSeconds,
+                intervalCount: warmupDraft.intervalCount,
+            }
+            const afterWarmup = await updateWorkoutSection(selectedWorkoutId, warmupRequest)
+            applySelectedWorkoutUpdate(afterWarmup)
+
+            const mainsetDraft = buildSectionDraft(afterWarmup, 'MAINSET', mainsetIntervals)
+            const mainsetRequest: UpdateWorkoutSectionRequest = {
+                sectionType: 'MAINSET',
+                content: mainsetDraft.content,
+                durationSeconds: mainsetDraft.durationSeconds,
+                intervalCount: mainsetDraft.intervalCount,
+            }
+            const afterMainset = await updateWorkoutSection(selectedWorkoutId, mainsetRequest)
+            applySelectedWorkoutUpdate(afterMainset)
+
+            // Only send a cooldown request when the cooldown actually changed
+            const currentCooldown = selectedWorkout.cooldownBlock?.intervals ?? []
+            if (JSON.stringify(cooldownIntervals) !== JSON.stringify(currentCooldown)) {
+                const cooldownDraft = buildSectionDraft(afterMainset, 'COOLDOWN', cooldownIntervals)
+                const cooldownRequest: UpdateWorkoutSectionRequest = {
+                    sectionType: 'COOLDOWN',
+                    content: cooldownDraft.content,
+                    durationSeconds: cooldownDraft.durationSeconds,
+                    intervalCount: cooldownDraft.intervalCount,
+                }
+                const afterCooldown = await updateWorkoutSection(selectedWorkoutId, cooldownRequest)
+                applySelectedWorkoutUpdate(afterCooldown)
+            }
+        } catch (error) {
+            setSaveError(
+                error instanceof Error ? error.message : 'Failed to save boundary change.',
+            )
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    /**
      * Creates a new blank draft workout via the backend and refreshes the
      * saved workout list. The new workout has a single empty main set block
      * and no warm-up or cool-down, ready for the user to add blocks.
@@ -825,6 +933,11 @@ export function App(): JSX.Element {
                             selectedInterval={selectedInterval}
                             onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
                             onReplaceSection={handleReplaceSection}
+                            onReorderInterval={handleReorderIntervals}
+                            onMoveInterval={handleMoveInterval}
+                            onSaveBoundaries={(wu, ms, cd) =>
+                                void handleSaveBoundaries(wu, ms, cd)
+                            }
                         />
 
                         {selectedWorkout !== null && (
