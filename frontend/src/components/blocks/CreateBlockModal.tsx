@@ -1,27 +1,8 @@
 import { useState, type JSX } from 'react'
-import {
-    DndContext,
-    PointerSensor,
-    KeyboardSensor,
-    closestCenter,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-    SortableContext,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { saveBlock, updateBlock, type LibraryBlock } from '../../api/blocks'
-import { IntervalFields } from '../workout/IntervalEditor'
-import { ZonePresetButtons } from '../workout/ZonePresetButtons'
-import { AddBlockModal } from '../workout/AddBlockModal'
 import { BlockPreview } from './BlockPreview'
 import type { ParsedInterval, SectionType } from '../../types/workout'
-import { getZonePreset, type Zone } from '../../utils/zonePresets'
+import type { ZonePresetView } from '../../api/zonePresets'
 import { sumIntervalDuration } from '../../utils/editorDraft'
 
 interface Props {
@@ -34,6 +15,8 @@ interface Props {
      * block's existing values. The save action calls PUT instead of POST.
      */
     initialBlock?: LibraryBlock | null
+    /** Effective zone presets used to populate zone palette items in the interval palette. */
+    zonePresets?: ZonePresetView[]
 }
 
 const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
@@ -52,7 +35,7 @@ const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
  * constant for the create case) so React remounts the modal — and resets all
  * local state — when switching between blocks.</p>
  */
-export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null }: Props): JSX.Element | null {
+export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null, zonePresets }: Props): JSX.Element | null {
     const [sectionType, setSectionType] = useState<SectionType>(initialBlock?.sectionType ?? 'MAINSET')
     const [intervals, setIntervals] = useState<ParsedInterval[]>(
         initialBlock !== null && initialBlock.content.trim().length > 0
@@ -62,7 +45,6 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
     const [name, setName] = useState(initialBlock?.name ?? '')
     const [description, setDescription] = useState(initialBlock?.description ?? '')
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
-    const [isAddIntervalOpen, setIsAddIntervalOpen] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -80,30 +62,19 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
         setName(initialBlock?.name ?? '')
         setDescription(initialBlock?.description ?? '')
         setSelectedIndex(null)
-        setIsAddIntervalOpen(false)
         setError(null)
         onClose()
     }
 
-    function handleAddZonePreset(_sectionType: SectionType, zone: Zone): void {
-        const preset = getZonePreset(zone)
-        const interval: ParsedInterval = {
-            type: 'SteadyState',
-            durationSeconds: preset.defaultDurationSeconds,
-            power: preset.defaultFtpPercent / 100,
-            powerHigh: null,
-            cadence: null,
-            repeat: null,
-            onDuration: null,
-            offDuration: null,
-            onPower: null,
-            offPower: null,
-        }
-        setIntervals((prev) => [...prev, interval])
-    }
-
-    function handleAddInterval(_sectionType: SectionType, interval: ParsedInterval): void {
-        setIntervals((prev) => [...prev, interval])
+    /**
+     * Inserts a new interval at the given index. Called by the palette drag-and-drop
+     * system when the user drops a palette item onto the preview chart.
+     */
+    function handleAddInterval(interval: ParsedInterval, insertIndex: number): void {
+        setIntervals((prev) => {
+            const idx = Math.min(insertIndex, prev.length)
+            return [...prev.slice(0, idx), interval, ...prev.slice(idx)]
+        })
     }
 
     function handleUpdateInterval(index: number, next: ParsedInterval): void {
@@ -195,8 +166,6 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
         intervalCount: intervals.length,
         isLibraryBlock: true,
     }
-
-    const selectedInterval = selectedIndex !== null ? (intervals[selectedIndex] ?? null) : null
 
     return (
         <div
@@ -295,108 +264,43 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         />
                     </div>
 
+                    {/* Live preview with interval palette */}
+                    <div className="flex flex-col gap-1">
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                            Preview
+                        </p>
+                        <BlockPreview
+                            block={previewBlock}
+                            onReorder={handleReorder}
+                            onAddInterval={handleAddInterval}
+                            zonePresets={zonePresets}
+                            selectedIntervalIndex={selectedIndex}
+                            onSelectInterval={(i) => setSelectedIndex(i)}
+                            onUpdateInterval={handleUpdateInterval}
+                            onDeleteInterval={handleDeleteInterval}
+                        />
+                    </div>
+
                     {/* Intervals */}
                     <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-zinc-300">Intervals</p>
-                            <button
-                                type="button"
-                                onClick={() => setIsAddIntervalOpen(true)}
-                                className={`
-                                    px-3 py-1
-                                    bg-zinc-700 text-zinc-200
-                                    text-xs font-medium
-                                    rounded
-                                    hover:bg-zinc-600 transition-colors
-                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                `}
-                            >
-                                + Add interval
-                            </button>
-                        </div>
-
-                        {/* Zone preset buttons for quick SteadyState additions */}
-                        <ZonePresetButtons
-                            sectionType={sectionType}
-                            onSelectPreset={handleAddZonePreset}
-                        />
+                        <p className="text-sm font-semibold text-zinc-300">Intervals</p>
 
                         {intervals.length === 0 ? (
                             <p className="text-xs text-zinc-500 italic">
-                                No intervals yet. Use the zone buttons or Add interval to get started.
+                                No intervals yet. Drag an interval type from the palette above onto the chart to get started.
                             </p>
                         ) : (
-                            <SortableIntervalList
+                            <IntervalList
                                 intervals={intervals}
                                 selectedIndex={selectedIndex}
                                 onSelect={(index) =>
                                     setSelectedIndex((prev) => (prev === index ? null : index))
                                 }
                                 onDelete={handleDeleteInterval}
-                                onReorder={handleReorder}
+                                onUpdate={handleUpdateInterval}
                             />
                         )}
                     </div>
-
-                    {/* Inline interval editor for the selected interval */}
-                    {selectedInterval !== null && selectedIndex !== null && (
-                        <div
-                            className={`
-                                flex flex-col gap-3
-                                px-4 py-3
-                                bg-zinc-800/60 border border-zinc-700
-                                rounded-lg
-                            `}
-                        >
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm font-semibold text-white">Edit interval</p>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteInterval(selectedIndex)}
-                                        className={`
-                                            px-3 py-1
-                                            bg-red-900/60 text-red-200
-                                            text-xs font-medium
-                                            rounded
-                                            hover:bg-red-800 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                        `}
-                                    >
-                                        Delete
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedIndex(null)}
-                                        className={`
-                                            px-3 py-1
-                                            bg-zinc-700 text-zinc-200
-                                            text-xs font-medium
-                                            rounded
-                                            hover:bg-zinc-600 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                        `}
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-                            </div>
-                            <IntervalFields
-                                draft={selectedInterval}
-                                onChange={(next) => handleUpdateInterval(selectedIndex, next)}
-                            />
-                        </div>
-                    )}
-
-                    {/* Live preview */}
-                    {intervals.length > 0 && (
-                        <div className="flex flex-col gap-1">
-                            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
-                                Preview
-                            </p>
-                            <BlockPreview block={previewBlock} onReorder={handleReorder} />
-                        </div>
-                    )}
 
                     {error !== null && (
                         <p className="text-sm text-red-400">{error}</p>
@@ -439,169 +343,335 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                     </div>
                 </div>
 
-                {/* Add interval modal, nested so its backdrop stops at the panel boundary */}
-                <AddBlockModal
-                    isOpen={isAddIntervalOpen}
-                    sectionType={sectionType}
-                    onClose={() => setIsAddIntervalOpen(false)}
-                    onConfirm={handleAddInterval}
-                />
             </div>
         </div>
     )
 }
 
-interface SortableListProps {
+interface IntervalListProps {
     intervals: ParsedInterval[]
     selectedIndex: number | null
     onSelect: (index: number) => void
     onDelete: (index: number) => void
-    onReorder: (fromIndex: number, toIndex: number) => void
+    onUpdate: (index: number, next: ParsedInterval) => void
 }
 
-/** Sortable list of intervals for the block creator. */
-function SortableIntervalList({
+/** Editable list of intervals for the block creator. Each row exposes inline inputs for the interval's key fields. */
+function IntervalList({
     intervals,
     selectedIndex,
     onSelect,
     onDelete,
-    onReorder,
-}: SortableListProps): JSX.Element {
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    )
-    // Stable string IDs using index, intervals have no intrinsic ID
-    const itemIds = intervals.map((_, i) => `interval-${i}`)
-
-    function handleDragEnd(event: DragEndEvent): void {
-        const { active, over } = event
-        if (over === null || active.id === over.id) {
-            return
-        }
-        const fromIndex = itemIds.indexOf(String(active.id))
-        const toIndex = itemIds.indexOf(String(over.id))
-        if (fromIndex === -1 || toIndex === -1) {
-            return
-        }
-        onReorder(fromIndex, toIndex)
-    }
-
+    onUpdate,
+}: IntervalListProps): JSX.Element {
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-        >
-            <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-                <ul className="flex flex-col gap-1">
-                    {intervals.map((interval, index) => (
-                        <SortableIntervalRow
-                            key={`interval-${index}`}
-                            id={`interval-${index}`}
-                            interval={interval}
-                            isSelected={selectedIndex === index}
-                            onSelect={() => onSelect(index)}
-                            onDelete={() => onDelete(index)}
-                        />
-                    ))}
-                </ul>
-            </SortableContext>
-        </DndContext>
+        <ul className="flex flex-col gap-2">
+            {intervals.map((interval, index) => (
+                <IntervalRow
+                    key={`interval-${index}`}
+                    interval={interval}
+                    isSelected={selectedIndex === index}
+                    onSelect={() => onSelect(index)}
+                    onDelete={() => onDelete(index)}
+                    onUpdate={(next) => onUpdate(index, next)}
+                />
+            ))}
+        </ul>
     )
 }
 
-interface SortableRowProps {
-    id: string
+interface IntervalRowProps {
     interval: ParsedInterval
     isSelected: boolean
     onSelect: () => void
     onDelete: () => void
+    onUpdate: (next: ParsedInterval) => void
 }
 
-/** A single draggable interval row in the block creator list. */
-function SortableIntervalRow({
-    id,
-    interval,
-    isSelected,
-    onSelect,
-    onDelete,
-}: SortableRowProps): JSX.Element {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id })
+const INPUT_CLASS = 'w-16 px-2 py-1 bg-zinc-700 text-white text-xs rounded border border-zinc-600 focus:outline-none focus:border-brand-500'
+const FIELD_LABEL_CLASS = 'text-xs text-zinc-400'
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
+/**
+ * A single editable interval row. Each field holds its own local string state
+ * so intermediate values (e.g. an empty box mid-edit) are allowed while typing.
+ * The parsed value is committed to the parent only on blur. If the committed
+ * value is invalid the field resets to the last valid value from the interval.
+ */
+function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: IntervalRowProps): JSX.Element {
+    const [powerStr, setPowerStr] = useState(
+        interval.power !== null ? String(Math.round(interval.power * 100)) : ''
+    )
+    const [powerHighStr, setPowerHighStr] = useState(
+        interval.powerHigh !== null ? String(Math.round(interval.powerHigh * 100)) : ''
+    )
+    const [durationStr, setDurationStr] = useState(String(interval.durationSeconds))
+    const [repeatStr, setRepeatStr] = useState(String(interval.repeat ?? 1))
+    const [onDurationStr, setOnDurationStr] = useState(String(interval.onDuration ?? 0))
+    const [offDurationStr, setOffDurationStr] = useState(String(interval.offDuration ?? 0))
+    const [onPowerStr, setOnPowerStr] = useState(
+        interval.onPower !== null ? String(Math.round(interval.onPower * 100)) : ''
+    )
+    const [offPowerStr, setOffPowerStr] = useState(
+        interval.offPower !== null ? String(Math.round(interval.offPower * 100)) : ''
+    )
+
+    function commitPower(): void {
+        const n = parseInt(powerStr, 10)
+        if (!isNaN(n) && n >= 0) {
+            onUpdate({ ...interval, power: n / 100 })
+        } else {
+            setPowerStr(interval.power !== null ? String(Math.round(interval.power * 100)) : '')
+        }
+    }
+
+    function commitPowerHigh(): void {
+        const n = parseInt(powerHighStr, 10)
+        if (!isNaN(n) && n >= 0) {
+            onUpdate({ ...interval, powerHigh: n / 100 })
+        } else {
+            setPowerHighStr(interval.powerHigh !== null ? String(Math.round(interval.powerHigh * 100)) : '')
+        }
+    }
+
+    function commitDuration(): void {
+        const n = parseInt(durationStr, 10)
+        if (!isNaN(n) && n >= 1) {
+            onUpdate({ ...interval, durationSeconds: n })
+        } else {
+            setDurationStr(String(interval.durationSeconds))
+        }
+    }
+
+    function commitRepeat(): void {
+        const n = parseInt(repeatStr, 10)
+        if (!isNaN(n) && n >= 1) {
+            const onDur = parseInt(onDurationStr, 10)
+            const offDur = parseInt(offDurationStr, 10)
+            const newDuration = (!isNaN(onDur) && !isNaN(offDur)) ? n * (onDur + offDur) : interval.durationSeconds
+            onUpdate({ ...interval, repeat: n, durationSeconds: newDuration })
+        } else {
+            setRepeatStr(String(interval.repeat ?? 1))
+        }
+    }
+
+    function commitOnDuration(): void {
+        const n = parseInt(onDurationStr, 10)
+        if (!isNaN(n) && n >= 1) {
+            const repeat = parseInt(repeatStr, 10) || (interval.repeat ?? 1)
+            const offDur = parseInt(offDurationStr, 10)
+            const newDuration = !isNaN(offDur) ? repeat * (n + offDur) : interval.durationSeconds
+            onUpdate({ ...interval, onDuration: n, durationSeconds: newDuration })
+        } else {
+            setOnDurationStr(String(interval.onDuration ?? 0))
+        }
+    }
+
+    function commitOffDuration(): void {
+        const n = parseInt(offDurationStr, 10)
+        if (!isNaN(n) && n >= 0) {
+            const repeat = parseInt(repeatStr, 10) || (interval.repeat ?? 1)
+            const onDur = parseInt(onDurationStr, 10)
+            const newDuration = !isNaN(onDur) ? repeat * (onDur + n) : interval.durationSeconds
+            onUpdate({ ...interval, offDuration: n, durationSeconds: newDuration })
+        } else {
+            setOffDurationStr(String(interval.offDuration ?? 0))
+        }
+    }
+
+    function commitOnPower(): void {
+        const n = parseInt(onPowerStr, 10)
+        if (!isNaN(n) && n >= 0) {
+            onUpdate({ ...interval, onPower: n / 100 })
+        } else {
+            setOnPowerStr(interval.onPower !== null ? String(Math.round(interval.onPower * 100)) : '')
+        }
+    }
+
+    function commitOffPower(): void {
+        const n = parseInt(offPowerStr, 10)
+        if (!isNaN(n) && n >= 0) {
+            onUpdate({ ...interval, offPower: n / 100 })
+        } else {
+            setOffPowerStr(interval.offPower !== null ? String(Math.round(interval.offPower * 100)) : '')
+        }
+    }
+
+    const typeLabel: Record<ParsedInterval['type'], string> = {
+        SteadyState: 'Steady State',
+        Warmup: 'Warmup',
+        Cooldown: 'Cooldown',
+        Ramp: 'Ramp',
+        IntervalsT: 'Intervals',
+        FreeRide: 'Free Ride',
     }
 
     return (
-        <li
-            ref={setNodeRef}
-            style={style}
-            className={`
-                flex items-center justify-between gap-3
-                px-3 py-2
-                bg-zinc-800 border rounded
-                ${isSelected ? 'border-brand-500' : 'border-zinc-700'}
-            `}
-        >
-            <button
-                type="button"
-                {...attributes}
-                {...listeners}
-                aria-label="Drag to reorder"
-                className="text-zinc-500 hover:text-zinc-300 cursor-grab focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
-            >
-                ⋮⋮
-            </button>
-            <button
-                type="button"
-                onClick={onSelect}
-                className="flex-1 text-left text-sm text-white truncate focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
-            >
-                {summariseInterval(interval)}
-            </button>
-            <button
-                type="button"
-                onClick={onDelete}
-                className={`
-                    px-2 py-1
-                    bg-red-900/50 text-red-200
-                    label-tiny
-                    rounded
-                    hover:bg-red-800 transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                `}
-            >
-                Delete
-            </button>
+        <li className={`
+            flex flex-col gap-2
+            px-3 py-2
+            bg-zinc-800 border rounded
+            ${isSelected ? 'border-brand-500' : 'border-zinc-700'}
+        `}>
+            <div className="flex items-center justify-between">
+                <button
+                    type="button"
+                    onClick={onSelect}
+                    className="label-tiny text-zinc-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
+                >
+                    {typeLabel[interval.type]}
+                </button>
+                <button
+                    type="button"
+                    onClick={onDelete}
+                    className="px-2 py-1 bg-red-900/50 text-red-200 label-tiny rounded hover:bg-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800"
+                >
+                    Delete
+                </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {interval.type === 'SteadyState' && (
+                    <>
+                        <PowerField label="Intensity" value={powerStr} onChange={setPowerStr} onBlur={commitPower} />
+                        <DurationField value={durationStr} onChange={setDurationStr} onBlur={commitDuration} />
+                    </>
+                )}
+                {(interval.type === 'Warmup' || interval.type === 'Cooldown' || interval.type === 'Ramp') && (
+                    <>
+                        <PowerField label="Start" value={powerStr} onChange={setPowerStr} onBlur={commitPower} />
+                        <PowerField label="End" value={powerHighStr} onChange={setPowerHighStr} onBlur={commitPowerHigh} />
+                        <DurationField value={durationStr} onChange={setDurationStr} onBlur={commitDuration} />
+                    </>
+                )}
+                {interval.type === 'IntervalsT' && (
+                    <>
+                        <div className="flex items-center gap-1">
+                            <span className={FIELD_LABEL_CLASS}>Repeats</span>
+                            <input
+                                type="number"
+                                min={1}
+                                value={repeatStr}
+                                onChange={(e) => setRepeatStr(e.target.value)}
+                                onBlur={commitRepeat}
+                                className={INPUT_CLASS}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className={FIELD_LABEL_CLASS}>On</span>
+                            <input
+                                type="number"
+                                min={1}
+                                value={onDurationStr}
+                                onChange={(e) => setOnDurationStr(e.target.value)}
+                                onBlur={commitOnDuration}
+                                className={INPUT_CLASS}
+                            />
+                            <DurationHint value={onDurationStr} />
+                            <span className={FIELD_LABEL_CLASS}>@</span>
+                            <input
+                                type="number"
+                                min={0}
+                                max={150}
+                                value={onPowerStr}
+                                onChange={(e) => setOnPowerStr(e.target.value)}
+                                onBlur={commitOnPower}
+                                className={INPUT_CLASS}
+                            />
+                            <span className="text-xs text-zinc-400">%</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className={FIELD_LABEL_CLASS}>Off</span>
+                            <input
+                                type="number"
+                                min={0}
+                                value={offDurationStr}
+                                onChange={(e) => setOffDurationStr(e.target.value)}
+                                onBlur={commitOffDuration}
+                                className={INPUT_CLASS}
+                            />
+                            <DurationHint value={offDurationStr} />
+                            <span className={FIELD_LABEL_CLASS}>@</span>
+                            <input
+                                type="number"
+                                min={0}
+                                max={150}
+                                value={offPowerStr}
+                                onChange={(e) => setOffPowerStr(e.target.value)}
+                                onBlur={commitOffPower}
+                                className={INPUT_CLASS}
+                            />
+                            <span className="text-xs text-zinc-400">%</span>
+                        </div>
+                    </>
+                )}
+                {interval.type === 'FreeRide' && (
+                    <DurationField value={durationStr} onChange={setDurationStr} onBlur={commitDuration} />
+                )}
+            </div>
         </li>
     )
 }
 
-/** Short human-readable summary of an interval for the list row. */
-function summariseInterval(interval: ParsedInterval): string {
-    const minutes = Math.floor(interval.durationSeconds / 60)
-    const seconds = interval.durationSeconds % 60
-    const duration = seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`
-
-    switch (interval.type) {
-        case 'SteadyState':
-            return `Steady ${duration} @ ${formatPercent(interval.power)} FTP`
-        case 'Warmup':
-        case 'Cooldown':
-        case 'Ramp':
-            return `${interval.type} ${duration} ${formatPercent(interval.power)} → ${formatPercent(interval.powerHigh)} FTP`
-        case 'IntervalsT':
-            return `Intervals ${interval.repeat ?? 0} × (${interval.onDuration ?? 0}s @ ${formatPercent(interval.onPower)} / ${interval.offDuration ?? 0}s @ ${formatPercent(interval.offPower)})`
-        case 'FreeRide':
-            return `Free Ride ${duration}`
-    }
+interface PowerFieldProps {
+    label: string
+    value: string
+    onChange: (value: string) => void
+    onBlur: () => void
 }
 
-function formatPercent(power: number | null): string {
-    if (power === null) return '–'
-    return `${Math.round(power * 100)}%`
+/** Labelled percentage input for a power field. Operates on a local string so partial edits are allowed while typing. */
+function PowerField({ label, value, onChange, onBlur }: PowerFieldProps): JSX.Element {
+    return (
+        <div className="flex items-center gap-1">
+            <span className={FIELD_LABEL_CLASS}>{label}</span>
+            <input
+                type="number"
+                min={0}
+                max={150}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onBlur={onBlur}
+                className={INPUT_CLASS}
+            />
+            <span className="text-xs text-zinc-400">%</span>
+        </div>
+    )
+}
+
+interface DurationFieldProps {
+    value: string
+    onChange: (value: string) => void
+    onBlur: () => void
+}
+
+/** Labelled seconds input with a bracketed minutes display alongside it. Operates on a local string so partial edits are allowed while typing. */
+function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Element {
+    return (
+        <div className="flex items-center gap-1">
+            <span className={FIELD_LABEL_CLASS}>Duration</span>
+            <input
+                type="number"
+                min={1}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onBlur={onBlur}
+                className={INPUT_CLASS}
+            />
+            <DurationHint value={value} />
+        </div>
+    )
+}
+
+/** Renders the bracketed minutes hint for a seconds string value. Hidden when the string cannot be parsed. */
+function DurationHint({ value }: { value: string }): JSX.Element | null {
+    const seconds = parseInt(value, 10)
+    if (isNaN(seconds) || seconds < 0) return null
+    return <span className="text-xs text-zinc-500">s ({formatDurationMins(seconds)})</span>
+}
+
+/** Formats a duration in seconds as a human-readable minutes string, e.g. "10m" or "10m 30s". */
+function formatDurationMins(seconds: number): string {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return s === 0 ? `${m}m` : `${m}m ${s}s`
 }

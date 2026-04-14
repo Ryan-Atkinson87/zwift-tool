@@ -11,6 +11,10 @@ interface Props {
     onSave: (next: { name: string; author: string | null; description: string | null }) => void
     /** True while a save request is in flight, used to disable inputs. */
     isSaving: boolean
+    /** Called when the user clicks the Export .zwo button. */
+    onExport?: () => void
+    /** True while an export request is in flight. */
+    isExporting?: boolean
 }
 
 /**
@@ -26,7 +30,7 @@ interface Props {
  * is expected to pass {@code key={workout.id}} so that switching workouts
  * remounts the editor and picks up fresh values without an effect.</p>
  */
-export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX.Element {
+export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isExporting = false }: Props): JSX.Element {
     const [name, setName] = useState<string>(workout.name)
     const [author, setAuthor] = useState<string>(workout.author ?? '')
     const [description, setDescription] = useState<string>(workout.description ?? '')
@@ -74,25 +78,44 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving }: Props): JSX
 
     return (
         <div className="flex flex-col w-full gap-2">
-            <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={handleNameBlur}
-                disabled={isSaving}
-                aria-label="Workout name"
-                placeholder="Workout name"
-                maxLength={200}
-                className={`
-                    w-full px-2 py-1
-                    bg-transparent text-white
-                    text-lg font-semibold
-                    border border-transparent rounded
-                    hover:border-zinc-700 focus:border-brand-500
-                    focus:outline-none transition-colors
-                    disabled:opacity-60
-                `}
-            />
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={handleNameBlur}
+                    disabled={isSaving}
+                    aria-label="Workout name"
+                    placeholder="Workout name"
+                    maxLength={200}
+                    className={`
+                        min-w-0 flex-1 px-2 py-1
+                        bg-transparent text-white
+                        text-lg font-semibold
+                        border border-transparent rounded
+                        hover:border-zinc-700 focus:border-brand-500
+                        focus:outline-none transition-colors
+                        disabled:opacity-60
+                    `}
+                />
+                {onExport !== undefined && (
+                    <button
+                        onClick={onExport}
+                        disabled={isExporting}
+                        className={`
+                            shrink-0 px-3 py-1.5
+                            bg-green-600 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-green-500 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
+                    >
+                        {isExporting ? 'Exporting...' : 'Export .zwo'}
+                    </button>
+                )}
+            </div>
 
             <input
                 type="text"

@@ -39,14 +39,14 @@ export function Modal({ isOpen, onClose, title, children }: Props): JSX.Element 
             <div
                 className={`
                     flex flex-col
-                    w-full max-w-md
-                    mx-4 p-6
+                    w-full max-w-md max-h-[90vh]
+                    mx-4
                     bg-zinc-800 text-white
                     rounded-lg
                 `}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
                     <h2 className="text-xl font-semibold">{title}</h2>
                     <button
                         onClick={onClose}
@@ -56,7 +56,9 @@ export function Modal({ isOpen, onClose, title, children }: Props): JSX.Element 
                         &#x2715;
                     </button>
                 </div>
-                {children}
+                <div className="overflow-y-auto px-6 pb-6">
+                    {children}
+                </div>
             </div>
         </div>
     )
