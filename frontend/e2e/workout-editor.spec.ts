@@ -70,7 +70,8 @@ test.describe('Workout editor — guest mode', () => {
 
     test('shows a validation error when sign-in is submitted with empty fields', async ({ page }) => {
         await page.getByRole('button', { name: /sign in/i }).first().click()
-        await page.getByRole('button', { name: /^sign in$/i }).click()
+        // Scope to the form — the header and left-panel also have "Sign in" buttons
+        await page.locator('form').getByRole('button', { name: /^sign in$/i }).click()
 
         await expect(page.getByText('Please enter your email and password.')).toBeVisible()
     })
