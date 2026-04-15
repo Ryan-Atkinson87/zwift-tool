@@ -13,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -90,4 +91,11 @@ public class Workout {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // Keep the in-memory entity consistent with the database trigger so
+    // update responses reflect the actual save time, not the pre-save value.
+    @PreUpdate
+    private void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }
