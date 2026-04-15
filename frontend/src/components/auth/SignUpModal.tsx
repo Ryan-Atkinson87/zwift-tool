@@ -156,6 +156,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp }: Props): JSX.Element {
                         text-sm font-medium
                         rounded-md
                         hover:bg-brand-500 transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                         disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
