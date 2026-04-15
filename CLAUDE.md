@@ -29,16 +29,17 @@ Backend requires a `.env` file — copy `backend/.env.example` and fill in all v
 
 ## Git Workflow
 
-Claude Code must never run git write commands: no `git add`, `git commit`, `git push`, `git merge`, `git checkout`, `git stash`, or `git rebase`. Only read-only git commands are allowed (`git status`, `git diff`, `git log`, `git branch`, `git fetch`, `git rev-list`).
+**TechLead is the only agent responsible for git write operations.** All other agents must not run git write commands (no `git add`, `git commit`, `git push`, `git merge`, `git checkout`, `git stash`, or `git rebase`). Only read-only commands are permitted for non-TechLead agents: `git status`, `git diff`, `git log`, `git branch`, `git fetch`, `git rev-list`.
 
-When implementation is complete, hand off to the user:
+### Branch and PR rules
 
-1. Tell the user to stage their changes (`git add`)
-2. Tell the user to review the diff (`git diff --staged`)
-3. When asked, read the staged diff and write a commit message for the user to copy
-4. Tell the user to commit (`git commit -m "..."`) and push
+- TechLead creates feature branches from `dev`, named `issue-[number]-short-description`
+- TechLead is the only agent that stages, commits, pushes branches, and raises PRs
+- All PRs target the `dev` branch — never `main`
+- The board reviews and merges PRs to `dev` — no agent merges anything
+- No agent ever raises a PR to `main` or merges into `main` under any circumstances
 
-For merges, print the exact commands for the user to run rather than executing them.
+When implementation or review is complete, notify the TechLead. The TechLead handles all staging, committing, pushing, and PR creation.
 
 ## Tech Stack
 
