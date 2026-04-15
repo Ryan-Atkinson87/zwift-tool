@@ -60,7 +60,7 @@ export function ReplaceWithBlockModal({
     }
 
     // Reset selection when the modal re-opens for a new section
-    // by keying state to sectionType — handled via the key on the modal caller
+    // by keying state to sectionType, handled via the key on the modal caller
 
     return (
         <Modal
@@ -109,6 +109,7 @@ export function ReplaceWithBlockModal({
                             text-sm font-medium
                             rounded-md
                             hover:bg-zinc-600 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                             disabled:opacity-50 disabled:cursor-not-allowed
                         `}
                     >
@@ -120,10 +121,11 @@ export function ReplaceWithBlockModal({
                         disabled={selectedBlockId === null || isReplacing || filteredBlocks.length === 0}
                         className={`
                             px-4 py-2
-                            bg-indigo-600 text-white
+                            bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
-                            hover:bg-indigo-500 transition-colors
+                            hover:bg-brand-500 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                             disabled:opacity-50 disabled:cursor-not-allowed
                         `}
                     >

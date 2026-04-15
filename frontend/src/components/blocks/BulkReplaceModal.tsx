@@ -99,8 +99,9 @@ export function BulkReplaceModal({
                                     text-sm font-medium
                                     rounded-md border
                                     transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                                     ${sectionType === type
-                                        ? 'bg-indigo-600 border-indigo-500 text-white'
+                                        ? 'bg-brand-600 border-brand-500 text-white'
                                         : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'}
                                 `}
                             >
@@ -171,7 +172,7 @@ export function BulkReplaceModal({
                         type="checkbox"
                         checked={downloadZip}
                         onChange={(e) => setDownloadZip(e.target.checked)}
-                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-brand-500 cursor-pointer"
                     />
                     <span className="text-sm text-zinc-300">
                         Download updated .zwo files as a zip
@@ -193,6 +194,7 @@ export function BulkReplaceModal({
                             text-sm font-medium
                             rounded-md
                             hover:bg-zinc-600 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                             disabled:opacity-50 disabled:cursor-not-allowed
                         `}
                     >
@@ -204,10 +206,11 @@ export function BulkReplaceModal({
                         disabled={selectedBlockId === null || isBulkReplacing || filteredBlocks.length === 0}
                         className={`
                             px-4 py-2
-                            bg-indigo-600 text-white
+                            bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
-                            hover:bg-indigo-500 transition-colors
+                            hover:bg-brand-500 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                             disabled:opacity-50 disabled:cursor-not-allowed
                         `}
                     >

@@ -24,11 +24,11 @@ export function getZoneForPower(ftpPercent: number): number {
 }
 
 const ZONE_COLOURS: Record<number, string> = {
-    1: '#8C8C8C', // Active Recovery — grey
-    2: '#3B82F6', // Endurance — blue
-    3: '#22C55E', // Tempo — green
-    4: '#EAB308', // Threshold — yellow
-    5: '#EF4444', // VO2 Max — red
+    1: '#8C8C8C', // Active Recovery, grey
+    2: '#3B82F6', // Endurance, blue
+    3: '#22C55E', // Tempo, green
+    4: '#EAB308', // Threshold, yellow
+    5: '#EF4444', // VO2 Max, red
 }
 
 /**

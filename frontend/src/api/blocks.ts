@@ -48,6 +48,30 @@ export async function saveBlock(request: SaveBlockRequest): Promise<LibraryBlock
 }
 
 /**
+ * Updates an existing library block. Replaces name, description, section
+ * type, and interval content with the supplied values.
+ *
+ * @param blockId the ID of the block to update
+ * @param request the updated block data
+ * @returns the updated block record
+ * @throws Error if the request fails or the block is not found
+ */
+export async function updateBlock(blockId: string, request: SaveBlockRequest): Promise<LibraryBlock> {
+    const response = await fetchWithAuth(`${API_BASE}/blocks/${blockId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+        const error: { message: string } = await response.json()
+        throw new Error(error.message ?? `Failed to update block: ${response.status}`)
+    }
+
+    return response.json()
+}
+
+/**
  * Deletes a library block by ID.
  *
  * <p>If the block is still referenced by a workout, the backend soft-deletes

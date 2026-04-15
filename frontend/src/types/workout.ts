@@ -123,6 +123,8 @@ export interface WorkoutDetail {
 export interface TextEvent {
     /** Seconds from the start of the workout at which the message appears. */
     timeOffsetSeconds: number
+    /** How long in seconds the message bar is displayed on the timeline. */
+    durationSeconds?: number
     /** Message body shown on the timeline. */
     message: string
 }

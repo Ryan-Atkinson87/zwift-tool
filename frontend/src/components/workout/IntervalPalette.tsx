@@ -1,0 +1,167 @@
+import type { JSX } from 'react'
+import type { ParsedInterval } from '../../types/workout'
+import type { ZonePresetView } from '../../api/zonePresets'
+import { getColourForZone, getZoneForPower } from '../../utils/zoneColours'
+import { buildPaletteItems } from '../../utils/paletteItems'
+
+/** Y-axis maximum used to normalise palette item shapes, matching the chart default. */
+export const PALETTE_Y_MAX = 140
+
+/** ViewBox height for palette item shapes, in SVG units. */
+const PALETTE_VB_HEIGHT = 60
+
+/** ViewBox width for palette item shapes, in SVG units. */
+const PALETTE_VB_WIDTH = 50
+
+interface IntervalPaletteProps {
+    zonePresets?: ZonePresetView[]
+    onItemPointerDown: (interval: ParsedInterval, e: React.PointerEvent) => void
+    isDragging: boolean
+}
+
+/**
+ * Horizontal palette of draggable interval blocks. Users drag an item onto a
+ * chart to add that interval type at the drop position.
+ *
+ * <p>Includes one block per Zwift zone (using effective zone presets when
+ * available) and separate Ramp, Intervals, and Free Ride blocks.</p>
+ */
+export function IntervalPalette({
+    zonePresets,
+    onItemPointerDown,
+    isDragging,
+}: IntervalPaletteProps): JSX.Element {
+    const items = buildPaletteItems(zonePresets)
+    return (
+        <div className="flex flex-wrap justify-center gap-2 mt-2 pt-2 border-t border-zinc-700">
+            <span className="w-full text-center label-tiny text-zinc-500 pb-1">
+                Drag an interval onto the chart to add it
+            </span>
+            {items.map((item) => (
+                <div
+                    key={item.id}
+                    onPointerDown={(e) => {
+                        e.preventDefault()
+                        onItemPointerDown(item.interval, e)
+                    }}
+                    style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                    title={`Drag to add a ${item.label} interval`}
+                    className={`
+                        flex flex-col items-center gap-1
+                        px-2 py-1.5
+                        bg-zinc-700/60 rounded
+                        hover:bg-zinc-700 transition-colors
+                        select-none
+                    `}
+                >
+                    <PaletteItemShape interval={item.interval} />
+                    <span className="label-tiny text-zinc-300">{item.label}</span>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+interface PaletteItemShapeProps {
+    interval: ParsedInterval
+}
+
+/**
+ * Small SVG that represents the power profile of a palette item. All items
+ * share the same viewBox so they appear uniform-sized in the palette, with
+ * the bar shape reflecting the interval type and power level.
+ */
+export function PaletteItemShape({ interval }: PaletteItemShapeProps): JSX.Element {
+    const vbW = PALETTE_VB_WIDTH
+    const vbH = PALETTE_VB_HEIGHT
+    const bottom = vbH
+
+    const svgProps = {
+        width: 44 as number,
+        height: 48 as number,
+        viewBox: `0 0 ${vbW} ${vbH}`,
+        preserveAspectRatio: 'xMidYMax meet',
+        style: { display: 'block' as const },
+    }
+
+    if (interval.type === 'Ramp' && interval.power !== null && interval.powerHigh !== null) {
+        const startPct = Math.round(interval.power * 100)
+        const endPct = Math.round(interval.powerHigh * 100)
+        const startH = (startPct / PALETTE_Y_MAX) * vbH
+        const endH = (endPct / PALETTE_Y_MAX) * vbH
+        const startY = bottom - startH
+        const endY = bottom - endH
+        const startColour = getColourForZone(getZoneForPower(startPct))
+        const endColour = getColourForZone(getZoneForPower(endPct))
+        const gradId = 'palette-ramp'
+        return (
+            <svg {...svgProps}>
+                <defs>
+                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={startColour} />
+                        <stop offset="100%" stopColor={endColour} />
+                    </linearGradient>
+                </defs>
+                <polygon
+                    points={`2,${startY} ${vbW - 2},${endY} ${vbW - 2},${bottom} 2,${bottom}`}
+                    fill={`url(#${gradId})`}
+                />
+            </svg>
+        )
+    }
+
+    if (interval.type === 'IntervalsT') {
+        const onFtp = Math.round((interval.onPower ?? 1.1) * 100)
+        const offFtp = Math.round((interval.offPower ?? 0.55) * 100)
+        const onH = (onFtp / PALETTE_Y_MAX) * vbH
+        const offH = (offFtp / PALETTE_Y_MAX) * vbH
+        const onColour = getColourForZone(getZoneForPower(onFtp))
+        const offColour = getColourForZone(getZoneForPower(offFtp))
+        // Show 3 on + 3 off bars, fitting within the viewBox width.
+        const barW = 7
+        const gap = 1
+        const bars: JSX.Element[] = []
+        for (let i = 0; i < 3; i++) {
+            const xOn = 2 + i * (barW * 2 + gap * 2)
+            const xOff = xOn + barW + gap
+            bars.push(
+                <rect key={`on-${i}`} x={xOn} y={bottom - onH} width={barW} height={onH} fill={onColour} rx={1} />,
+                <rect key={`off-${i}`} x={xOff} y={bottom - offH} width={barW} height={offH} fill={offColour} rx={1} />,
+            )
+        }
+        return <svg {...svgProps}>{bars}</svg>
+    }
+
+    if (interval.type === 'FreeRide') {
+        const h = (50 / PALETTE_Y_MAX) * vbH
+        const topY = bottom - h
+        const amplitude = h * 0.08
+        const steps = 10
+        const pts: string[] = []
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps
+            const px = 2 + t * (vbW - 4)
+            const py = topY - Math.sin(t * Math.PI * 4) * amplitude
+            pts.push(`${i === 0 ? 'M' : 'L'} ${px} ${py}`)
+        }
+        pts.push(`L ${vbW - 2} ${bottom}`)
+        pts.push(`L 2 ${bottom}`)
+        pts.push('Z')
+        return (
+            <svg {...svgProps}>
+                <path d={pts.join(' ')} fill="#6B7280" />
+            </svg>
+        )
+    }
+
+    // SteadyState (includes zone presets)
+    const ftpPct = Math.round((interval.power ?? 0.5) * 100)
+    const h = (ftpPct / PALETTE_Y_MAX) * vbH
+    const topY = bottom - h
+    const colour = getColourForZone(getZoneForPower(ftpPct))
+    return (
+        <svg {...svgProps}>
+            <rect x={2} y={topY} width={vbW - 4} height={h} fill={colour} rx={2} />
+        </svg>
+    )
+}

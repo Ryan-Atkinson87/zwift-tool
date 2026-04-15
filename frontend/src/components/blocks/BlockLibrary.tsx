@@ -8,8 +8,8 @@ interface Props {
     blocks: LibraryBlock[]
     isLoading: boolean
     error: string | null
-    /** Called when the user clicks the "New block" button. */
-    onCreateBlock: () => void
+    /** Called when the user clicks the edit button on a block. */
+    onEditBlock: (block: LibraryBlock) => void
     /** Called when the user confirms deletion of a block. */
     onDeleteBlock: (blockId: string) => Promise<void>
 }
@@ -31,13 +31,13 @@ const FILTER_TABS: Array<{ value: SectionFilter; label: string }> = [
  * <p>Filtering is applied client-side since all blocks are already loaded.
  * The selected block is cleared when the active filter changes.</p>
  */
-export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDeleteBlock }: Props): JSX.Element {
+export function BlockLibrary({ blocks, isLoading, error, onEditBlock, onDeleteBlock }: Props): JSX.Element {
     const [activeFilter, setActiveFilter] = useState<SectionFilter>('ALL')
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
 
     if (isLoading) {
         return (
-            <div className="w-full max-w-4xl px-4 py-4 bg-zinc-800/40 border border-zinc-700 rounded-lg">
+            <div className="w-full px-4 py-4 bg-zinc-800/40 border border-zinc-700 rounded-lg">
                 <p className="text-sm text-zinc-400">Loading library...</p>
             </div>
         )
@@ -45,7 +45,7 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDelete
 
     if (error !== null) {
         return (
-            <div className="w-full max-w-4xl px-4 py-4 bg-red-900/30 border border-red-800 rounded-lg">
+            <div className="w-full px-4 py-4 bg-red-900/30 border border-red-800 rounded-lg">
                 <p className="text-sm text-red-300">{error}</p>
             </div>
         )
@@ -80,40 +80,22 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDelete
     }
 
     return (
-        <div className="flex flex-col w-full max-w-4xl gap-3">
-            <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
-                    Block Library
-                </h2>
-                <button
-                    type="button"
-                    onClick={onCreateBlock}
-                    className={`
-                        px-3 py-1
-                        bg-indigo-600 text-white
-                        text-xs font-medium
-                        rounded-md
-                        hover:bg-indigo-500 transition-colors
-                    `}
-                >
-                    + New block
-                </button>
-            </div>
-
-            {/* Section type filter tabs */}
-            <div className="flex gap-1">
+        <div className="flex flex-col w-full gap-3">
+            {/* Section type filter grid: 2×2 layout matches the FileUploader button stack height */}
+            <div className="grid grid-cols-2 gap-2">
                 {FILTER_TABS.map((tab) => (
                     <button
                         key={tab.value}
                         type="button"
                         onClick={() => handleFilterChange(tab.value)}
                         className={`
-                            px-3 py-1
-                            text-xs font-medium
+                            w-full px-4 py-2
+                            text-sm font-medium
                             rounded-md
                             transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${activeFilter === tab.value
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-brand-600 text-white'
                                 : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
                             }
                         `}
@@ -122,6 +104,10 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDelete
                     </button>
                 ))}
             </div>
+
+            <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide">
+                Block Library
+            </h2>
 
             {filteredBlocks.length === 0 ? (
                 <div className="px-4 py-4 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
@@ -140,6 +126,7 @@ export function BlockLibrary({ blocks, isLoading, error, onCreateBlock, onDelete
                                 block={block}
                                 isSelected={selectedBlockId === block.id}
                                 onClick={() => handleSelectBlock(block.id)}
+                                onEdit={() => onEditBlock(block)}
                                 onDelete={() => void handleDeleteBlock(block.id)}
                             />
                             {selectedBlock !== null && selectedBlock.id === block.id && (

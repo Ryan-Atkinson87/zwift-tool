@@ -148,6 +148,7 @@ export function AddBlockModal({
                             text-sm font-medium
                             rounded-md
                             hover:bg-zinc-600 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                         `}
                     >
                         Cancel
@@ -157,10 +158,11 @@ export function AddBlockModal({
                         onClick={handleConfirm}
                         className={`
                             px-4 py-2
-                            bg-indigo-600 text-white
+                            bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
-                            hover:bg-indigo-500 transition-colors
+                            hover:bg-brand-500 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                         `}
                     >
                         Add block
@@ -194,8 +196,9 @@ function TypeSelector({ value, onChange }: TypeSelectorProps): JSX.Element {
                         flex-1 px-3 py-2
                         text-sm font-medium
                         rounded-md transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
                         ${value === option.value
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-brand-600 text-white'
                             : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
                         }
                     `}
@@ -332,7 +335,7 @@ function NumberField({ label, value, onChange, min, max }: NumberFieldProps): JS
                     bg-zinc-900 text-white
                     text-sm
                     border border-zinc-700 rounded-md
-                    focus:outline-none focus:border-indigo-500
+                    focus:outline-none focus:border-brand-500
                 `}
             />
         </label>

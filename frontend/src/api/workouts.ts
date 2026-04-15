@@ -41,14 +41,6 @@ export interface SaveWorkoutResponse {
 }
 
 /**
- * Saves a new workout from the import flow. Sends the structured workout
- * with section content to the backend.
- *
- * @param request the workout data with section splits applied
- * @returns the saved workout record
- * @throws Error if the request fails
- */
-/**
  * Fetches all saved workouts for the authenticated user as a summary list,
  * ordered by most recently updated first.
  *
@@ -444,6 +436,31 @@ export async function exportWorkouts(workoutIds: string[]): Promise<void> {
     URL.revokeObjectURL(url)
 }
 
+/**
+ * Deletes a workout and its associated non-library section blocks.
+ *
+ * @param workoutId the ID of the workout to delete
+ * @throws Error if the workout does not exist, the user is not authorised,
+ *               or the request fails
+ */
+export async function deleteWorkout(workoutId: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE}/workouts/${workoutId}`, {
+        method: 'DELETE',
+    })
+
+    if (!response.ok) {
+        throw new Error(`Failed to delete workout: ${response.status}`)
+    }
+}
+
+/**
+ * Saves a new workout from the import flow. Sends the structured workout
+ * with section content to the backend.
+ *
+ * @param request the workout data with section splits applied
+ * @returns the saved workout record
+ * @throws Error if the request fails
+ */
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',

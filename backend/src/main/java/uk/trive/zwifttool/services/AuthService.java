@@ -167,7 +167,20 @@ public class AuthService {
             }
 
             UUID userId = session.getUserId();
-            userSessionRepository.delete(session);
+
+            // Use a count-returning DELETE rather than JPA's delete(entity). If a concurrent
+            // request already removed this row, delete(entity) would throw
+            // ObjectOptimisticLockingFailureException. removeById returns 0 instead,
+            // letting us fall through to the grace window cleanly.
+            int deleted = userSessionRepository.removeById(session.getId());
+
+            if (deleted == 0) {
+                // Another concurrent refresh already rotated this token.
+                // We already have the userId from the row we found, so we can
+                // skip the access-token fallback and go straight to the grace window.
+                log.debug("Concurrent refresh detected: token already rotated for user {}", userId);
+                return handleGraceWindow(userId);
+            }
 
             log.info("Refresh token rotated for user {}", userId);
             return createSession(userId);

@@ -9,9 +9,12 @@ interface Props {
 }
 
 /**
- * Toolbar shown below the workout list when two or more workouts are
- * selected. Displays the selection count, a bulk replace button, an
- * export button, and a button to clear the selection.
+ * Toolbar shown in the left panel whenever select mode is active.
+ * Displays action buttons on the first row and the selection count
+ * beneath them. All buttons share equal width via flex-1.
+ *
+ * <p>Replace requires at least two workouts selected. Export requires
+ * at least one. Clear is always available to deselect all checked items.</p>
  */
 export function BulkActionsToolbar({
     selectedCount,
@@ -23,39 +26,40 @@ export function BulkActionsToolbar({
     return (
         <div
             className={`
-                flex items-center justify-between
-                w-full max-w-md px-4 py-3
-                bg-indigo-900/40 border border-indigo-700
+                flex flex-col gap-2
+                w-full px-3 py-2
+                bg-brand-900/40 border border-brand-700
                 rounded-md
             `}
         >
-            <span className="text-sm font-medium text-indigo-200">
-                {selectedCount} workout{selectedCount !== 1 ? 's' : ''} selected
-            </span>
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
                 <button
                     type="button"
                     onClick={onBulkReplace}
+                    disabled={selectedCount < 1}
                     className={`
-                        px-3 py-1
-                        bg-indigo-600 text-white
+                        flex-1 px-2 py-1.5
+                        bg-brand-600 text-white
                         text-xs font-medium
                         rounded-md
-                        hover:bg-indigo-500 transition-colors
+                        hover:bg-brand-500 transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                        disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
-                    Replace section
+                    Replace
                 </button>
                 <button
                     type="button"
                     onClick={onExportSelected}
-                    disabled={isExporting}
+                    disabled={isExporting || selectedCount < 1}
                     className={`
-                        px-3 py-1
+                        flex-1 px-2 py-1.5
                         bg-zinc-600 text-zinc-100
                         text-xs font-medium
                         rounded-md
                         hover:bg-zinc-500 transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                         disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
@@ -65,16 +69,20 @@ export function BulkActionsToolbar({
                     type="button"
                     onClick={onClearSelection}
                     className={`
-                        px-3 py-1
+                        flex-1 px-2 py-1.5
                         bg-zinc-700 text-zinc-300
                         text-xs font-medium
                         rounded-md
                         hover:bg-zinc-600 transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 >
                     Clear
                 </button>
             </div>
+            <p className="text-xs text-brand-300">
+                {selectedCount} {selectedCount === 1 ? 'workout' : 'workouts'} selected
+            </p>
         </div>
     )
 }

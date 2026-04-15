@@ -104,62 +104,62 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
     }
 
     return (
-        <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap items-center justify-center gap-3">
-                <label
-                    className={`
-                        flex items-center justify-center
-                        px-6 py-3
-                        bg-indigo-600 text-white
-                        text-sm font-medium
-                        rounded-md
-                        cursor-pointer
-                        hover:bg-indigo-500 transition-colors
-                        ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                >
-                    {isProcessing ? 'Processing...' : 'Upload .zwo files'}
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".zwo"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => void handleFileChange(e)}
-                        disabled={isProcessing}
-                    />
-                </label>
+        <div className="flex flex-col gap-2">
+            <label
+                className={`
+                    flex items-center justify-center
+                    w-full px-4 py-2
+                    bg-zinc-700 text-white
+                    text-sm font-medium
+                    rounded-md
+                    cursor-pointer
+                    hover:bg-zinc-600 transition-colors
+                    focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-500 focus-within:ring-offset-1 focus-within:ring-offset-zinc-900
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+            >
+                {isProcessing ? 'Processing...' : 'Upload .zwo files'}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".zwo"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => void handleFileChange(e)}
+                    disabled={isProcessing}
+                />
+            </label>
 
-                <button
-                    type="button"
-                    onClick={handleLoadExample}
-                    disabled={examplesExhausted || isProcessing}
-                    className={`
-                        flex items-center justify-center
-                        px-6 py-3
-                        bg-zinc-700 text-white
-                        text-sm font-medium
-                        rounded-md
-                        hover:bg-zinc-600 transition-colors
-                        ${examplesExhausted || isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    `}
-                >
-                    Load Example Workout
-                </button>
-            </div>
+            <button
+                type="button"
+                onClick={handleLoadExample}
+                disabled={examplesExhausted || isProcessing}
+                className={`
+                    w-full px-4 py-2
+                    bg-zinc-700 text-white
+                    text-sm font-medium
+                    rounded-md
+                    hover:bg-zinc-600 transition-colors
+                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                `}
+            >
+                Load example workout
+            </button>
 
             {examplesExhausted && exampleKeys.length > 0 && (
-                <p className="text-sm text-zinc-400">
+                <p className="text-xs text-zinc-400">
                     No more example workouts available.
                 </p>
             )}
 
             {errors.length > 0 && (
-                <div className="flex flex-col gap-2 w-full max-w-md">
+                <div className="flex flex-col gap-2">
                     {errors.map((error, index) => (
                         <p
                             key={index}
-                            className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md"
+                            className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md"
                         >
                             {error}
                         </p>

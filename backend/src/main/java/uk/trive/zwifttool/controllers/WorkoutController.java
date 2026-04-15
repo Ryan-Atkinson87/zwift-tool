@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -88,6 +89,23 @@ public class WorkoutController {
     ) {
         Workout workout = workoutService.getWorkoutForUser(workoutId, userId);
         return ResponseEntity.ok(toDetailResponse(workout));
+    }
+
+    /**
+     * Deletes a workout and its associated non-library section blocks.
+     * Returns HTTP 204 on success. Library blocks are not affected.
+     *
+     * @param workoutId the ID of the workout to delete
+     * @param userId    the authenticated user's ID, resolved from the JWT
+     * @return HTTP 204 with no body
+     */
+    @DeleteMapping("/{workoutId}")
+    public ResponseEntity<Void> deleteWorkout(
+            @PathVariable UUID workoutId,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        workoutService.deleteWorkout(workoutId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     /**

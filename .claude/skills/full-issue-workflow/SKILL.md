@@ -1,6 +1,6 @@
 ---
 description: Full issue workflow — review, implement, check, and merge
-argument-hint: <issue-number>
+argument-hint: <issue-number or pasted issue description>
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash(gh issue view:*), Bash(gh issue list:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(npm run *:*), Bash(npm install:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
 ---
 
@@ -8,10 +8,21 @@ allowed-tools: Read, Glob, Grep, Edit, Write, Bash(gh issue view:*), Bash(gh iss
 
 The user handles all git write operations themselves (add, commit, push, merge, checkout). This skill only ever reads git state and prints commit messages or merge commands for the user to copy. Never run git write commands. Never walk the user through git commands step by step — they know how git works.
 
+## Input handling
+
+The argument can be either:
+
+1. **An issue number** (e.g. `42`) — fetch issue details from GitHub using `gh issue view`
+2. **A pasted issue description** (multi-line text containing the issue title, description, tasks, acceptance criteria, etc.) — use the pasted content directly as the issue details
+
+To determine which: if `$ARGUMENTS` is a single number (digits only), treat it as an issue number and fetch from GitHub. Otherwise, treat it as a pasted issue description.
+
+When the input is a pasted description, extract the issue number from the text if present (e.g. from a `#42` reference or a title like `Issue #42`). If no issue number can be found in the pasted text, ask the user for the issue number — it is needed for the commit message in Phase 4.
+
 ## Context
 
-- Issue number: $ARGUMENTS
-- Issue details: !`gh issue view $ARGUMENTS --repo Ryan-Atkinson87/zwift-tool`
+- Input: $ARGUMENTS
+- Issue details (if issue number): fetch using `gh issue view <number> --repo Ryan-Atkinson87/zwift-tool` if the input is a plain number; otherwise use the pasted text directly as the issue description
 - Current branch: !`git branch --show-current`
 - Git status: !`git status`
 

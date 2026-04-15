@@ -10,30 +10,31 @@ import { useWorkout } from './hooks/useWorkout.ts'
 import { WorkoutList } from './components/workout/WorkoutList.tsx'
 import { WorkoutCanvas } from './components/workout/WorkoutCanvas.tsx'
 import { WorkoutMetadataEditor } from './components/workout/WorkoutMetadataEditor.tsx'
-import { AddBlockModal } from './components/workout/AddBlockModal.tsx'
-import { IntervalEditor } from './components/workout/IntervalEditor.tsx'
-import { IntervalListEditor } from './components/workout/IntervalListEditor.tsx'
 import { TextEventEditor } from './components/workout/TextEventEditor.tsx'
+import { WorkoutIntervalTable } from './components/workout/WorkoutIntervalTable.tsx'
 import { ZonePresetSettings } from './components/workout/ZonePresetSettings.tsx'
 import { BlockLibrary } from './components/blocks/BlockLibrary.tsx'
 import { SaveToLibraryModal } from './components/blocks/SaveToLibraryModal.tsx'
 import { ReplaceWithBlockModal } from './components/blocks/ReplaceWithBlockModal.tsx'
 import { BulkReplaceModal } from './components/blocks/BulkReplaceModal.tsx'
 import { CreateBlockModal } from './components/blocks/CreateBlockModal.tsx'
-import { BulkActionsToolbar } from './components/workout/BulkActionsToolbar.tsx'
-import { saveWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts } from './api/workouts'
-import { saveBlock } from './api/blocks'
+import { saveWorkout, deleteWorkout, undoWorkoutSection, updateWorkoutMetadata, replaceWorkoutSection, bulkReplaceSection, exportWorkout, exportWorkouts, updateWorkoutSection, type UpdateWorkoutSectionRequest } from './api/workouts'
+import { saveBlock, type LibraryBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
 import { useBlocks } from './hooks/useBlocks.ts'
-import type { ParsedWorkout, ParsedInterval, SectionType, TextEvent } from './types/workout'
-import { type Zone } from './utils/zonePresets'
+import type { BlockDetail, ParsedWorkout, ParsedInterval, SectionType, TextEvent, WorkoutDetail } from './types/workout'
 import { buildSectionDraft, currentSectionBlock, sumIntervalDuration as sumDuration } from './utils/editorDraft'
+import { downloadGuestWorkout } from './utils/zwoExporter'
 
 /**
- * Root application component. Renders the top-level layout and entry point
- * for the Zwift Tool UI. Currently provides auth controls while the main
- * workout editor is under development.
+ * Root application component. Renders the top-level layout, auth flow, and
+ * the workout editor. Supports both authenticated use (full persistence) and
+ * guest use (client-side only, no account required).
+ *
+ * Guest mode is activated from the landing screen. In guest mode, all editing
+ * operations update local React state directly rather than calling the backend.
+ * Gated actions (save, block library, bulk replace) prompt the user to sign in.
  */
 export function App(): JSX.Element {
     const { isAuthenticated, isLoading, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
@@ -46,6 +47,15 @@ export function App(): JSX.Element {
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
     const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([])
+    const [isSelectMode, setIsSelectMode] = useState(false)
+    const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
+    const [isRightCollapsed, setIsRightCollapsed] = useState(false)
+
+    // Guest mode: true once the user has chosen to use the tool without signing in
+    const [guestMode, setGuestMode] = useState(false)
+    // The active workout in guest mode, held entirely in local state
+    const [guestWorkout, setGuestWorkout] = useState<WorkoutDetail | null>(null)
+
     const {
         workouts: savedWorkouts,
         isLoading: isLoadingWorkouts,
@@ -62,7 +72,6 @@ export function App(): JSX.Element {
     const [undoError, setUndoError] = useState<string | null>(null)
     const [isSavingMetadata, setIsSavingMetadata] = useState(false)
     const [metadataError, setMetadataError] = useState<string | null>(null)
-    const [addBlockSection, setAddBlockSection] = useState<SectionType | null>(null)
     const [selectedInterval, setSelectedInterval] = useState<{
         sectionType: SectionType
         intervalIndex: number
@@ -70,7 +79,6 @@ export function App(): JSX.Element {
     const [isZonePresetSettingsOpen, setIsZonePresetSettingsOpen] = useState(false)
     const {
         presets: zonePresets,
-        getPreset: getEffectiveZonePreset,
         savePreset: saveEffectiveZonePreset,
         resetPreset: resetEffectiveZonePreset,
     } = useZonePresets(isAuthenticated)
@@ -84,6 +92,7 @@ export function App(): JSX.Element {
     const [saveToLibrarySection, setSaveToLibrarySection] = useState<SectionType | null>(null)
     const [replaceSectionType, setReplaceSectionType] = useState<SectionType | null>(null)
     const [isCreateBlockOpen, setIsCreateBlockOpen] = useState(false)
+    const [editingBlock, setEditingBlock] = useState<LibraryBlock | null>(null)
     const [isReplacing, setIsReplacing] = useState(false)
     const [replaceError, setReplaceError] = useState<string | null>(null)
     const [isBulkReplaceOpen, setIsBulkReplaceOpen] = useState(false)
@@ -92,15 +101,30 @@ export function App(): JSX.Element {
     const [isExporting, setIsExporting] = useState(false)
     const [exportError, setExportError] = useState<string | null>(null)
 
+    // The workout driving the editor canvas. In authenticated mode this is the
+    // backend-fetched selected workout; in guest mode it is the locally-held
+    // guest workout built from the section splitter or the blank-workout helper.
+    const activeWorkout: WorkoutDetail | null = isAuthenticated ? selectedWorkout : guestWorkout
+
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
     useEffect(() => {
         setSelectedInterval(null)
-    }, [selectedWorkoutId])
-    // Auto-save loop. The editor pushes section content into queueSectionUpdate
-    // every time the user adds, edits, or removes an interval. Updates are
-    // debounced inside the hook and the response is fed back into the cached
-    // workout state via applySelectedWorkoutUpdate.
+    }, [selectedWorkoutId, guestWorkout?.id])
+
+    // When the user signs in from guest mode, clear the guest state so the
+    // three-panel layout switches to the authenticated view cleanly.
+    useEffect(() => {
+        if (isAuthenticated) {
+            setGuestMode(false)
+            setGuestWorkout(null)
+            setParsedWorkouts([])
+            setSplittingWorkout(null)
+        }
+    }, [isAuthenticated])
+
+    // Auto-save loop. In guest mode selectedWorkout is null so this hook is
+    // effectively inactive — guest edits update guestWorkout directly instead.
     const {
         queueSectionUpdate,
         status: autosaveStatus,
@@ -109,6 +133,9 @@ export function App(): JSX.Element {
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
+
+    // Whether the three-panel editor layout is visible
+    const showEditor = isAuthenticated || guestMode
 
     async function handleSignUp(email: string, password: string): Promise<void> {
         await signUp({ email, password })
@@ -128,6 +155,18 @@ export function App(): JSX.Element {
         setSelectedWorkoutIds([])
     }
 
+    async function handleDeleteWorkout(workoutId: string): Promise<void> {
+        try {
+            await deleteWorkout(workoutId)
+            if (selectedWorkoutId === workoutId) {
+                setSelectedWorkoutId(null)
+            }
+            void reloadWorkouts()
+        } catch (err) {
+            console.error('Failed to delete workout:', err)
+        }
+    }
+
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
         setParsedWorkouts(workouts)
         setSaveSuccess(null)
@@ -145,8 +184,54 @@ export function App(): JSX.Element {
     }
 
     async function handleConfirmSplit(split: SectionSplit): Promise<void> {
-        setIsSaving(true)
         setSaveError(null)
+
+        if (!isAuthenticated) {
+            // Guest mode: build a local WorkoutDetail from the split without
+            // saving to the backend. All subsequent edits update guestWorkout directly.
+            const now = new Date().toISOString()
+            const makeBlock = (
+                intervals: ParsedInterval[],
+                sectionType: SectionType,
+                name: string,
+            ): BlockDetail => ({
+                id: `guest-${sectionType.toLowerCase()}`,
+                name,
+                description: null,
+                sectionType,
+                intervals,
+                durationSeconds: sumDuration(intervals),
+                intervalCount: intervals.length,
+                isLibraryBlock: false,
+            })
+
+            setGuestWorkout({
+                id: crypto.randomUUID(),
+                name: split.workout.name,
+                author: split.workout.author,
+                description: split.workout.description,
+                warmupBlock: split.warmupIntervals.length > 0
+                    ? makeBlock(split.warmupIntervals, 'WARMUP', 'Warm-Up') : null,
+                mainsetBlock: makeBlock(split.mainsetIntervals, 'MAINSET', 'Main Set'),
+                cooldownBlock: split.cooldownIntervals.length > 0
+                    ? makeBlock(split.cooldownIntervals, 'COOLDOWN', 'Cool-Down') : null,
+                hasPrevWarmup: false,
+                hasPrevMainset: false,
+                hasPrevCooldown: false,
+                isDraft: true,
+                textEvents: [],
+                createdAt: now,
+                updatedAt: now,
+            })
+
+            setSplittingWorkout(null)
+            setParsedWorkouts((prev) =>
+                prev.filter((w) => w.fileName !== split.workout.fileName)
+            )
+            return
+        }
+
+        setIsSaving(true)
 
         try {
             await saveWorkout({
@@ -214,12 +299,20 @@ export function App(): JSX.Element {
      * Persists updated metadata for the selected workout, refreshes the
      * cached workout detail, and reloads the saved workouts list so the
      * left panel reflects the new name.
+     *
+     * In guest mode, updates the local guest workout directly without any
+     * backend call.
      */
     async function handleSaveMetadata(next: {
         name: string
         author: string | null
         description: string | null
     }): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            setGuestWorkout({ ...guestWorkout, ...next, updatedAt: new Date().toISOString() })
+            return
+        }
+
         if (selectedWorkoutId === null) {
             return
         }
@@ -244,11 +337,19 @@ export function App(): JSX.Element {
      * Persists an updated text event list for the selected workout. Text
      * events piggyback on the metadata endpoint so their current value is
      * round-tripped as part of the existing metadata save pipeline.
+     *
+     * In guest mode, updates the local guest workout directly.
      */
     async function handleSaveTextEvents(nextEvents: TextEvent[]): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            setGuestWorkout({ ...guestWorkout, textEvents: nextEvents })
+            return
+        }
+
         if (selectedWorkoutId === null || selectedWorkout === null) {
             return
         }
+
         setIsSavingMetadata(true)
         setMetadataError(null)
         // Optimistic patch so the row reflects the edit before the round-trip
@@ -275,11 +376,20 @@ export function App(): JSX.Element {
      * workout so the canvas re-renders immediately, and queues an auto-save.
      * All editor mutations (preset add, block add, edit, reorder, delete)
      * funnel through this single helper.
+     *
+     * In guest mode, updates the local guest workout directly and skips the
+     * auto-save queue (there is no backend record to save to).
      */
     function commitSectionIntervals(
         sectionType: SectionType,
         nextIntervals: ParsedInterval[],
     ): void {
+        if (!isAuthenticated && guestWorkout !== null) {
+            const draft = buildSectionDraft(guestWorkout, sectionType, nextIntervals)
+            setGuestWorkout(draft.patchedWorkout)
+            return
+        }
+
         if (selectedWorkout === null) {
             return
         }
@@ -294,50 +404,22 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Appends a new SteadyState interval to the chosen section using the
-     * default duration and %FTP for the supplied zone.
+     * Inserts a new interval into the chosen section at the given index. If
+     * {@code insertIndex} is equal to the section's interval count, the
+     * interval is appended. Called by the palette drag-and-drop system.
+     *
+     * @param sectionType  the section to insert into
+     * @param interval     the fully-populated interval to add
+     * @param insertIndex  0-based index before which to insert
      */
-    function handleAddZonePreset(sectionType: SectionType, zone: Zone): void {
-        if (selectedWorkout === null) {
+    function handleAddInterval(sectionType: SectionType, interval: ParsedInterval, insertIndex: number): void {
+        if (activeWorkout === null) {
             return
         }
-
-        const preset = getEffectiveZonePreset(zone)
-        const newInterval: ParsedInterval = {
-            type: 'SteadyState',
-            durationSeconds: preset.durationSeconds,
-            // Stored as a fraction of FTP to match the .zwo file format
-            power: preset.ftpPercent / 100,
-            powerHigh: null,
-            cadence: null,
-            repeat: null,
-            onDuration: null,
-            offDuration: null,
-            onPower: null,
-            offPower: null,
-        }
-
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
-        const nextIntervals: ParsedInterval[] = currentBlock !== null
-            ? [...currentBlock.intervals, newInterval]
-            : [newInterval]
-
-        commitSectionIntervals(sectionType, nextIntervals)
-    }
-
-    /**
-     * Appends a new non-preset interval (Ramp, IntervalsT, or Free Ride) to
-     * the chosen section. The caller is responsible for constructing a
-     * fully-populated {@link ParsedInterval} of the desired type.
-     */
-    function handleAddInterval(sectionType: SectionType, interval: ParsedInterval): void {
-        if (selectedWorkout === null) {
-            return
-        }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
-        const nextIntervals: ParsedInterval[] = currentBlock !== null
-            ? [...currentBlock.intervals, interval]
-            : [interval]
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
+        const existing = currentBlock?.intervals ?? []
+        const idx = Math.min(insertIndex, existing.length)
+        const nextIntervals = [...existing.slice(0, idx), interval, ...existing.slice(idx)]
         commitSectionIntervals(sectionType, nextIntervals)
     }
 
@@ -351,10 +433,10 @@ export function App(): JSX.Element {
         index: number,
         next: ParsedInterval,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -365,15 +447,50 @@ export function App(): JSX.Element {
     }
 
     /**
+     * Applies a canvas resize drag result to an interval. For SteadyState intervals,
+     * receives the new duration and power and updates both fields. For ramp intervals
+     * (Warmup, Cooldown, Ramp), only the duration is updated; power values are left
+     * unchanged to avoid rounding corruption of start/end power fractions.
+     */
+    function handleResizeInterval(
+        sectionType: SectionType,
+        index: number,
+        durationSeconds: number,
+        powerPercent: number,
+    ): void {
+        if (activeWorkout === null) {
+            return
+        }
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
+        if (currentBlock === null) {
+            return
+        }
+        const original = currentBlock.intervals[index]
+        if (original === undefined) {
+            return
+        }
+        const isRamp =
+            original.type === 'Warmup' ||
+            original.type === 'Cooldown' ||
+            original.type === 'Ramp'
+        // Ramps store two power values (power + powerHigh); updating only duration
+        // preserves the ramp shape. Flat bars use powerPercent to set a single power.
+        const next: ParsedInterval = isRamp
+            ? { ...original, durationSeconds }
+            : { ...original, durationSeconds, power: powerPercent / 100 }
+        handleUpdateInterval(sectionType, index, next)
+    }
+
+    /**
      * Removes a single interval from a section. Deleting the last interval
      * in the main set is blocked because the main set is mandatory and the
      * editor must always have at least one interval to anchor.
      */
     function handleDeleteInterval(sectionType: SectionType, index: number): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -394,10 +511,10 @@ export function App(): JSX.Element {
         fromIndex: number,
         toIndex: number,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -411,14 +528,188 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Creates a new blank draft workout via the backend and refreshes the
-     * saved workout list. The new workout has a single empty main set block
-     * and no warm-up or cool-down, ready for the user to add blocks.
+     * Moves a single interval from one section to another via canvas drag.
+     * Removes the interval from the source section at {@code fromIndex} and
+     * inserts it into the target section before {@code toIndex}. Both
+     * sections are updated via the auto-save queue.
+     *
+     * <p>Blocked when the move would leave the main set empty.</p>
      */
-    async function handleCreateBlankWorkout(): Promise<void> {
+    function handleMoveInterval(
+        fromSection: SectionType,
+        fromIndex: number,
+        toSection: SectionType,
+        toIndex: number,
+    ): void {
+        if (activeWorkout === null) {
+            return
+        }
+        const fromBlock = currentSectionBlock(activeWorkout, fromSection)
+        if (fromBlock === null) {
+            return
+        }
+        const interval = fromBlock.intervals[fromIndex]
+        if (interval === undefined) {
+            return
+        }
+        const newFromIntervals = fromBlock.intervals.filter((_, i) => i !== fromIndex)
+        // The main set must always keep at least one interval
+        if (fromSection === 'MAINSET' && newFromIntervals.length === 0) {
+            return
+        }
+        const toBlock = currentSectionBlock(activeWorkout, toSection)
+        const toIntervals = toBlock?.intervals ?? []
+        const clampedIndex = Math.min(toIndex, toIntervals.length)
+        const newToIntervals = [
+            ...toIntervals.slice(0, clampedIndex),
+            interval,
+            ...toIntervals.slice(clampedIndex),
+        ]
+        commitSectionIntervals(fromSection, newFromIntervals)
+        commitSectionIntervals(toSection, newToIntervals)
+    }
+
+    /**
+     * Saves a moved section boundary by persisting the re-partitioned
+     * interval arrays for all three sections. Unlike regular auto-saves,
+     * this involves two sequential PUT calls (one per affected section),
+     * so it calls the API directly rather than going through the auto-save
+     * queue to avoid the second call overwriting the first.
+     *
+     * In guest mode, updates the local guest workout directly for all three
+     * sections without any backend calls.
+     *
+     * <p>If the first call fails the second is not attempted. If the
+     * second call fails after the first succeeds, an error is shown and
+     * the user can retry via the undo controls.</p>
+     */
+    async function handleSaveBoundaries(
+        warmupIntervals: ParsedInterval[],
+        mainsetIntervals: ParsedInterval[],
+        cooldownIntervals: ParsedInterval[],
+    ): Promise<void> {
+        if (activeWorkout === null) {
+            return
+        }
+
+        if (!isAuthenticated && guestWorkout !== null) {
+            const makeBlock = (
+                intervals: ParsedInterval[],
+                sectionType: SectionType,
+                name: string,
+            ): BlockDetail => ({
+                id: `guest-${sectionType.toLowerCase()}`,
+                name,
+                description: null,
+                sectionType,
+                intervals,
+                durationSeconds: sumDuration(intervals),
+                intervalCount: intervals.length,
+                isLibraryBlock: false,
+            })
+
+            setGuestWorkout({
+                ...guestWorkout,
+                warmupBlock: warmupIntervals.length > 0
+                    ? makeBlock(warmupIntervals, 'WARMUP', 'Warm-Up') : null,
+                mainsetBlock: makeBlock(mainsetIntervals, 'MAINSET', 'Main Set'),
+                cooldownBlock: cooldownIntervals.length > 0
+                    ? makeBlock(cooldownIntervals, 'COOLDOWN', 'Cool-Down') : null,
+                updatedAt: new Date().toISOString(),
+            })
+            return
+        }
+
+        if (selectedWorkout === null || selectedWorkoutId === null) {
+            return
+        }
+
         setIsSaving(true)
         setSaveError(null)
+
+        try {
+            const warmupDraft = buildSectionDraft(selectedWorkout, 'WARMUP', warmupIntervals)
+            const warmupRequest: UpdateWorkoutSectionRequest = {
+                sectionType: 'WARMUP',
+                content: warmupDraft.content,
+                durationSeconds: warmupDraft.durationSeconds,
+                intervalCount: warmupDraft.intervalCount,
+            }
+            const afterWarmup = await updateWorkoutSection(selectedWorkoutId, warmupRequest)
+            applySelectedWorkoutUpdate(afterWarmup)
+
+            const mainsetDraft = buildSectionDraft(afterWarmup, 'MAINSET', mainsetIntervals)
+            const mainsetRequest: UpdateWorkoutSectionRequest = {
+                sectionType: 'MAINSET',
+                content: mainsetDraft.content,
+                durationSeconds: mainsetDraft.durationSeconds,
+                intervalCount: mainsetDraft.intervalCount,
+            }
+            const afterMainset = await updateWorkoutSection(selectedWorkoutId, mainsetRequest)
+            applySelectedWorkoutUpdate(afterMainset)
+
+            // Only send a cooldown request when the cooldown actually changed
+            const currentCooldown = selectedWorkout.cooldownBlock?.intervals ?? []
+            if (JSON.stringify(cooldownIntervals) !== JSON.stringify(currentCooldown)) {
+                const cooldownDraft = buildSectionDraft(afterMainset, 'COOLDOWN', cooldownIntervals)
+                const cooldownRequest: UpdateWorkoutSectionRequest = {
+                    sectionType: 'COOLDOWN',
+                    content: cooldownDraft.content,
+                    durationSeconds: cooldownDraft.durationSeconds,
+                    intervalCount: cooldownDraft.intervalCount,
+                }
+                const afterCooldown = await updateWorkoutSection(selectedWorkoutId, cooldownRequest)
+                applySelectedWorkoutUpdate(afterCooldown)
+            }
+        } catch (error) {
+            setSaveError(
+                error instanceof Error ? error.message : 'Failed to save boundary change.',
+            )
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    /**
+     * Creates a new blank draft workout. In authenticated mode, saves to the
+     * backend and selects the new workout. In guest mode, creates a local
+     * WorkoutDetail with an empty main set block and no warm-up or cool-down.
+     */
+    async function handleCreateBlankWorkout(): Promise<void> {
+        setSaveError(null)
         setSaveSuccess(null)
+
+        if (!isAuthenticated) {
+            const now = new Date().toISOString()
+            setGuestWorkout({
+                id: crypto.randomUUID(),
+                name: 'New Workout',
+                author: null,
+                description: null,
+                warmupBlock: null,
+                mainsetBlock: {
+                    id: 'guest-mainset',
+                    name: 'Main Set',
+                    description: null,
+                    sectionType: 'MAINSET',
+                    intervals: [],
+                    durationSeconds: 0,
+                    intervalCount: 0,
+                    isLibraryBlock: false,
+                },
+                cooldownBlock: null,
+                hasPrevWarmup: false,
+                hasPrevMainset: false,
+                hasPrevCooldown: false,
+                isDraft: true,
+                textEvents: [],
+                createdAt: now,
+                updatedAt: now,
+            })
+            return
+        }
+
+        setIsSaving(true)
 
         try {
             const created = await saveWorkout({
@@ -451,16 +742,18 @@ export function App(): JSX.Element {
      * Saves the current section to the block library using the name and
      * description provided by the user in the save modal. Reloads the
      * library panel immediately after a successful save.
+     *
+     * Unauthenticated users are shown the sign-in modal instead.
      */
     async function handleConfirmSaveToLibrary(
         name: string,
         description: string | null,
     ): Promise<void> {
-        if (selectedWorkout === null || saveToLibrarySection === null) {
+        if (activeWorkout === null || saveToLibrarySection === null) {
             return
         }
 
-        const block = currentSectionBlock(selectedWorkout, saveToLibrarySection)
+        const block = currentSectionBlock(activeWorkout, saveToLibrarySection)
         if (block === null) {
             return
         }
@@ -479,11 +772,28 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Opens the replace modal for the given section.
+     * Opens the replace modal for the given section. In guest mode, opens
+     * the sign-in modal instead — replacing sections requires library access.
      */
     function handleReplaceSection(sectionType: SectionType): void {
+        if (!isAuthenticated) {
+            setIsSignInOpen(true)
+            return
+        }
         setReplaceSectionType(sectionType)
         setReplaceError(null)
+    }
+
+    /**
+     * Opens the save-to-library modal for the given section. In guest mode,
+     * opens the sign-in modal instead — saving to the library requires an account.
+     */
+    function handleSaveToLibrary(sectionType: SectionType): void {
+        if (!isAuthenticated) {
+            setIsSignInOpen(true)
+            return
+        }
+        setSaveToLibrarySection(sectionType)
     }
 
     /**
@@ -541,13 +851,20 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Requests the selected workout as a .zwo file from the backend and
-     * triggers a browser download. Disabled while a download is in progress.
+     * Exports the active workout as a .zwo file. In guest mode, generates
+     * the XML client-side and triggers a browser download directly. In
+     * authenticated mode, fetches the exported file from the backend.
      */
     async function handleExportWorkout(): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            downloadGuestWorkout(guestWorkout)
+            return
+        }
+
         if (selectedWorkoutId === null || selectedWorkout === null) {
             return
         }
+
         setIsExporting(true)
         setExportError(null)
         try {
@@ -590,54 +907,40 @@ export function App(): JSX.Element {
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-900 text-white">
-            <h1 className="text-3xl font-bold mb-8">Zwift Tool</h1>
+        <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden">
 
-            {isAuthenticated ? (
-                <div className="flex flex-col items-center gap-6 w-full px-4">
-                    <div className="flex items-center gap-4">
-                        <p className="text-zinc-300">
+            {/* ── Header ── */}
+            <header className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-zinc-700">
+                <h1 className="text-lg font-bold">Zwift Tool</h1>
+                {isAuthenticated ? (
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-zinc-300">
                             Signed in as <span className="text-white font-medium">{user?.email}</span>
-                        </p>
+                        </span>
                         <button
                             onClick={() => { handleClearSelection(); void signOut() }}
                             className={`
-                                px-4 py-2
+                                px-3 py-1.5
                                 bg-zinc-700 text-white
                                 text-sm font-medium
                                 rounded-md
                                 hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             `}
                         >
                             Sign out
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => void handleCreateBlankWorkout()}
-                            disabled={isSaving}
-                            className={`
-                                px-4 py-2
-                                bg-indigo-600 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-indigo-500 transition-colors
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                            `}
-                        >
-                            New workout
                         </button>
                         {savedWorkouts.length > 0 && (
                             <button
                                 onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
                                 disabled={isExporting}
                                 className={`
-                                    px-4 py-2
+                                    px-3 py-1.5
                                     bg-zinc-700 text-white
                                     text-sm font-medium
                                     rounded-md
                                     hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                     disabled:opacity-50 disabled:cursor-not-allowed
                                 `}
                             >
@@ -647,221 +950,389 @@ export function App(): JSX.Element {
                         <button
                             onClick={() => setIsZonePresetSettingsOpen(true)}
                             className={`
-                                px-4 py-2
+                                px-3 py-1.5
                                 bg-zinc-700 text-white
                                 text-sm font-medium
                                 rounded-md
                                 hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             `}
                         >
                             Zone presets
                         </button>
                     </div>
+                ) : guestMode ? (
+                    // In guest mode show compact auth controls so the user can sign
+                    // in at any point without leaving the editor
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setIsSignInOpen(true)}
+                            className={`
+                                px-4 py-1.5
+                                bg-brand-600 text-white
+                                text-sm font-medium
+                                rounded-md
+                                hover:bg-brand-500 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            Sign in
+                        </button>
+                        <button
+                            onClick={() => setIsSignUpOpen(true)}
+                            className={`
+                                px-4 py-1.5
+                                bg-zinc-700 text-white
+                                text-sm font-medium
+                                rounded-md
+                                hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            Sign up
+                        </button>
+                    </div>
+                ) : null}
+            </header>
 
-                    {selectedWorkoutIds.length > 1 && (
-                        <BulkActionsToolbar
-                            selectedCount={selectedWorkoutIds.length}
-                            isExporting={isExporting}
-                            onClearSelection={handleClearSelection}
-                            onBulkReplace={() => {
-                                setBulkReplaceError(null)
-                                setIsBulkReplaceOpen(true)
-                            }}
-                            onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
-                        />
-                    )}
+            {/* ── Three-panel body or landing ── */}
+            {showEditor ? (
+                <div className="flex flex-1 overflow-hidden">
 
-                    <WorkoutList
-                        workouts={savedWorkouts}
-                        isLoading={isLoadingWorkouts}
-                        error={workoutsError}
-                        selectedWorkoutId={selectedWorkoutId}
-                        selectedWorkoutIds={selectedWorkoutIds}
-                        onSelect={setSelectedWorkoutId}
-                        onToggleSelect={handleToggleWorkoutSelect}
-                    />
-
-                    {selectedWorkout !== null && (
-                        <WorkoutMetadataEditor
-                            key={selectedWorkout.id}
-                            workout={selectedWorkout}
-                            onSave={(next) => void handleSaveMetadata(next)}
-                            isSaving={isSavingMetadata}
-                        />
-                    )}
-
-                    {selectedWorkout !== null && (
-                        <div className="flex items-center gap-3">
+                    {/* Left panel: workout list */}
+                    {isLeftCollapsed ? (
+                        <aside className="w-10 shrink-0 border-r border-zinc-700 flex flex-col items-center py-3">
                             <button
-                                onClick={() => void handleExportWorkout()}
-                                disabled={isExporting}
+                                onClick={() => setIsLeftCollapsed(false)}
+                                aria-label="Expand workout list"
+                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </aside>
+                    ) : (
+                        <aside className="w-72 shrink-0 border-r border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setIsLeftCollapsed(true)}
+                                    aria-label="Collapse workout list"
+                                    className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => void handleCreateBlankWorkout()}
+                                disabled={isSaving}
                                 className={`
-                                    px-4 py-2
+                                    w-full px-4 py-2
+                                    bg-brand-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                `}
+                            >
+                                New workout
+                            </button>
+
+                            <FileUploader onFilesParsed={handleFilesParsed} />
+
+                            {isAuthenticated && (
+                                <WorkoutList
+                                    workouts={savedWorkouts}
+                                    isLoading={isLoadingWorkouts}
+                                    error={workoutsError}
+                                    selectedWorkoutId={selectedWorkoutId}
+                                    selectedWorkoutIds={selectedWorkoutIds}
+                                    isSelectMode={isSelectMode}
+                                    isExporting={isExporting}
+                                    onSelect={setSelectedWorkoutId}
+                                    onToggleSelect={handleToggleWorkoutSelect}
+                                    onSelectModeChange={setIsSelectMode}
+                                    onClearSelection={handleClearSelection}
+                                    onBulkReplace={() => {
+                                        setBulkReplaceError(null)
+                                        setIsBulkReplaceOpen(true)
+                                    }}
+                                    onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
+                                    onSelectAll={setSelectedWorkoutIds}
+                                    onDeleteWorkout={(id) => void handleDeleteWorkout(id)}
+                                />
+                            )}
+
+                            {saveSuccess && (
+                                <p className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
+                                    {saveSuccess}
+                                </p>
+                            )}
+
+                            {saveError && (
+                                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                    {saveError}
+                                </p>
+                            )}
+                        </aside>
+                    )}
+
+                    {/* Centre panel: canvas and editors */}
+                    <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
+                        {activeWorkout !== null && (
+                            <WorkoutMetadataEditor
+                                key={activeWorkout.id}
+                                workout={activeWorkout}
+                                onSave={(next) => void handleSaveMetadata(next)}
+                                isSaving={isSavingMetadata}
+                                onExport={() => void handleExportWorkout()}
+                                isExporting={isExporting}
+                            />
+                        )}
+
+                        {exportError !== null && (
+                            <p className="text-sm text-red-300">{exportError}</p>
+                        )}
+
+                        <WorkoutCanvas
+                            workout={activeWorkout}
+                            isLoading={isAuthenticated ? isLoadingSelectedWorkout : false}
+                            error={isAuthenticated ? selectedWorkoutError : null}
+                            onUndoSection={isAuthenticated
+                                ? (section) => void handleUndoSection(section)
+                                : undefined}
+                            isUndoing={isUndoing}
+                            zonePresets={zonePresets}
+                            onAddInterval={handleAddInterval}
+                            onSelectInterval={(section, index) =>
+                                setSelectedInterval({ sectionType: section, intervalIndex: index })
+                            }
+                            selectedInterval={selectedInterval}
+                            onSaveToLibrary={handleSaveToLibrary}
+                            onReplaceSection={handleReplaceSection}
+                            onReorderInterval={handleReorderIntervals}
+                            onMoveInterval={handleMoveInterval}
+                            onSaveBoundaries={(wu, ms, cd) =>
+                                void handleSaveBoundaries(wu, ms, cd)
+                            }
+                            onResizeInterval={handleResizeInterval}
+                            onUpdateInterval={handleUpdateInterval}
+                            onDeleteInterval={(section, index) => {
+                                handleDeleteInterval(section, index)
+                                setSelectedInterval(null)
+                            }}
+                            onMoveTextEvent={(eventIndex, newOffsetSeconds) => {
+                                if (activeWorkout === null) return
+                                const updated = activeWorkout.textEvents.map((ev, i) =>
+                                    i === eventIndex
+                                        ? { ...ev, timeOffsetSeconds: newOffsetSeconds }
+                                        : ev,
+                                )
+                                void handleSaveTextEvents(updated)
+                            }}
+                        />
+
+                        {activeWorkout !== null && (
+                            <TextEventEditor
+                                events={activeWorkout.textEvents}
+                                onChange={(next) => void handleSaveTextEvents(next)}
+                                isSaving={isSavingMetadata}
+                            />
+                        )}
+
+                        {activeWorkout !== null && (
+                            <WorkoutIntervalTable
+                                workout={activeWorkout}
+                                onUpdate={handleUpdateInterval}
+                                onDelete={handleDeleteInterval}
+                            />
+                        )}
+
+                        {metadataError && (
+                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                {metadataError}
+                            </p>
+                        )}
+
+                        {undoError && (
+                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                {undoError}
+                            </p>
+                        )}
+
+                        {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
+                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                Auto-save failed: {autosaveError}
+                            </p>
+                        )}
+
+                        {splittingWorkout ? (
+                            <SectionSplitter
+                                workout={splittingWorkout}
+                                onConfirm={(split) => void handleConfirmSplit(split)}
+                                onCancel={() => setSplittingWorkout(null)}
+                                isSaving={isSaving}
+                            />
+                        ) : (
+                            parsedWorkouts.length > 0 && (
+                                <IntervalList
+                                    workouts={parsedWorkouts}
+                                    onSelectWorkout={handleStartSplit}
+                                />
+                            )
+                        )}
+                    </main>
+
+                    {/* Right panel: block library */}
+                    {isRightCollapsed ? (
+                        <aside className="w-10 shrink-0 border-l border-zinc-700 flex flex-col items-center py-3">
+                            <button
+                                onClick={() => setIsRightCollapsed(false)}
+                                aria-label="Expand block library"
+                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </aside>
+                    ) : (
+                        <aside className="w-80 shrink-0 border-l border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
+                            <div className="flex justify-start">
+                                <button
+                                    onClick={() => setIsRightCollapsed(true)}
+                                    aria-label="Collapse block library"
+                                    className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {isAuthenticated ? (
+                                <>
+                                    <button
+                                        onClick={() => setIsCreateBlockOpen(true)}
+                                        className={`
+                                            w-full px-4 py-2
+                                            bg-brand-600 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-brand-500 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        + New block
+                                    </button>
+
+                                    <BlockLibrary
+                                        blocks={libraryBlocks}
+                                        isLoading={isLoadingBlocks}
+                                        error={blocksError}
+                                        onEditBlock={(block) => setEditingBlock(block)}
+                                        onDeleteBlock={deleteLibraryBlock}
+                                    />
+                                </>
+                            ) : (
+                                // Guest mode: locked block library panel
+                                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
+                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
+                                    </svg>
+                                    <p className="text-sm text-zinc-400 leading-relaxed">
+                                        Sign in to save your workouts and access the block library.
+                                    </p>
+                                    <button
+                                        onClick={() => setIsSignInOpen(true)}
+                                        className={`
+                                            px-4 py-2
+                                            bg-brand-600 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-brand-500 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        Sign in
+                                    </button>
+                                    <button
+                                        onClick={() => setIsSignUpOpen(true)}
+                                        className={`
+                                            px-4 py-2
+                                            bg-zinc-700 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-zinc-600 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        Create account
+                                    </button>
+                                </div>
+                            )}
+                        </aside>
+                    )}
+                </div>
+            ) : (
+                // Landing screen: shown before the user has signed in or chosen guest mode
+                <div className="flex flex-1 items-center justify-center">
+                    <div className="flex flex-col items-center gap-6 text-center max-w-sm px-6">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-white text-base font-medium">Edit your Zwift workouts</p>
+                            <p className="text-zinc-400 text-sm">
+                                Upload, edit, and export .zwo files. Sign in to save workouts and access the block library.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={() => setIsSignInOpen(true)}
+                                className={`
+                                    w-full px-4 py-2.5
+                                    bg-brand-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign in
+                            </button>
+                            <button
+                                onClick={() => setIsSignUpOpen(true)}
+                                className={`
+                                    w-full px-4 py-2.5
                                     bg-zinc-700 text-white
                                     text-sm font-medium
                                     rounded-md
                                     hover:bg-zinc-600 transition-colors
-                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                 `}
                             >
-                                {isExporting ? 'Exporting...' : 'Export .zwo'}
+                                Create account
+                            </button>
+                            <button
+                                onClick={() => setGuestMode(true)}
+                                className={`
+                                    w-full px-4 py-2.5
+                                    bg-transparent text-zinc-400
+                                    text-sm font-medium
+                                    rounded-md
+                                    border border-zinc-700
+                                    hover:text-white hover:border-zinc-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Continue without an account
                             </button>
                         </div>
-                    )}
-
-                    {exportError !== null && (
-                        <p className="text-sm text-red-300">{exportError}</p>
-                    )}
-
-                    <WorkoutCanvas
-                        workout={selectedWorkout}
-                        isLoading={isLoadingSelectedWorkout}
-                        error={selectedWorkoutError}
-                        onUndoSection={(section) => void handleUndoSection(section)}
-                        isUndoing={isUndoing}
-                        onAddZonePreset={handleAddZonePreset}
-                        zonePresets={zonePresets}
-                        onOpenAddBlock={(section) => setAddBlockSection(section)}
-                        onSelectInterval={(section, index) =>
-                            setSelectedInterval({ sectionType: section, intervalIndex: index })
-                        }
-                        selectedInterval={selectedInterval}
-                        onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
-                        onReplaceSection={handleReplaceSection}
-                    />
-
-                    {selectedWorkout !== null && (
-                        <IntervalListEditor
-                            workout={selectedWorkout}
-                            onReorder={handleReorderIntervals}
-                            onDelete={(section, index) => {
-                                handleDeleteInterval(section, index)
-                                if (
-                                    selectedInterval?.sectionType === section
-                                    && selectedInterval.intervalIndex === index
-                                ) {
-                                    setSelectedInterval(null)
-                                }
-                            }}
-                            onSelect={(section, index) =>
-                                setSelectedInterval({ sectionType: section, intervalIndex: index })
-                            }
-                            selectedInterval={selectedInterval}
-                        />
-                    )}
-
-                    {selectedWorkout !== null && (
-                        <TextEventEditor
-                            events={selectedWorkout.textEvents}
-                            onChange={(next) => void handleSaveTextEvents(next)}
-                            isSaving={isSavingMetadata}
-                        />
-                    )}
-
-                    {selectedWorkout !== null && selectedInterval !== null && (
-                        <IntervalEditor
-                            workout={selectedWorkout}
-                            selection={selectedInterval}
-                            onChange={handleUpdateInterval}
-                            onClose={() => setSelectedInterval(null)}
-                            onDelete={(section, index) => {
-                                handleDeleteInterval(section, index)
-                                setSelectedInterval(null)
-                            }}
-                        />
-                    )}
-
-                    {metadataError && (
-                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
-                            {metadataError}
-                        </p>
-                    )}
-
-                    {undoError && (
-                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
-                            {undoError}
-                        </p>
-                    )}
-
-                    {autosaveStatus === 'error' && autosaveError && (
-                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
-                            Auto-save failed: {autosaveError}
-                        </p>
-                    )}
-
-                    <BlockLibrary
-                        blocks={libraryBlocks}
-                        isLoading={isLoadingBlocks}
-                        error={blocksError}
-                        onCreateBlock={() => setIsCreateBlockOpen(true)}
-                        onDeleteBlock={deleteLibraryBlock}
-                    />
-
-                    <FileUploader onFilesParsed={handleFilesParsed} />
-
-                    {saveSuccess && (
-                        <p className="px-4 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
-                            {saveSuccess}
-                        </p>
-                    )}
-
-                    {saveError && (
-                        <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
-                            {saveError}
-                        </p>
-                    )}
-
-                    {splittingWorkout ? (
-                        <SectionSplitter
-                            workout={splittingWorkout}
-                            onConfirm={(split) => void handleConfirmSplit(split)}
-                            onCancel={() => setSplittingWorkout(null)}
-                            isSaving={isSaving}
-                        />
-                    ) : (
-                        parsedWorkouts.length > 0 && (
-                            <IntervalList
-                                workouts={parsedWorkouts}
-                                onSelectWorkout={handleStartSplit}
-                            />
-                        )
-                    )}
-                </div>
-            ) : (
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => setIsSignInOpen(true)}
-                        className={`
-                            px-6 py-2
-                            bg-indigo-600 text-white
-                            text-sm font-medium
-                            rounded-md
-                            hover:bg-indigo-500 transition-colors
-                        `}
-                    >
-                        Sign in
-                    </button>
-                    <button
-                        onClick={() => setIsSignUpOpen(true)}
-                        className={`
-                            px-6 py-2
-                            bg-zinc-700 text-white
-                            text-sm font-medium
-                            rounded-md
-                            hover:bg-zinc-600 transition-colors
-                        `}
-                    >
-                        Sign up
-                    </button>
+                    </div>
                 </div>
             )}
-
-            <AddBlockModal
-                isOpen={addBlockSection !== null}
-                sectionType={addBlockSection}
-                onClose={() => setAddBlockSection(null)}
-                onConfirm={(section, interval) => handleAddInterval(section, interval)}
-            />
 
             <SaveToLibraryModal
                 isOpen={saveToLibrarySection !== null}
@@ -882,9 +1353,12 @@ export function App(): JSX.Element {
             />
 
             <CreateBlockModal
-                isOpen={isCreateBlockOpen}
-                onClose={() => setIsCreateBlockOpen(false)}
-                onSaved={() => void reloadBlocks()}
+                key={editingBlock?.id ?? 'new'}
+                isOpen={isCreateBlockOpen || editingBlock !== null}
+                initialBlock={editingBlock}
+                zonePresets={zonePresets}
+                onClose={() => { setIsCreateBlockOpen(false); setEditingBlock(null) }}
+                onSaved={() => { void reloadBlocks(); setIsCreateBlockOpen(false); setEditingBlock(null) }}
             />
 
             <BulkReplaceModal
@@ -916,11 +1390,13 @@ export function App(): JSX.Element {
                     clearSessionExpired()
                 }}
                 onSignIn={handleSignIn}
+                showGuestWarning={guestWorkout !== null}
             />
             <SignUpModal
                 isOpen={isSignUpOpen}
                 onClose={() => setIsSignUpOpen(false)}
                 onSignUp={handleSignUp}
+                showGuestWarning={guestWorkout !== null}
             />
         </div>
     )

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -80,6 +81,26 @@ public class BlockController {
         return blocks.isEmpty()
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.ok(blocks);
+    }
+
+    /**
+     * Updates a library block owned by the authenticated user. Replaces the
+     * name, description, section type, and interval content with the values
+     * supplied in the request body.
+     *
+     * @param blockId the ID of the block to update
+     * @param request the updated block data
+     * @param userId  the authenticated user's ID, resolved from the JWT
+     * @return HTTP 200 with the updated block
+     */
+    @PutMapping("/{blockId}")
+    public ResponseEntity<BlockResponse> updateBlock(
+            @PathVariable UUID blockId,
+            @Valid @RequestBody SaveBlockRequest request,
+            @AuthenticationPrincipal UUID userId
+    ) {
+        Block block = blockService.updateLibraryBlock(blockId, request, userId);
+        return ResponseEntity.ok(toResponse(block));
     }
 
     /**

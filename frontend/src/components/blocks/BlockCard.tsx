@@ -7,6 +7,8 @@ interface Props {
     block: LibraryBlock
     isSelected: boolean
     onClick: () => void
+    /** When omitted, the edit button is not rendered. */
+    onEdit?: () => void
     /** When omitted, the delete button is not rendered. */
     onDelete?: () => void
 }
@@ -22,12 +24,15 @@ const SECTION_LABELS: Record<SectionType, string> = {
  * type badge, block name, optional description, duration, and interval count.
  * Highlights when selected. Includes a delete button with an inline
  * confirmation step to prevent accidental deletion.
+ *
+ * <p>The entire card surface is the click target. The delete icon and
+ * confirmation buttons call {@code e.stopPropagation()} so they do not
+ * accidentally trigger the card select.</p>
  */
-export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: Props): JSX.Element {
+export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDelete = undefined }: Props): JSX.Element {
     const [isPendingDelete, setIsPendingDelete] = useState(false)
 
     function handleDeleteClick(e: React.MouseEvent): void {
-        // Prevent the click from also selecting/deselecting the card
         e.stopPropagation()
         setIsPendingDelete(true)
     }
@@ -42,17 +47,28 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
         onDelete?.()
     }
 
+    function handleKeyDown(e: React.KeyboardEvent): void {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+        }
+    }
+
     return (
         <div
+            role="button"
+            tabIndex={0}
+            onClick={onClick}
+            onKeyDown={handleKeyDown}
             className={`
                 flex flex-col gap-1 text-left
                 w-full px-3 py-2
                 border rounded-lg
-                transition-colors
+                cursor-pointer transition-colors
+                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                 ${isSelected
-                    ? 'bg-zinc-700 border-indigo-500'
-                    : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 hover:border-zinc-600'
-                }
+                    ? 'bg-zinc-700 border-brand-500'
+                    : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 hover:border-zinc-600'}
             `}
         >
             {/* Header row: section badge, stats, and delete button */}
@@ -61,7 +77,7 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                     className={`
                         px-1.5 py-0.5
                         bg-zinc-600 text-zinc-300
-                        text-[10px] font-semibold uppercase tracking-wide
+                        label-tiny
                         rounded shrink-0
                     `}
                 >
@@ -72,6 +88,24 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                         {formatDuration(block.durationSeconds)} &middot; {block.intervalCount}{' '}
                         {block.intervalCount === 1 ? 'interval' : 'intervals'}
                     </span>
+                    {onEdit !== undefined && !isPendingDelete && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onEdit() }}
+                            aria-label="Edit block"
+                            className={`
+                                shrink-0 p-0.5
+                                text-zinc-500
+                                hover:text-white transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
+                            `}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                <path d="M13.488 2.513a1.75 1.75 0 0 0-2.474 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.263-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                                <path d="M3.25 14.25a.75.75 0 0 0 0 1.5H13a.75.75 0 0 0 0-1.5H3.25Z" />
+                            </svg>
+                        </button>
+                    )}
                     {onDelete !== undefined && !isPendingDelete && (
                         <button
                             type="button"
@@ -81,9 +115,9 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                                 shrink-0 p-0.5
                                 text-zinc-500
                                 hover:text-red-400 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
                             `}
                         >
-                            {/* Trash icon */}
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 16 16"
@@ -101,17 +135,11 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                 </div>
             </div>
 
-            {/* Block name and description — clicking this area selects/deselects the card */}
-            <button
-                type="button"
-                onClick={onClick}
-                className="flex flex-col gap-1 text-left w-full"
-            >
-                <p className="text-sm font-medium text-white truncate">{block.name}</p>
-                {block.description !== null && block.description.length > 0 && (
-                    <p className="text-xs text-zinc-400 line-clamp-2">{block.description}</p>
-                )}
-            </button>
+            {/* Block name and description */}
+            <p className="text-sm font-medium text-white truncate">{block.name}</p>
+            {block.description !== null && block.description.length > 0 && (
+                <p className="text-xs text-zinc-400 line-clamp-2">{block.description}</p>
+            )}
 
             {/* Inline delete confirmation */}
             {onDelete !== undefined && isPendingDelete && (
@@ -127,6 +155,7 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                                 text-xs font-medium
                                 rounded
                                 hover:bg-zinc-500 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-700
                             `}
                         >
                             Cancel
@@ -140,6 +169,7 @@ export function BlockCard({ block, isSelected, onClick, onDelete = undefined }: 
                                 text-xs font-medium
                                 rounded
                                 hover:bg-red-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-700
                             `}
                         >
                             Delete

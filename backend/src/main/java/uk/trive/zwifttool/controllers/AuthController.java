@@ -76,7 +76,7 @@ public class AuthController {
      * @return HTTP 200 with the user details and auth cookies set
      */
     @PostMapping("/signin")
-    public ResponseEntity<AuthResponse> signIn(@RequestBody SignInRequest request) {
+    public ResponseEntity<AuthResponse> signIn(@Valid @RequestBody SignInRequest request) {
         User user = authService.signIn(request.getEmail(), request.getPassword());
         UserSession session = authService.createSession(user.getId());
 
