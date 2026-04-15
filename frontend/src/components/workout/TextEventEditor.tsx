@@ -1,4 +1,4 @@
-import { useState, useEffect, type JSX } from 'react'
+import { useState, type JSX } from 'react'
 import type { TextEvent } from '../../types/workout'
 
 interface Props {
@@ -31,9 +31,12 @@ export function TextEventEditor({
 
     // Sync local state when the events prop changes from outside, for example
     // after a save round-trip returns updated data or the user switches workouts.
-    useEffect(() => {
+    // Uses the update-during-render pattern to avoid calling setState inside an effect.
+    const [prevEvents, setPrevEvents] = useState(events)
+    if (events !== prevEvents) {
+        setPrevEvents(events)
         setLocalEvents(events)
-    }, [events])
+    }
 
     function handleAdd(): void {
         const next = [...localEvents, { timeOffsetSeconds: 0, durationSeconds: 10, message: '' }]
@@ -119,13 +122,16 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
     const [message, setMessage] = useState(event.message)
 
     // Sync local fields when the committed event value changes from outside
-    // (e.g. a save round-trip or workout switch).
-    useEffect(() => {
+    // (e.g. a save round-trip or workout switch). Uses the update-during-render
+    // pattern to avoid calling setState inside an effect.
+    const [prevEvent, setPrevEvent] = useState(event)
+    if (event !== prevEvent) {
+        setPrevEvent(event)
         setMinutes(String(Math.floor(event.timeOffsetSeconds / 60)))
         setSeconds(String(event.timeOffsetSeconds % 60))
         setDuration(String(event.durationSeconds ?? 10))
         setMessage(event.message)
-    }, [event])
+    }
 
     function handleBlur(): void {
         const parsedMinutes = Math.max(0, parseInt(minutes, 10) || 0)

@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useState, type JSX } from 'react'
 import type { ParsedInterval } from '../../types/workout'
 
 interface Props {
@@ -164,39 +164,37 @@ export function BarInlineOverlay({
     )
 
     // Sync draft values when the interval is updated externally (e.g. a
-    // concurrent drag-resize on the same bar).
-    useEffect(() => {
-        setDraftDuration(String(interval.durationSeconds))
-    }, [interval.durationSeconds])
-
-    useEffect(() => {
-        const p = getPrimaryPowerPercent(interval)
-        setDraftPower(String(p ?? ''))
-    }, [interval.power, interval.onPower])
-
-    useEffect(() => {
-        setDraftOnDuration(String(interval.onDuration ?? 0))
-    }, [interval.onDuration])
-
-    useEffect(() => {
-        setDraftOnPower(String(interval.onPower !== null ? Math.round(interval.onPower * 100) : ''))
-    }, [interval.onPower])
-
-    useEffect(() => {
-        setDraftOffDuration(String(interval.offDuration ?? 0))
-    }, [interval.offDuration])
-
-    useEffect(() => {
-        setDraftOffPower(String(interval.offPower !== null ? Math.round(interval.offPower * 100) : ''))
-    }, [interval.offPower])
-
-    useEffect(() => {
-        setDraftStartPower(String(interval.power !== null ? Math.round(interval.power * 100) : ''))
-    }, [interval.power])
-
-    useEffect(() => {
-        setDraftEndPower(String(interval.powerHigh !== null ? Math.round(interval.powerHigh * 100) : ''))
-    }, [interval.powerHigh])
+    // concurrent drag-resize on the same bar). Uses the update-during-render
+    // pattern to avoid calling setState inside an effect.
+    const [prevInterval, setPrevInterval] = useState(interval)
+    if (interval !== prevInterval) {
+        setPrevInterval(interval)
+        if (interval.durationSeconds !== prevInterval.durationSeconds) {
+            setDraftDuration(String(interval.durationSeconds))
+        }
+        if (interval.power !== prevInterval.power || interval.onPower !== prevInterval.onPower) {
+            const p = getPrimaryPowerPercent(interval)
+            setDraftPower(String(p ?? ''))
+        }
+        if (interval.onDuration !== prevInterval.onDuration) {
+            setDraftOnDuration(String(interval.onDuration ?? 0))
+        }
+        if (interval.onPower !== prevInterval.onPower) {
+            setDraftOnPower(String(interval.onPower !== null ? Math.round(interval.onPower * 100) : ''))
+        }
+        if (interval.offDuration !== prevInterval.offDuration) {
+            setDraftOffDuration(String(interval.offDuration ?? 0))
+        }
+        if (interval.offPower !== prevInterval.offPower) {
+            setDraftOffPower(String(interval.offPower !== null ? Math.round(interval.offPower * 100) : ''))
+        }
+        if (interval.power !== prevInterval.power) {
+            setDraftStartPower(String(interval.power !== null ? Math.round(interval.power * 100) : ''))
+        }
+        if (interval.powerHigh !== prevInterval.powerHigh) {
+            setDraftEndPower(String(interval.powerHigh !== null ? Math.round(interval.powerHigh * 100) : ''))
+        }
+    }
 
     const midXPct = xLeftPct + (xRightPct - xLeftPct) / 2
 
