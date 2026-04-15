@@ -95,7 +95,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                         border border-transparent rounded
                         hover:border-zinc-700 focus:border-brand-500
                         focus:outline-none transition-colors
-                        disabled:opacity-60
+                        disabled:opacity-50
                     `}
                 />
                 {onExport !== undefined && (
@@ -133,7 +133,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                     border border-transparent rounded
                     hover:border-zinc-700 focus:border-brand-500
                     focus:outline-none transition-colors
-                    disabled:opacity-60
+                    disabled:opacity-50
                 `}
             />
 
@@ -153,7 +153,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                     border border-transparent rounded
                     hover:border-zinc-700 focus:border-brand-500
                     focus:outline-none transition-colors resize-y
-                    disabled:opacity-60
+                    disabled:opacity-50
                 `}
             />
         </div>

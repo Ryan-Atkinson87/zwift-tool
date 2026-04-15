@@ -197,7 +197,8 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                         text-sm font-medium
                         rounded-md
                         hover:bg-brand-500 transition-colors
-                        ${mainsetIsEmpty || isSaving ? 'opacity-50 cursor-not-allowed' : ''}
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                        disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                 >
                     {isSaving ? 'Saving...' : 'Confirm and save'}
@@ -250,7 +251,7 @@ function InlineDivider({ label, type, onDragStart, onDragEnd, isDefault }: {
                 border ${borderColour}
                 rounded-md
                 cursor-grab active:cursor-grabbing
-                ${isDefault ? 'opacity-60' : ''}
+                ${isDefault ? 'opacity-50' : ''}
             `}
         >
             <span>&#x2195;</span>
