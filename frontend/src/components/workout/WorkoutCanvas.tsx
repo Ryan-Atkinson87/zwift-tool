@@ -1789,19 +1789,7 @@ function UnifiedChart({
             {/* Bars for each section */}
             {layouts.map((layout) => {
                 if (layout.section.bars.length === 0) {
-                    return (
-                        <text
-                            key={`empty-${layout.section.type}`}
-                            x={layout.xOffset + layout.sectionWidth / 2}
-                            y={PLOT_HEIGHT / 2}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fontSize={10}
-                            fill="rgba(161,161,170,0.5)"
-                        >
-                            Empty
-                        </text>
-                    )
+                    return null
                 }
 
                 return buildSectionShapes(
