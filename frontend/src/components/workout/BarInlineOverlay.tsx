@@ -424,7 +424,7 @@ export function BarInlineOverlay({
                         onPointerDown={(e) => e.stopPropagation()}
                         disabled={(interval.repeat ?? 1) <= 1}
                         style={{ position: 'absolute', top: `${yTopPx + 2}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                        className="w-5 h-5 flex items-center justify-center text-xs font-bold bg-zinc-700 text-zinc-200 rounded hover:bg-zinc-600 transition-colors focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-5 h-5 flex items-center justify-center text-xs font-bold bg-zinc-700 text-zinc-200 rounded hover:bg-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         −
                     </button>
@@ -436,7 +436,7 @@ export function BarInlineOverlay({
                         onClick={(e) => { e.stopPropagation(); onAddRepeat() }}
                         onPointerDown={(e) => e.stopPropagation()}
                         style={{ position: 'absolute', top: `${yTopPx + 2}px`, left: `${xRightPct}%`, transform: 'translateX(-100%)', marginLeft: '-3px', zIndex: 20 }}
-                        className="w-5 h-5 flex items-center justify-center text-xs font-bold bg-zinc-700 text-zinc-200 rounded hover:bg-zinc-600 transition-colors focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="w-5 h-5 flex items-center justify-center text-xs font-bold bg-zinc-700 text-zinc-200 rounded hover:bg-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                     >
                         +
                     </button>
@@ -449,7 +449,7 @@ export function BarInlineOverlay({
                     onClick={(e) => { e.stopPropagation(); onDelete() }}
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-1 focus:ring-red-500 rounded"
+                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -577,7 +577,7 @@ export function BarInlineOverlay({
                     onClick={(e) => { e.stopPropagation(); onDelete() }}
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-1 focus:ring-red-500 rounded"
+                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -665,7 +665,7 @@ export function BarInlineOverlay({
                 onClick={(e) => { e.stopPropagation(); onDelete() }}
                 onPointerDown={(e) => e.stopPropagation()}
                 style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-1 focus:ring-red-500 rounded"
+                className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
