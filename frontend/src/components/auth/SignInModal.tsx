@@ -5,14 +5,19 @@ interface Props {
     isOpen: boolean
     onClose: () => void
     onSignIn: (email: string, password: string) => Promise<void>
+    /** When true, shows a warning that the active guest workout will be lost on sign-in. */
+    showGuestWarning?: boolean
 }
 
 /**
  * Sign-in modal with email and password fields. Displays a generic
  * server error on failed authentication without revealing which
  * field was incorrect.
+ *
+ * When showGuestWarning is true, a banner is shown warning the user that
+ * their guest workout will be lost and they should export it first.
  */
-export function SignInModal({ isOpen, onClose, onSignIn }: Props): JSX.Element {
+export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = false }: Props): JSX.Element {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -54,6 +59,16 @@ export function SignInModal({ isOpen, onClose, onSignIn }: Props): JSX.Element {
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Sign in">
             <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
+                {showGuestWarning && (
+                    <div className="flex gap-2 px-3 py-2.5 bg-amber-950 border border-amber-700 rounded-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0 mt-0.5 text-amber-400">
+                            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                        <p className="text-sm text-amber-300 leading-snug">
+                            Your guest workout will be lost when you sign in. Export it first using the Export button in the toolbar.
+                        </p>
+                    </div>
+                )}
                 <div className="flex flex-col gap-1">
                     <label htmlFor="signin-email" className="text-sm text-zinc-300">
                         Email
