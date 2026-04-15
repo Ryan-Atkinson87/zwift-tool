@@ -61,10 +61,12 @@ describe('useAuth', () => {
             expect(result.current.user).toBeNull()
         })
 
-        it('starts in a loading state before the refresh resolves', () => {
+        it('starts in a loading state before the refresh resolves', async () => {
             mockRefresh.mockResolvedValue(MOCK_USER)
             const { result } = renderHook(() => useAuth())
             expect(result.current.isLoading).toBe(true)
+            // Drain pending async effects to avoid act() warnings
+            await waitFor(() => expect(result.current.isLoading).toBe(false))
         })
     })
 

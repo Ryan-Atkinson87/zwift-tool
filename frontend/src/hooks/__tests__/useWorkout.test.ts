@@ -70,12 +70,14 @@ describe('useWorkout', () => {
             expect(result.current.error).toBeNull()
         })
 
-        it('starts in a loading state while the request is in flight', () => {
+        it('starts in a loading state while the request is in flight', async () => {
             mockFetchWorkoutById.mockResolvedValue(MOCK_WORKOUT)
             const { result } = renderHook(() => useWorkout('workout-1'))
             // Immediately after mount the workout is not yet synced
             expect(result.current.isLoading).toBe(true)
             expect(result.current.workout).toBeNull()
+            // Drain pending async effects to avoid act() warnings
+            await waitFor(() => expect(result.current.isLoading).toBe(false))
         })
 
         it('stores the error message when the fetch fails', async () => {

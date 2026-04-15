@@ -55,10 +55,12 @@ describe('useWorkouts', () => {
             expect(result.current.error).toBeNull()
         })
 
-        it('starts in a loading state', () => {
+        it('starts in a loading state', async () => {
             mockFetchWorkouts.mockResolvedValue(MOCK_WORKOUTS)
             const { result } = renderHook(() => useWorkouts(true))
             expect(result.current.isLoading).toBe(true)
+            // Drain pending async effects to avoid act() warnings
+            await waitFor(() => expect(result.current.isLoading).toBe(false))
         })
 
         it('stores the error message when the fetch fails', async () => {
