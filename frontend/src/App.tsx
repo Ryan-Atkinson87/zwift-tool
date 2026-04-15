@@ -1390,11 +1390,13 @@ export function App(): JSX.Element {
                     clearSessionExpired()
                 }}
                 onSignIn={handleSignIn}
+                showGuestWarning={guestWorkout !== null}
             />
             <SignUpModal
                 isOpen={isSignUpOpen}
                 onClose={() => setIsSignUpOpen(false)}
                 onSignUp={handleSignUp}
+                showGuestWarning={guestWorkout !== null}
             />
         </div>
     )
