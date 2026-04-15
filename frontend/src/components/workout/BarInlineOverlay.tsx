@@ -543,7 +543,8 @@ export function BarInlineOverlay({
                 {/* End intensity: left edge aligned to the bar's right edge */}
                 {onChangeEndPower !== undefined && (
                     <div
-                        style={{ position: 'absolute', top: `${endInputTopPx}px`, left: `${xRightPct}%`, marginLeft: '4px', zIndex: 20 }}
+                        className="ml-1"
+                        style={{ position: 'absolute', top: `${endInputTopPx}px`, left: `${xRightPct}%`, zIndex: 20 }}
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                     >
