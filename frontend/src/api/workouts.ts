@@ -41,14 +41,6 @@ export interface SaveWorkoutResponse {
 }
 
 /**
- * Saves a new workout from the import flow. Sends the structured workout
- * with section content to the backend.
- *
- * @param request the workout data with section splits applied
- * @returns the saved workout record
- * @throws Error if the request fails
- */
-/**
  * Fetches all saved workouts for the authenticated user as a summary list,
  * ordered by most recently updated first.
  *
@@ -461,6 +453,14 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
     }
 }
 
+/**
+ * Saves a new workout from the import flow. Sends the structured workout
+ * with section content to the backend.
+ *
+ * @param request the workout data with section splits applied
+ * @returns the saved workout record
+ * @throws Error if the request fails
+ */
 export async function saveWorkout(request: SaveWorkoutRequest): Promise<SaveWorkoutResponse> {
     const response = await fetchWithAuth(`${API_BASE}/workouts`, {
         method: 'POST',
