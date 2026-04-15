@@ -78,7 +78,8 @@ export const ZONE_PRESETS: readonly ZonePreset[] = [
         defaultFtpPercent: 113,
         defaultDurationSeconds: 2 * 60,
         minFtpPercent: 106,
-        maxFtpPercent: 120,
+        // Zone 5 has no documented upper bound
+        maxFtpPercent: null,
     },
 ] as const
 

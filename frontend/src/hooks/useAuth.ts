@@ -73,6 +73,8 @@ export function useAuth(): AuthState & {
     async function signOut(): Promise<void> {
         try {
             await signOutApi()
+        } catch {
+            // Ignore API errors — the user is signed out locally regardless
         } finally {
             // Clear local state regardless of whether the API call succeeded,
             // so the user is never stuck in a signed-in state
