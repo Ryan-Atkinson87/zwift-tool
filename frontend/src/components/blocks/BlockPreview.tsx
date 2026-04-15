@@ -295,7 +295,7 @@ function BlockPreviewSvg({
     }
 
     // e.currentTarget is the <svg> element because these handlers are attached
-    // directly to it — no ref needed for move/up.
+    // directly to it, so no ref is needed for move/up.
     function handleSvgPointerMove(e: React.PointerEvent<SVGSVGElement>): void {
         if (barDragState === null && paletteDragState === null && rampResizeDragState === null) return
         const { x: svgX, y: svgY } = clientToSvgCoords(e.clientX, e.clientY, e.currentTarget)

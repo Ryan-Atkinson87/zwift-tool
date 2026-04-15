@@ -81,7 +81,7 @@ export function BlockLibrary({ blocks, isLoading, error, onEditBlock, onDeleteBl
 
     return (
         <div className="flex flex-col w-full gap-3">
-            {/* Section type filter grid — 2×2 layout matches the FileUploader button stack height */}
+            {/* Section type filter grid: 2×2 layout matches the FileUploader button stack height */}
             <div className="grid grid-cols-2 gap-2">
                 {FILTER_TABS.map((tab) => (
                     <button

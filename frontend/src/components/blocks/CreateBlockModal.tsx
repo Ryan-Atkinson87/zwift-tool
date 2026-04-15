@@ -32,8 +32,8 @@ const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
  * update accordingly.
  *
  * <p>The parent should pass a stable {@code key} tied to the block ID (or a
- * constant for the create case) so React remounts the modal — and resets all
- * local state — when switching between blocks.</p>
+ * constant for the create case) so React remounts the modal, and resets all
+ * local state, when switching between blocks.</p>
  */
 export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null, zonePresets }: Props): JSX.Element | null {
     const [sectionType, setSectionType] = useState<SectionType>(initialBlock?.sectionType ?? 'MAINSET')

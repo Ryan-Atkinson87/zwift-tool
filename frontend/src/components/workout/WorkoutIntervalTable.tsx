@@ -62,7 +62,7 @@ export function WorkoutIntervalTable({ workout, onUpdate, onDelete }: Props): JS
 interface SectionGroupProps {
     sectionType: SectionType
     block: BlockDetail
-    /** True when this is the main set with only one interval — prevents delete. */
+    /** True when this is the main set with only one interval. Prevents delete. */
     isSingleMainset: boolean
     onUpdate: (index: number, next: ParsedInterval) => void
     onDelete: (index: number) => void

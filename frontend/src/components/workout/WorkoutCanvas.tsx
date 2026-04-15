@@ -460,7 +460,7 @@ function computeLayout(
 /**
  * Returns the SVG x position (in section-local or global coords) at the END
  * of each interval in the given bar list. The returned array has one entry
- * per interval (not per bar — IntervalsT intervals span multiple bars).
+ * per interval (not per bar: IntervalsT intervals span multiple bars).
  *
  * @param bars     the bars for one section
  * @param xOffset  added to every position, use 0 for section-local coords
@@ -583,7 +583,7 @@ function clampNoOverlap(
 
     const proposedEnd = proposedOffset + myDuration
 
-    // Return early if no overlap exists — just clamp to the timeline bounds.
+    // Return early if no overlap exists. Just clamp to the timeline bounds.
     const hasOverlap = others.some(
         (o) => proposedOffset < o.end && proposedEnd > o.start,
     )
@@ -1618,7 +1618,7 @@ function ChartArea({
             {(wuMsPending !== null || msCdPending !== null) && (
                 <div className="flex items-center gap-3 mt-2 pt-2 border-t border-zinc-700">
                     <p className="text-xs text-zinc-400">
-                        Section {wuMsPending !== null && msCdPending !== null ? 'boundaries' : 'boundary'} moved — save to apply.
+                        Section {wuMsPending !== null && msCdPending !== null ? 'boundaries' : 'boundary'} moved. Save to apply.
                     </p>
                     <button
                         type="button"
@@ -2181,7 +2181,7 @@ interface BarShapeProps {
      */
     svgTotalWidth: number
     isSelected: boolean
-    /** True when this bar is the one being dragged — renders faded. */
+    /** True when this bar is the one being dragged. Renders faded. */
     isDragging: boolean
     onClick?: () => void
     onPointerDown?: (e: React.PointerEvent) => void
