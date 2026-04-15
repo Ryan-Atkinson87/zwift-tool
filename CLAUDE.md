@@ -127,8 +127,7 @@ public class WorkoutService {
  * @param blockId     the saved block to use as the replacement
  * @param userId      the authenticated user's ID, used for ownership verification
  * @return a list of updated workout records
- * @throws WorkoutNotFoundException if any workout ID does not exist
- * @throws UnauthorisedException    if any workout belongs to a different user
+ * @throws WorkoutNotFoundException if any workout ID does not exist or belongs to a different user
  */
 public List<Workout> bulkReplaceSection(
         List<UUID> workoutIds,
@@ -262,15 +261,15 @@ Services contain all business logic. They must not contain SQL or HTTP-specific 
  * @param workoutId the ID of the workout to retrieve
  * @param userId    the authenticated user's ID
  * @return the matching workout
- * @throws WorkoutNotFoundException if no workout exists with the given ID
- * @throws UnauthorisedException    if the workout belongs to a different user
+ * @throws WorkoutNotFoundException if no workout exists with the given ID, or if it belongs to a different user
  */
 public Workout getWorkout(UUID workoutId, UUID userId) {
     Workout workout = workoutRepository.findById(workoutId)
         .orElseThrow(() -> new WorkoutNotFoundException(workoutId));
 
     if (!workout.getUserId().equals(userId)) {
-        throw new UnauthorisedException("Workout does not belong to this user.");
+        // Collapse ownership violations to 404 to avoid leaking whether the workout exists
+        throw new WorkoutNotFoundException(workoutId);
     }
 
     return workout;
@@ -285,7 +284,10 @@ Throw named, descriptive exceptions from services. Do not return nulls or boolea
 
 ```java
 /**
- * Thrown when a requested workout cannot be found in the database.
+ * Thrown when a requested workout cannot be found in the database,
+ * or when the workout exists but belongs to a different user. Both
+ * cases collapse to 404 to avoid leaking the existence of other
+ * users' workouts.
  */
 public class WorkoutNotFoundException extends RuntimeException {
 
@@ -295,39 +297,31 @@ public class WorkoutNotFoundException extends RuntimeException {
 }
 ```
 
-```java
-/**
- * Thrown when an authenticated user attempts to access a resource
- * that belongs to a different user.
- */
-public class UnauthorisedException extends RuntimeException {
+There is no separate `UnauthorisedException`. Ownership violations are collapsed into the same not-found exception as missing records — this prevents leaking information about whether a resource exists at all. The same pattern applies to blocks (`BlockNotFoundException`).
 
-    public UnauthorisedException(String message) {
-        super(message);
-    }
-}
-```
+All error responses use `Map.of("message", ...)` — there is no `ErrorResponse` wrapper class.
 
-The global handler maps these to HTTP responses:
+The global handler maps exceptions to HTTP responses:
 
 ```java
 /**
  * Handles application exceptions globally and maps them to appropriate
- * HTTP responses. All error responses follow the same JSON structure.
+ * HTTP responses. All error responses follow the same JSON structure:
+ * {"message": "..."}.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(WorkoutNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleWorkoutNotFound(WorkoutNotFoundException ex) {
+    public ResponseEntity<Map<String, String>> handleWorkoutNotFound(WorkoutNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ErrorResponse(ex.getMessage()));
+            .body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(UnauthorisedException.class)
-    public ResponseEntity<ErrorResponse> handleUnauthorised(UnauthorisedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-            .body(new ErrorResponse(ex.getMessage()));
+    @ExceptionHandler(BlockNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleBlockNotFound(BlockNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of("message", ex.getMessage()));
     }
 }
 ```
@@ -573,35 +567,62 @@ Group files by feature, not by type. All files related to workouts live together
 src/
   components/
     workout/
-      WorkoutCanvas.tsx      -- central bar chart display
-      WorkoutCard.tsx        -- card in the workout list panel
-      SectionDivider.tsx     -- draggable divider used on import
+      WorkoutCanvas.tsx         -- central bar chart display
+      WorkoutCard.tsx           -- card in the workout list panel
+      WorkoutList.tsx           -- left panel workout list
+      WorkoutMetadataEditor.tsx -- name, author, description fields
+      WorkoutIntervalTable.tsx  -- tabular interval editor
+      IntervalEditor.tsx        -- single interval edit form
+      IntervalPalette.tsx       -- zone preset add-block palette
+      ZonePresetButtons.tsx     -- quick-add buttons per zone
+      ZonePresetSettings.tsx    -- edit zone preset defaults
+      AddBlockModal.tsx         -- modal to add a new interval block
+      BulkActionsToolbar.tsx    -- toolbar shown in bulk-select mode
+      TextEventEditor.tsx       -- text event editor for intervals
+      BarInlineOverlay.tsx      -- drag-resize overlay on canvas bars
     blocks/
-      BlockLibrary.tsx       -- right panel block browser
-      BlockCard.tsx          -- individual block in the library
-      BlockPreview.tsx       -- expanded block preview
+      BlockLibrary.tsx          -- right panel block browser
+      BlockCard.tsx             -- individual block in the library
+      BlockPreview.tsx          -- expanded block preview
+      SaveToLibraryModal.tsx    -- modal to save a section as a block
+      CreateBlockModal.tsx      -- modal to create a block independently
+      ReplaceWithBlockModal.tsx -- modal to replace a section with a block
+      BulkReplaceModal.tsx      -- modal for bulk section replacement
+    import/
+      FileUploader.tsx          -- .zwo file upload input
+      IntervalList.tsx          -- flat interval list shown pre-split
+      SectionSplitter.tsx       -- draggable dividers to define section boundaries
     auth/
       SignInModal.tsx
       SignUpModal.tsx
     ui/
-      Button.tsx             -- shared button component
-      Modal.tsx              -- shared modal wrapper
+      Modal.tsx                 -- shared modal wrapper
   hooks/
-    useWorkouts.ts           -- workout list state and fetching
-    useBlocks.ts             -- block library state and fetching
-    useAuth.ts               -- auth state and session management
+    useWorkouts.ts              -- workout list state and fetching
+    useWorkout.ts               -- single workout state for the editor
+    useWorkoutAutosave.ts       -- auto-save debounce logic
+    useBlocks.ts                -- block library state and fetching
+    useAuth.ts                  -- auth state and session management
+    useZonePresets.ts           -- zone preset state and fetching
   types/
-    workout.ts               -- Workout, Block, SectionType interfaces
-    auth.ts                  -- User, AuthState interfaces
+    workout.ts                  -- Workout, Block, SectionType interfaces
+    auth.ts                     -- User, AuthState interfaces
   api/
-    workouts.ts              -- fetch wrappers for /workouts endpoints
-    blocks.ts                -- fetch wrappers for /blocks endpoints
-    auth.ts                  -- fetch wrappers for /auth endpoints
+    workouts.ts                 -- fetch wrappers for /workouts endpoints
+    blocks.ts                   -- fetch wrappers for /blocks endpoints
+    auth.ts                     -- fetch wrappers for /auth endpoints
+    zonePresets.ts              -- fetch wrappers for /zone-presets endpoints
+    client.ts                   -- shared fetch helper (base URL, credentials)
   utils/
-    zwoParser.ts             -- client-side .zwo XML parsing
-    zwoExporter.ts           -- .zwo XML generation for export
-    tssCalculator.ts         -- TSS and duration calculations
+    zwoParser.ts                -- client-side .zwo XML parsing
+    zoneColours.ts              -- Zwift zone colour mapping
+    zonePresets.ts              -- zone preset system defaults and helpers
+    workoutStats.ts             -- TSS, duration, and interval stat calculations
+    editorDraft.ts              -- editor draft state helpers
+    intervalExpander.ts         -- expands IntervalsT repeats into flat lists
 ```
+
+`.zwo` export is handled by the backend (`ZwoExporter.java`). There is no client-side export utility.
 
 ---
 
