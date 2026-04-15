@@ -620,9 +620,10 @@ src/
     workoutStats.ts             -- TSS, duration, and interval stat calculations
     editorDraft.ts              -- editor draft state helpers
     intervalExpander.ts         -- expands IntervalsT repeats into flat lists
+    zwoExporter.ts              -- client-side .zwo XML generation for guest mode export
 ```
 
-`.zwo` export is handled by the backend (`ZwoExporter.java`). There is no client-side export utility.
+`.zwo` export is handled by the backend (`ZwoExporter.java`) for authenticated users. In guest mode, export is handled client-side by `src/utils/zwoExporter.ts`.
 
 ---
 

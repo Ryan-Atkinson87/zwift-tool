@@ -23,13 +23,18 @@ import { saveBlock, type LibraryBlock } from './api/blocks'
 import { useWorkoutAutosave } from './hooks/useWorkoutAutosave.ts'
 import { useZonePresets } from './hooks/useZonePresets.ts'
 import { useBlocks } from './hooks/useBlocks.ts'
-import type { ParsedWorkout, ParsedInterval, SectionType, TextEvent } from './types/workout'
+import type { BlockDetail, ParsedWorkout, ParsedInterval, SectionType, TextEvent, WorkoutDetail } from './types/workout'
 import { buildSectionDraft, currentSectionBlock, sumIntervalDuration as sumDuration } from './utils/editorDraft'
+import { downloadGuestWorkout } from './utils/zwoExporter'
 
 /**
- * Root application component. Renders the top-level layout and entry point
- * for the Zwift Tool UI. Currently provides auth controls while the main
- * workout editor is under development.
+ * Root application component. Renders the top-level layout, auth flow, and
+ * the workout editor. Supports both authenticated use (full persistence) and
+ * guest use (client-side only, no account required).
+ *
+ * Guest mode is activated from the landing screen. In guest mode, all editing
+ * operations update local React state directly rather than calling the backend.
+ * Gated actions (save, block library, bulk replace) prompt the user to sign in.
  */
 export function App(): JSX.Element {
     const { isAuthenticated, isLoading, user, signUp, signIn, signOut, sessionExpired, clearSessionExpired } = useAuth()
@@ -45,6 +50,12 @@ export function App(): JSX.Element {
     const [isSelectMode, setIsSelectMode] = useState(false)
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
     const [isRightCollapsed, setIsRightCollapsed] = useState(false)
+
+    // Guest mode: true once the user has chosen to use the tool without signing in
+    const [guestMode, setGuestMode] = useState(false)
+    // The active workout in guest mode, held entirely in local state
+    const [guestWorkout, setGuestWorkout] = useState<WorkoutDetail | null>(null)
+
     const {
         workouts: savedWorkouts,
         isLoading: isLoadingWorkouts,
@@ -90,15 +101,30 @@ export function App(): JSX.Element {
     const [isExporting, setIsExporting] = useState(false)
     const [exportError, setExportError] = useState<string | null>(null)
 
+    // The workout driving the editor canvas. In authenticated mode this is the
+    // backend-fetched selected workout; in guest mode it is the locally-held
+    // guest workout built from the section splitter or the blank-workout helper.
+    const activeWorkout: WorkoutDetail | null = isAuthenticated ? selectedWorkout : guestWorkout
+
     // Clear the selected interval whenever the user switches workout so a
     // stale index from a previous workout cannot leak into the editor.
     useEffect(() => {
         setSelectedInterval(null)
-    }, [selectedWorkoutId])
-    // Auto-save loop. The editor pushes section content into queueSectionUpdate
-    // every time the user adds, edits, or removes an interval. Updates are
-    // debounced inside the hook and the response is fed back into the cached
-    // workout state via applySelectedWorkoutUpdate.
+    }, [selectedWorkoutId, guestWorkout?.id])
+
+    // When the user signs in from guest mode, clear the guest state so the
+    // three-panel layout switches to the authenticated view cleanly.
+    useEffect(() => {
+        if (isAuthenticated) {
+            setGuestMode(false)
+            setGuestWorkout(null)
+            setParsedWorkouts([])
+            setSplittingWorkout(null)
+        }
+    }, [isAuthenticated])
+
+    // Auto-save loop. In guest mode selectedWorkout is null so this hook is
+    // effectively inactive — guest edits update guestWorkout directly instead.
     const {
         queueSectionUpdate,
         status: autosaveStatus,
@@ -107,6 +133,9 @@ export function App(): JSX.Element {
 
     // Derive whether sign-in modal should show from session expiry or explicit open
     const showSignIn = isSignInOpen || sessionExpired
+
+    // Whether the three-panel editor layout is visible
+    const showEditor = isAuthenticated || guestMode
 
     async function handleSignUp(email: string, password: string): Promise<void> {
         await signUp({ email, password })
@@ -155,8 +184,54 @@ export function App(): JSX.Element {
     }
 
     async function handleConfirmSplit(split: SectionSplit): Promise<void> {
-        setIsSaving(true)
         setSaveError(null)
+
+        if (!isAuthenticated) {
+            // Guest mode: build a local WorkoutDetail from the split without
+            // saving to the backend. All subsequent edits update guestWorkout directly.
+            const now = new Date().toISOString()
+            const makeBlock = (
+                intervals: ParsedInterval[],
+                sectionType: SectionType,
+                name: string,
+            ): BlockDetail => ({
+                id: `guest-${sectionType.toLowerCase()}`,
+                name,
+                description: null,
+                sectionType,
+                intervals,
+                durationSeconds: sumDuration(intervals),
+                intervalCount: intervals.length,
+                isLibraryBlock: false,
+            })
+
+            setGuestWorkout({
+                id: crypto.randomUUID(),
+                name: split.workout.name,
+                author: split.workout.author,
+                description: split.workout.description,
+                warmupBlock: split.warmupIntervals.length > 0
+                    ? makeBlock(split.warmupIntervals, 'WARMUP', 'Warm-Up') : null,
+                mainsetBlock: makeBlock(split.mainsetIntervals, 'MAINSET', 'Main Set'),
+                cooldownBlock: split.cooldownIntervals.length > 0
+                    ? makeBlock(split.cooldownIntervals, 'COOLDOWN', 'Cool-Down') : null,
+                hasPrevWarmup: false,
+                hasPrevMainset: false,
+                hasPrevCooldown: false,
+                isDraft: true,
+                textEvents: [],
+                createdAt: now,
+                updatedAt: now,
+            })
+
+            setSplittingWorkout(null)
+            setParsedWorkouts((prev) =>
+                prev.filter((w) => w.fileName !== split.workout.fileName)
+            )
+            return
+        }
+
+        setIsSaving(true)
 
         try {
             await saveWorkout({
@@ -224,12 +299,20 @@ export function App(): JSX.Element {
      * Persists updated metadata for the selected workout, refreshes the
      * cached workout detail, and reloads the saved workouts list so the
      * left panel reflects the new name.
+     *
+     * In guest mode, updates the local guest workout directly without any
+     * backend call.
      */
     async function handleSaveMetadata(next: {
         name: string
         author: string | null
         description: string | null
     }): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            setGuestWorkout({ ...guestWorkout, ...next, updatedAt: new Date().toISOString() })
+            return
+        }
+
         if (selectedWorkoutId === null) {
             return
         }
@@ -254,11 +337,19 @@ export function App(): JSX.Element {
      * Persists an updated text event list for the selected workout. Text
      * events piggyback on the metadata endpoint so their current value is
      * round-tripped as part of the existing metadata save pipeline.
+     *
+     * In guest mode, updates the local guest workout directly.
      */
     async function handleSaveTextEvents(nextEvents: TextEvent[]): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            setGuestWorkout({ ...guestWorkout, textEvents: nextEvents })
+            return
+        }
+
         if (selectedWorkoutId === null || selectedWorkout === null) {
             return
         }
+
         setIsSavingMetadata(true)
         setMetadataError(null)
         // Optimistic patch so the row reflects the edit before the round-trip
@@ -285,11 +376,20 @@ export function App(): JSX.Element {
      * workout so the canvas re-renders immediately, and queues an auto-save.
      * All editor mutations (preset add, block add, edit, reorder, delete)
      * funnel through this single helper.
+     *
+     * In guest mode, updates the local guest workout directly and skips the
+     * auto-save queue (there is no backend record to save to).
      */
     function commitSectionIntervals(
         sectionType: SectionType,
         nextIntervals: ParsedInterval[],
     ): void {
+        if (!isAuthenticated && guestWorkout !== null) {
+            const draft = buildSectionDraft(guestWorkout, sectionType, nextIntervals)
+            setGuestWorkout(draft.patchedWorkout)
+            return
+        }
+
         if (selectedWorkout === null) {
             return
         }
@@ -313,10 +413,10 @@ export function App(): JSX.Element {
      * @param insertIndex  0-based index before which to insert
      */
     function handleAddInterval(sectionType: SectionType, interval: ParsedInterval, insertIndex: number): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         const existing = currentBlock?.intervals ?? []
         const idx = Math.min(insertIndex, existing.length)
         const nextIntervals = [...existing.slice(0, idx), interval, ...existing.slice(idx)]
@@ -333,10 +433,10 @@ export function App(): JSX.Element {
         index: number,
         next: ParsedInterval,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -358,10 +458,10 @@ export function App(): JSX.Element {
         durationSeconds: number,
         powerPercent: number,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -387,10 +487,10 @@ export function App(): JSX.Element {
      * editor must always have at least one interval to anchor.
      */
     function handleDeleteInterval(sectionType: SectionType, index: number): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -411,10 +511,10 @@ export function App(): JSX.Element {
         fromIndex: number,
         toIndex: number,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const currentBlock = currentSectionBlock(selectedWorkout, sectionType)
+        const currentBlock = currentSectionBlock(activeWorkout, sectionType)
         if (currentBlock === null) {
             return
         }
@@ -441,10 +541,10 @@ export function App(): JSX.Element {
         toSection: SectionType,
         toIndex: number,
     ): void {
-        if (selectedWorkout === null) {
+        if (activeWorkout === null) {
             return
         }
-        const fromBlock = currentSectionBlock(selectedWorkout, fromSection)
+        const fromBlock = currentSectionBlock(activeWorkout, fromSection)
         if (fromBlock === null) {
             return
         }
@@ -457,7 +557,7 @@ export function App(): JSX.Element {
         if (fromSection === 'MAINSET' && newFromIntervals.length === 0) {
             return
         }
-        const toBlock = currentSectionBlock(selectedWorkout, toSection)
+        const toBlock = currentSectionBlock(activeWorkout, toSection)
         const toIntervals = toBlock?.intervals ?? []
         const clampedIndex = Math.min(toIndex, toIntervals.length)
         const newToIntervals = [
@@ -476,6 +576,9 @@ export function App(): JSX.Element {
      * so it calls the API directly rather than going through the auto-save
      * queue to avoid the second call overwriting the first.
      *
+     * In guest mode, updates the local guest workout directly for all three
+     * sections without any backend calls.
+     *
      * <p>If the first call fails the second is not attempted. If the
      * second call fails after the first succeeds, an error is shown and
      * the user can retry via the undo controls.</p>
@@ -485,6 +588,38 @@ export function App(): JSX.Element {
         mainsetIntervals: ParsedInterval[],
         cooldownIntervals: ParsedInterval[],
     ): Promise<void> {
+        if (activeWorkout === null) {
+            return
+        }
+
+        if (!isAuthenticated && guestWorkout !== null) {
+            const makeBlock = (
+                intervals: ParsedInterval[],
+                sectionType: SectionType,
+                name: string,
+            ): BlockDetail => ({
+                id: `guest-${sectionType.toLowerCase()}`,
+                name,
+                description: null,
+                sectionType,
+                intervals,
+                durationSeconds: sumDuration(intervals),
+                intervalCount: intervals.length,
+                isLibraryBlock: false,
+            })
+
+            setGuestWorkout({
+                ...guestWorkout,
+                warmupBlock: warmupIntervals.length > 0
+                    ? makeBlock(warmupIntervals, 'WARMUP', 'Warm-Up') : null,
+                mainsetBlock: makeBlock(mainsetIntervals, 'MAINSET', 'Main Set'),
+                cooldownBlock: cooldownIntervals.length > 0
+                    ? makeBlock(cooldownIntervals, 'COOLDOWN', 'Cool-Down') : null,
+                updatedAt: new Date().toISOString(),
+            })
+            return
+        }
+
         if (selectedWorkout === null || selectedWorkoutId === null) {
             return
         }
@@ -536,14 +671,45 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Creates a new blank draft workout via the backend and refreshes the
-     * saved workout list. The new workout has a single empty main set block
-     * and no warm-up or cool-down, ready for the user to add blocks.
+     * Creates a new blank draft workout. In authenticated mode, saves to the
+     * backend and selects the new workout. In guest mode, creates a local
+     * WorkoutDetail with an empty main set block and no warm-up or cool-down.
      */
     async function handleCreateBlankWorkout(): Promise<void> {
-        setIsSaving(true)
         setSaveError(null)
         setSaveSuccess(null)
+
+        if (!isAuthenticated) {
+            const now = new Date().toISOString()
+            setGuestWorkout({
+                id: crypto.randomUUID(),
+                name: 'New Workout',
+                author: null,
+                description: null,
+                warmupBlock: null,
+                mainsetBlock: {
+                    id: 'guest-mainset',
+                    name: 'Main Set',
+                    description: null,
+                    sectionType: 'MAINSET',
+                    intervals: [],
+                    durationSeconds: 0,
+                    intervalCount: 0,
+                    isLibraryBlock: false,
+                },
+                cooldownBlock: null,
+                hasPrevWarmup: false,
+                hasPrevMainset: false,
+                hasPrevCooldown: false,
+                isDraft: true,
+                textEvents: [],
+                createdAt: now,
+                updatedAt: now,
+            })
+            return
+        }
+
+        setIsSaving(true)
 
         try {
             const created = await saveWorkout({
@@ -576,16 +742,18 @@ export function App(): JSX.Element {
      * Saves the current section to the block library using the name and
      * description provided by the user in the save modal. Reloads the
      * library panel immediately after a successful save.
+     *
+     * Unauthenticated users are shown the sign-in modal instead.
      */
     async function handleConfirmSaveToLibrary(
         name: string,
         description: string | null,
     ): Promise<void> {
-        if (selectedWorkout === null || saveToLibrarySection === null) {
+        if (activeWorkout === null || saveToLibrarySection === null) {
             return
         }
 
-        const block = currentSectionBlock(selectedWorkout, saveToLibrarySection)
+        const block = currentSectionBlock(activeWorkout, saveToLibrarySection)
         if (block === null) {
             return
         }
@@ -604,11 +772,28 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Opens the replace modal for the given section.
+     * Opens the replace modal for the given section. In guest mode, opens
+     * the sign-in modal instead — replacing sections requires library access.
      */
     function handleReplaceSection(sectionType: SectionType): void {
+        if (!isAuthenticated) {
+            setIsSignInOpen(true)
+            return
+        }
         setReplaceSectionType(sectionType)
         setReplaceError(null)
+    }
+
+    /**
+     * Opens the save-to-library modal for the given section. In guest mode,
+     * opens the sign-in modal instead — saving to the library requires an account.
+     */
+    function handleSaveToLibrary(sectionType: SectionType): void {
+        if (!isAuthenticated) {
+            setIsSignInOpen(true)
+            return
+        }
+        setSaveToLibrarySection(sectionType)
     }
 
     /**
@@ -666,13 +851,20 @@ export function App(): JSX.Element {
     }
 
     /**
-     * Requests the selected workout as a .zwo file from the backend and
-     * triggers a browser download. Disabled while a download is in progress.
+     * Exports the active workout as a .zwo file. In guest mode, generates
+     * the XML client-side and triggers a browser download directly. In
+     * authenticated mode, fetches the exported file from the backend.
      */
     async function handleExportWorkout(): Promise<void> {
+        if (!isAuthenticated && guestWorkout !== null) {
+            downloadGuestWorkout(guestWorkout)
+            return
+        }
+
         if (selectedWorkoutId === null || selectedWorkout === null) {
             return
         }
+
         setIsExporting(true)
         setExportError(null)
         try {
@@ -769,7 +961,9 @@ export function App(): JSX.Element {
                             Zone presets
                         </button>
                     </div>
-                ) : (
+                ) : guestMode ? (
+                    // In guest mode show compact auth controls so the user can sign
+                    // in at any point without leaving the editor
                     <div className="flex gap-3">
                         <button
                             onClick={() => setIsSignInOpen(true)}
@@ -798,11 +992,11 @@ export function App(): JSX.Element {
                             Sign up
                         </button>
                     </div>
-                )}
+                ) : null}
             </header>
 
-            {/* ── Three-panel body ── */}
-            {isAuthenticated ? (
+            {/* ── Three-panel body or landing ── */}
+            {showEditor ? (
                 <div className="flex flex-1 overflow-hidden">
 
                     {/* Left panel: workout list */}
@@ -850,26 +1044,28 @@ export function App(): JSX.Element {
 
                             <FileUploader onFilesParsed={handleFilesParsed} />
 
-                            <WorkoutList
-                                workouts={savedWorkouts}
-                                isLoading={isLoadingWorkouts}
-                                error={workoutsError}
-                                selectedWorkoutId={selectedWorkoutId}
-                                selectedWorkoutIds={selectedWorkoutIds}
-                                isSelectMode={isSelectMode}
-                                isExporting={isExporting}
-                                onSelect={setSelectedWorkoutId}
-                                onToggleSelect={handleToggleWorkoutSelect}
-                                onSelectModeChange={setIsSelectMode}
-                                onClearSelection={handleClearSelection}
-                                onBulkReplace={() => {
-                                    setBulkReplaceError(null)
-                                    setIsBulkReplaceOpen(true)
-                                }}
-                                onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
-                                onSelectAll={setSelectedWorkoutIds}
-                                onDeleteWorkout={(id) => void handleDeleteWorkout(id)}
-                            />
+                            {isAuthenticated && (
+                                <WorkoutList
+                                    workouts={savedWorkouts}
+                                    isLoading={isLoadingWorkouts}
+                                    error={workoutsError}
+                                    selectedWorkoutId={selectedWorkoutId}
+                                    selectedWorkoutIds={selectedWorkoutIds}
+                                    isSelectMode={isSelectMode}
+                                    isExporting={isExporting}
+                                    onSelect={setSelectedWorkoutId}
+                                    onToggleSelect={handleToggleWorkoutSelect}
+                                    onSelectModeChange={setIsSelectMode}
+                                    onClearSelection={handleClearSelection}
+                                    onBulkReplace={() => {
+                                        setBulkReplaceError(null)
+                                        setIsBulkReplaceOpen(true)
+                                    }}
+                                    onExportSelected={() => void handleExportSelected(selectedWorkoutIds)}
+                                    onSelectAll={setSelectedWorkoutIds}
+                                    onDeleteWorkout={(id) => void handleDeleteWorkout(id)}
+                                />
+                            )}
 
                             {saveSuccess && (
                                 <p className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
@@ -887,10 +1083,10 @@ export function App(): JSX.Element {
 
                     {/* Centre panel: canvas and editors */}
                     <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
-                        {selectedWorkout !== null && (
+                        {activeWorkout !== null && (
                             <WorkoutMetadataEditor
-                                key={selectedWorkout.id}
-                                workout={selectedWorkout}
+                                key={activeWorkout.id}
+                                workout={activeWorkout}
                                 onSave={(next) => void handleSaveMetadata(next)}
                                 isSaving={isSavingMetadata}
                                 onExport={() => void handleExportWorkout()}
@@ -903,10 +1099,12 @@ export function App(): JSX.Element {
                         )}
 
                         <WorkoutCanvas
-                            workout={selectedWorkout}
-                            isLoading={isLoadingSelectedWorkout}
-                            error={selectedWorkoutError}
-                            onUndoSection={(section) => void handleUndoSection(section)}
+                            workout={activeWorkout}
+                            isLoading={isAuthenticated ? isLoadingSelectedWorkout : false}
+                            error={isAuthenticated ? selectedWorkoutError : null}
+                            onUndoSection={isAuthenticated
+                                ? (section) => void handleUndoSection(section)
+                                : undefined}
                             isUndoing={isUndoing}
                             zonePresets={zonePresets}
                             onAddInterval={handleAddInterval}
@@ -914,7 +1112,7 @@ export function App(): JSX.Element {
                                 setSelectedInterval({ sectionType: section, intervalIndex: index })
                             }
                             selectedInterval={selectedInterval}
-                            onSaveToLibrary={(section) => setSaveToLibrarySection(section)}
+                            onSaveToLibrary={handleSaveToLibrary}
                             onReplaceSection={handleReplaceSection}
                             onReorderInterval={handleReorderIntervals}
                             onMoveInterval={handleMoveInterval}
@@ -928,8 +1126,8 @@ export function App(): JSX.Element {
                                 setSelectedInterval(null)
                             }}
                             onMoveTextEvent={(eventIndex, newOffsetSeconds) => {
-                                if (selectedWorkout === null) return
-                                const updated = selectedWorkout.textEvents.map((ev, i) =>
+                                if (activeWorkout === null) return
+                                const updated = activeWorkout.textEvents.map((ev, i) =>
                                     i === eventIndex
                                         ? { ...ev, timeOffsetSeconds: newOffsetSeconds }
                                         : ev,
@@ -938,17 +1136,17 @@ export function App(): JSX.Element {
                             }}
                         />
 
-                        {selectedWorkout !== null && (
+                        {activeWorkout !== null && (
                             <TextEventEditor
-                                events={selectedWorkout.textEvents}
+                                events={activeWorkout.textEvents}
                                 onChange={(next) => void handleSaveTextEvents(next)}
                                 isSaving={isSavingMetadata}
                             />
                         )}
 
-                        {selectedWorkout !== null && (
+                        {activeWorkout !== null && (
                             <WorkoutIntervalTable
-                                workout={selectedWorkout}
+                                workout={activeWorkout}
                                 onUpdate={handleUpdateInterval}
                                 onDelete={handleDeleteInterval}
                             />
@@ -966,7 +1164,7 @@ export function App(): JSX.Element {
                             </p>
                         )}
 
-                        {autosaveStatus === 'error' && autosaveError && (
+                        {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
                             <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
                                 Auto-save failed: {autosaveError}
                             </p>
@@ -1016,10 +1214,85 @@ export function App(): JSX.Element {
                                 </button>
                             </div>
 
+                            {isAuthenticated ? (
+                                <>
+                                    <button
+                                        onClick={() => setIsCreateBlockOpen(true)}
+                                        className={`
+                                            w-full px-4 py-2
+                                            bg-brand-600 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-brand-500 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        + New block
+                                    </button>
+
+                                    <BlockLibrary
+                                        blocks={libraryBlocks}
+                                        isLoading={isLoadingBlocks}
+                                        error={blocksError}
+                                        onEditBlock={(block) => setEditingBlock(block)}
+                                        onDeleteBlock={deleteLibraryBlock}
+                                    />
+                                </>
+                            ) : (
+                                // Guest mode: locked block library panel
+                                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
+                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
+                                    </svg>
+                                    <p className="text-sm text-zinc-400 leading-relaxed">
+                                        Sign in to save your workouts and access the block library.
+                                    </p>
+                                    <button
+                                        onClick={() => setIsSignInOpen(true)}
+                                        className={`
+                                            px-4 py-2
+                                            bg-brand-600 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-brand-500 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        Sign in
+                                    </button>
+                                    <button
+                                        onClick={() => setIsSignUpOpen(true)}
+                                        className={`
+                                            px-4 py-2
+                                            bg-zinc-700 text-white
+                                            text-sm font-medium
+                                            rounded-md
+                                            hover:bg-zinc-600 transition-colors
+                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                        `}
+                                    >
+                                        Create account
+                                    </button>
+                                </div>
+                            )}
+                        </aside>
+                    )}
+                </div>
+            ) : (
+                // Landing screen: shown before the user has signed in or chosen guest mode
+                <div className="flex flex-1 items-center justify-center">
+                    <div className="flex flex-col items-center gap-6 text-center max-w-sm px-6">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-white text-base font-medium">Edit your Zwift workouts</p>
+                            <p className="text-zinc-400 text-sm">
+                                Upload, edit, and export .zwo files. Sign in to save workouts and access the block library.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full">
                             <button
-                                onClick={() => setIsCreateBlockOpen(true)}
+                                onClick={() => setIsSignInOpen(true)}
                                 className={`
-                                    w-full px-4 py-2
+                                    w-full px-4 py-2.5
                                     bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1027,22 +1300,37 @@ export function App(): JSX.Element {
                                     focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                 `}
                             >
-                                + New block
+                                Sign in
                             </button>
-
-                            <BlockLibrary
-                                blocks={libraryBlocks}
-                                isLoading={isLoadingBlocks}
-                                error={blocksError}
-                                onEditBlock={(block) => setEditingBlock(block)}
-                                onDeleteBlock={deleteLibraryBlock}
-                            />
-                        </aside>
-                    )}
-                </div>
-            ) : (
-                <div className="flex flex-1 items-center justify-center">
-                    <p className="text-zinc-400 text-sm">Sign in to get started.</p>
+                            <button
+                                onClick={() => setIsSignUpOpen(true)}
+                                className={`
+                                    w-full px-4 py-2.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Create account
+                            </button>
+                            <button
+                                onClick={() => setGuestMode(true)}
+                                className={`
+                                    w-full px-4 py-2.5
+                                    bg-transparent text-zinc-400
+                                    text-sm font-medium
+                                    rounded-md
+                                    border border-zinc-700
+                                    hover:text-white hover:border-zinc-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Continue without an account
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
