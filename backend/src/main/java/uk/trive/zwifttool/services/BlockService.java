@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class BlockService {
      * @param userId  the authenticated user's ID
      * @return the saved block record
      */
+    @Transactional
     public Block saveLibraryBlock(SaveBlockRequest request, UUID userId) {
         log.info("Saving library block '{}' ({}) for user {}", request.getName(), request.getSectionType(), userId);
 
@@ -85,6 +87,7 @@ public class BlockService {
      * @return the updated block record
      * @throws BlockNotFoundException if no library block exists with the given ID for this user
      */
+    @Transactional
     public Block updateLibraryBlock(UUID blockId, SaveBlockRequest request, UUID userId) {
         Block block = blockRepository.findById(blockId)
                 .filter(b -> b.getUserId().equals(userId) && b.isLibraryBlock())
@@ -115,6 +118,7 @@ public class BlockService {
      * @param userId  the authenticated user's ID, used for ownership verification
      * @throws BlockNotFoundException if no block exists with the given ID for this user
      */
+    @Transactional
     public void deleteLibraryBlock(UUID blockId, UUID userId) {
         Block block = blockRepository.findById(blockId)
                 .filter(b -> b.getUserId().equals(userId))
