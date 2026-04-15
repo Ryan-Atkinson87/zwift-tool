@@ -89,7 +89,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Create account">
-            <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
+            <form onSubmit={(e) => void handleSubmit(e)} noValidate className="flex flex-col gap-4">
                 {showGuestWarning && (
                     <div className="flex gap-2 px-3 py-2.5 bg-amber-950 border border-amber-700 rounded-md">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0 mt-0.5 text-amber-400">

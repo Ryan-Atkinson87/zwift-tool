@@ -39,7 +39,7 @@ describe('useAuth', () => {
             mockRefresh.mockResolvedValue(MOCK_USER)
             const { result } = renderHook(() => useAuth())
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockRefresh).toHaveBeenCalledOnce()
         })
 
@@ -47,7 +47,7 @@ describe('useAuth', () => {
             mockRefresh.mockResolvedValue(MOCK_USER)
             const { result } = renderHook(() => useAuth())
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.isAuthenticated).toBe(true)
             expect(result.current.user).toEqual(MOCK_USER)
         })
@@ -56,7 +56,7 @@ describe('useAuth', () => {
             mockRefresh.mockRejectedValue(new Error('No session'))
             const { result } = renderHook(() => useAuth())
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.isAuthenticated).toBe(false)
             expect(result.current.user).toBeNull()
         })
@@ -74,7 +74,7 @@ describe('useAuth', () => {
             mockSignIn.mockResolvedValue(MOCK_USER)
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.signIn({ email: 'test@example.com', password: 'secret123' })
@@ -88,7 +88,7 @@ describe('useAuth', () => {
             mockSignIn.mockResolvedValue(MOCK_USER)
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.signIn({ email: 'test@example.com', password: 'secret123' })
@@ -103,7 +103,7 @@ describe('useAuth', () => {
             mockSignIn.mockRejectedValue(new Error('Invalid credentials'))
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await expect(
                 act(async () => {
@@ -119,7 +119,7 @@ describe('useAuth', () => {
             mockSignUp.mockResolvedValue(MOCK_USER)
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.signUp({ email: 'new@example.com', password: 'password123' })
@@ -136,7 +136,7 @@ describe('useAuth', () => {
             mockSignOut.mockResolvedValue(undefined)
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.signOut()
@@ -152,7 +152,7 @@ describe('useAuth', () => {
             mockSignOut.mockRejectedValue(new Error('Network error'))
 
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.signOut()
@@ -166,14 +166,14 @@ describe('useAuth', () => {
         it('starts with sessionExpired as false', async () => {
             mockRefresh.mockRejectedValue(new Error('No session'))
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.sessionExpired).toBe(false)
         })
 
         it('clearSessionExpired sets sessionExpired back to false', async () => {
             mockRefresh.mockRejectedValue(new Error('No session'))
             const { result } = renderHook(() => useAuth())
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             act(() => {
                 result.current.clearSessionExpired()

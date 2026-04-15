@@ -57,7 +57,7 @@ describe('useWorkout', () => {
             mockFetchWorkoutById.mockResolvedValue(MOCK_WORKOUT)
             const { result } = renderHook(() => useWorkout('workout-1'))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockFetchWorkoutById).toHaveBeenCalledWith('workout-1')
         })
 
@@ -65,7 +65,7 @@ describe('useWorkout', () => {
             mockFetchWorkoutById.mockResolvedValue(MOCK_WORKOUT)
             const { result } = renderHook(() => useWorkout('workout-1'))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.workout).toEqual(MOCK_WORKOUT)
             expect(result.current.error).toBeNull()
         })
@@ -82,7 +82,7 @@ describe('useWorkout', () => {
             mockFetchWorkoutById.mockRejectedValue(new Error('Failed to load workout: 404'))
             const { result } = renderHook(() => useWorkout('workout-1'))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load workout: 404')
             expect(result.current.workout).toBeNull()
         })
@@ -91,7 +91,7 @@ describe('useWorkout', () => {
             mockFetchWorkoutById.mockRejectedValue('oops')
             const { result } = renderHook(() => useWorkout('workout-1'))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load workout.')
         })
     })
@@ -100,7 +100,7 @@ describe('useWorkout', () => {
         it('replaces the cached workout when the IDs match', async () => {
             mockFetchWorkoutById.mockResolvedValue(MOCK_WORKOUT)
             const { result } = renderHook(() => useWorkout('workout-1'))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             const updatedWorkout: WorkoutDetail = { ...MOCK_WORKOUT, name: 'Updated Name' }
             act(() => {
@@ -113,7 +113,7 @@ describe('useWorkout', () => {
         it('ignores the update when the ID does not match the current workout', async () => {
             mockFetchWorkoutById.mockResolvedValue(MOCK_WORKOUT)
             const { result } = renderHook(() => useWorkout('workout-1'))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             const staleDifferentWorkout: WorkoutDetail = { ...MOCK_WORKOUT, id: 'workout-999', name: 'Stale' }
             act(() => {

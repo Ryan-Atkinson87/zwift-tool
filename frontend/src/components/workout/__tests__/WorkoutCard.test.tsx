@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { WorkoutCard } from '../WorkoutCard'
 import type { WorkoutSummary } from '../../../types/workout'
@@ -130,7 +130,7 @@ describe('WorkoutCard (select mode)', () => {
         const user = userEvent.setup()
         const onSelect = vi.fn()
         render(<WorkoutCard {...defaultProps({ isSelectMode: true, onSelect })} />)
-        await user.click(screen.getByRole('button', { name: 'Sweet Spot Session' }))
+        await user.click(screen.getByRole('button', { name: /Sweet Spot Session/ }))
         expect(onSelect).toHaveBeenCalledWith('workout-1')
     })
 })

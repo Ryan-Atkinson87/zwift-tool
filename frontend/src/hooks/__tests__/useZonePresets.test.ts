@@ -30,7 +30,7 @@ beforeEach(() => {
 describe('useZonePresets', () => {
     describe('when disabled', () => {
         it('does not call the API', async () => {
-            const { result } = renderHook(() => useZonePresets(false))
+            renderHook(() => useZonePresets(false))
             await act(async () => {})
             expect(mockFetchZonePresets).not.toHaveBeenCalled()
         })
@@ -48,7 +48,7 @@ describe('useZonePresets', () => {
             mockFetchZonePresets.mockResolvedValue(MOCK_PRESETS)
             const { result } = renderHook(() => useZonePresets(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockFetchZonePresets).toHaveBeenCalledOnce()
         })
 
@@ -56,7 +56,7 @@ describe('useZonePresets', () => {
             mockFetchZonePresets.mockResolvedValue(MOCK_PRESETS)
             const { result } = renderHook(() => useZonePresets(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.presets).toEqual(MOCK_PRESETS)
         })
 
@@ -64,7 +64,7 @@ describe('useZonePresets', () => {
             mockFetchZonePresets.mockRejectedValue(new Error('Failed to load zone presets: 500'))
             const { result } = renderHook(() => useZonePresets(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load zone presets: 500')
         })
     })
@@ -73,7 +73,7 @@ describe('useZonePresets', () => {
         it('returns the effective preset for a given zone', async () => {
             mockFetchZonePresets.mockResolvedValue(MOCK_PRESETS)
             const { result } = renderHook(() => useZonePresets(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             const preset = result.current.getPreset(3)
             expect(preset.zone).toBe(3)
@@ -83,7 +83,7 @@ describe('useZonePresets', () => {
         it('falls back to hardcoded defaults for a zone not in the presets list', async () => {
             mockFetchZonePresets.mockResolvedValue([])
             const { result } = renderHook(() => useZonePresets(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             // Falls back to the FALLBACK_PRESETS array
             const preset = result.current.getPreset(1)
@@ -98,7 +98,7 @@ describe('useZonePresets', () => {
             mockUpdateZonePreset.mockResolvedValue(updated)
 
             const { result } = renderHook(() => useZonePresets(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.savePreset(2, 900, 70)
@@ -118,7 +118,7 @@ describe('useZonePresets', () => {
             mockResetZonePreset.mockResolvedValue(systemDefault)
 
             const { result } = renderHook(() => useZonePresets(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.resetPreset(4)
@@ -134,7 +134,7 @@ describe('useZonePresets', () => {
         it('re-fetches presets from the API', async () => {
             mockFetchZonePresets.mockResolvedValue(MOCK_PRESETS)
             const { result } = renderHook(() => useZonePresets(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.reload()

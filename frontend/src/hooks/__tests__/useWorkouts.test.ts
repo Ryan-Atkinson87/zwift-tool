@@ -42,7 +42,7 @@ describe('useWorkouts', () => {
             mockFetchWorkouts.mockResolvedValue(MOCK_WORKOUTS)
             const { result } = renderHook(() => useWorkouts(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockFetchWorkouts).toHaveBeenCalledOnce()
         })
 
@@ -50,7 +50,7 @@ describe('useWorkouts', () => {
             mockFetchWorkouts.mockResolvedValue(MOCK_WORKOUTS)
             const { result } = renderHook(() => useWorkouts(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.workouts).toEqual(MOCK_WORKOUTS)
             expect(result.current.error).toBeNull()
         })
@@ -65,7 +65,7 @@ describe('useWorkouts', () => {
             mockFetchWorkouts.mockRejectedValue(new Error('Failed to load workouts: 500'))
             const { result } = renderHook(() => useWorkouts(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load workouts: 500')
             expect(result.current.workouts).toEqual([])
         })
@@ -74,7 +74,7 @@ describe('useWorkouts', () => {
             mockFetchWorkouts.mockRejectedValue('unknown error')
             const { result } = renderHook(() => useWorkouts(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load workouts.')
         })
     })
@@ -82,13 +82,13 @@ describe('useWorkouts', () => {
     describe('when disabled', () => {
         it('does not call the API when enabled is false', async () => {
             const { result } = renderHook(() => useWorkouts(false))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockFetchWorkouts).not.toHaveBeenCalled()
         })
 
         it('returns an empty list and no error when disabled', async () => {
             const { result } = renderHook(() => useWorkouts(false))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.workouts).toEqual([])
             expect(result.current.error).toBeNull()
         })
@@ -98,7 +98,7 @@ describe('useWorkouts', () => {
         it('re-fetches from the API when reload is called', async () => {
             mockFetchWorkouts.mockResolvedValue(MOCK_WORKOUTS)
             const { result } = renderHook(() => useWorkouts(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             mockFetchWorkouts.mockResolvedValue([MOCK_WORKOUTS[0]])
             await act(async () => {
@@ -112,7 +112,7 @@ describe('useWorkouts', () => {
         it('clears a previous error on reload', async () => {
             mockFetchWorkouts.mockRejectedValue(new Error('Network error'))
             const { result } = renderHook(() => useWorkouts(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).not.toBeNull()
 
             mockFetchWorkouts.mockResolvedValue([])

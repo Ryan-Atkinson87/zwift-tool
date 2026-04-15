@@ -46,7 +46,7 @@ describe('useBlocks', () => {
             mockFetchLibraryBlocks.mockResolvedValue(MOCK_BLOCKS)
             const { result } = renderHook(() => useBlocks(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(mockFetchLibraryBlocks).toHaveBeenCalledOnce()
         })
 
@@ -54,7 +54,7 @@ describe('useBlocks', () => {
             mockFetchLibraryBlocks.mockResolvedValue(MOCK_BLOCKS)
             const { result } = renderHook(() => useBlocks(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.blocks).toEqual(MOCK_BLOCKS)
             expect(result.current.error).toBeNull()
         })
@@ -63,7 +63,7 @@ describe('useBlocks', () => {
             mockFetchLibraryBlocks.mockRejectedValue(new Error('Network error'))
             const { result } = renderHook(() => useBlocks(true))
 
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
             expect(result.current.error).toBe('Failed to load library blocks.')
             expect(result.current.blocks).toEqual([])
         })
@@ -71,7 +71,7 @@ describe('useBlocks', () => {
 
     describe('when not authenticated', () => {
         it('does not call the API when isAuthenticated is false', async () => {
-            const { result } = renderHook(() => useBlocks(false))
+            renderHook(() => useBlocks(false))
             // Give it a tick to settle
             await act(async () => {})
             expect(mockFetchLibraryBlocks).not.toHaveBeenCalled()
@@ -89,7 +89,7 @@ describe('useBlocks', () => {
             mockFetchLibraryBlocks.mockResolvedValue(MOCK_BLOCKS)
             mockDeleteBlock.mockResolvedValue(undefined)
             const { result } = renderHook(() => useBlocks(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.deleteBlock('block-1')
@@ -102,7 +102,7 @@ describe('useBlocks', () => {
             mockFetchLibraryBlocks.mockResolvedValue(MOCK_BLOCKS)
             mockDeleteBlock.mockResolvedValue(undefined)
             const { result } = renderHook(() => useBlocks(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.deleteBlock('block-1')
@@ -117,7 +117,7 @@ describe('useBlocks', () => {
         it('re-fetches blocks from the API', async () => {
             mockFetchLibraryBlocks.mockResolvedValue(MOCK_BLOCKS)
             const { result } = renderHook(() => useBlocks(true))
-            await waitFor(() => !result.current.isLoading)
+            await waitFor(() => { expect(result.current.isLoading).toBe(false) })
 
             await act(async () => {
                 await result.current.reload()

@@ -13,6 +13,8 @@ import { test, expect } from '@playwright/test'
 test.describe('Workout editor — guest mode', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/')
+        // Enter guest mode from the landing screen so the editor is visible
+        await page.getByRole('button', { name: 'Continue without an account' }).click()
     })
 
     test('renders the application shell', async ({ page }) => {
@@ -85,6 +87,7 @@ test.describe('Workout editor — guest mode', () => {
 test.describe('File import flow', () => {
     test('shows a parse error when an invalid .zwo file is uploaded', async ({ page }) => {
         await page.goto('/')
+        await page.getByRole('button', { name: 'Continue without an account' }).click()
 
         // Create an invalid .zwo file
         const fileContent = Buffer.from('this is not xml')
