@@ -75,7 +75,6 @@ public class ZwoExporter {
      */
     public String buildZwoXml(Workout workout) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
         sb.append("<workout_file>\n");
         // Bug 1 fix: use <name> not <n>, and write the name exactly as stored with no slugification
         appendMetaTag(sb, "name", workout.getName());
