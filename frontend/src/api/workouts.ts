@@ -15,6 +15,12 @@ export interface SaveWorkoutRequest {
     name: string
     author: string | null
     description: string | null
+    /**
+     * Raw XML fragment for the {@code <tags>} block from the original .zwo file,
+     * preserved verbatim for round-tripping on export. Null if the source
+     * file contained no {@code <tags>} element.
+     */
+    tags: string | null
     warmupContent: string | null
     mainsetContent: string
     cooldownContent: string | null
