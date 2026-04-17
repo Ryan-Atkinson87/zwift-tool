@@ -92,7 +92,7 @@ describe('WorkoutCard (normal mode)', () => {
         const user = userEvent.setup()
         const onSelect = vi.fn()
         render(<WorkoutCard {...defaultProps({ onSelect })} />)
-        const card = screen.getByText('Sweet Spot Session').closest('[role="button"]')!
+        const card = screen.getByText('Sweet Spot Session').closest<HTMLElement>('[role="button"]')!
         card.focus()
         await user.keyboard('{Enter}')
         expect(onSelect).toHaveBeenCalledWith('workout-1')
