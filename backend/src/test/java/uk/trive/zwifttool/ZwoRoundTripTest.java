@@ -377,4 +377,12 @@ class ZwoRoundTripTest {
                     .matches("\\d+\\.\\d{4}");
         }
     }
+
+    @Test
+    @DisplayName("round-trip: output does not include an XML declaration")
+    void roundTripDoesNotIncludeXmlDeclaration() throws Exception {
+        String xml = zwoExporter.buildZwoXml(buildFixtureWorkout());
+        // Zwift .zwo files do not include the <?xml ...?> processing instruction
+        assertThat(xml.trim()).doesNotStartWith("<?xml");
+    }
 }
