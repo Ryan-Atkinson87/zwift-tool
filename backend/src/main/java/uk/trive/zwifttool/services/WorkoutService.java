@@ -120,9 +120,10 @@ public class WorkoutService {
     /**
      * Exports a set of workouts as a zip archive of .zwo files.
      *
-     * <p>Each workout in the list is verified to belong to the authenticated
-     * user before any file generation begins. If any ID fails ownership, the
-     * entire request is rejected.</p>
+     * <p>All requested workouts are fetched in a single batch query. If the
+     * returned count does not match the requested count, at least one ID was
+     * not found or belongs to another user, and the entire request is
+     * rejected before any file generation begins.</p>
      *
      * @param workoutIds the IDs of the workouts to export
      * @param userId     the authenticated user's ID
@@ -133,9 +134,12 @@ public class WorkoutService {
     public byte[] exportWorkouts(List<UUID> workoutIds, UUID userId) {
         log.info("Exporting {} workout(s) as zip for user {}", workoutIds.size(), userId);
 
-        List<Workout> workouts = new ArrayList<>(workoutIds.size());
-        for (UUID workoutId : workoutIds) {
-            workouts.add(getWorkoutForUser(workoutId, userId));
+        List<Workout> workouts = workoutRepository.findAllByIdInAndUserId(workoutIds, userId);
+
+        // If fewer workouts were returned than requested, at least one ID was
+        // not found or belongs to a different user — reject the entire request
+        if (workouts.size() != workoutIds.size()) {
+            throw new WorkoutNotFoundException(workoutIds.get(0));
         }
 
         try {
@@ -448,9 +452,10 @@ public class WorkoutService {
      * Replaces the same section across multiple workouts using a saved library
      * block, then returns a zip archive of the updated .zwo files.
      *
-     * <p>All ownership checks are performed before any mutations are applied.
-     * If any workout ID does not belong to the authenticated user, the entire
-     * operation is rejected and no changes are written.</p>
+     * <p>All requested workouts are fetched in a single batch query before any
+     * mutations are applied. If the returned count does not match the requested
+     * count, at least one ID was not found or belongs to another user, and the
+     * entire operation is rejected without writing any changes.</p>
      *
      * <p>For each workout, the current block for the target section is rotated
      * into the matching {@code prev_*} column (supporting single-step undo),
@@ -486,11 +491,13 @@ public class WorkoutService {
                     + " does not match target section " + sectionType + ".");
         }
 
-        // Fetch and validate all workouts before making any changes.
-        // A single unauthorised ID rejects the entire request.
-        List<Workout> workouts = new ArrayList<>(workoutIds.size());
-        for (UUID workoutId : workoutIds) {
-            workouts.add(getWorkoutForUser(workoutId, userId));
+        // Fetch all workouts in a single batch query and verify ownership before
+        // making any changes. A single unauthorised or missing ID rejects the
+        // entire request.
+        List<Workout> workouts = workoutRepository.findAllByIdInAndUserId(workoutIds, userId);
+
+        if (workouts.size() != workoutIds.size()) {
+            throw new WorkoutNotFoundException(workoutIds.get(0));
         }
 
         // Apply the same undo rotation used by replaceWorkoutSectionWithBlock,
