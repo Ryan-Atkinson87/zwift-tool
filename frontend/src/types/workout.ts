@@ -52,6 +52,12 @@ export interface ParsedWorkout {
     name: string
     author: string | null
     description: string | null
+    /**
+     * Raw XML fragment for the {@code <tags>} block from the source file,
+     * preserved verbatim so it can be round-tripped on export.
+     * Null if the source file contained no {@code <tags>} element.
+     */
+    tags: string | null
     intervals: ParsedInterval[]
 }
 

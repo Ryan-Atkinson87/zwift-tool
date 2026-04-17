@@ -19,6 +19,13 @@ public class SaveWorkoutRequest {
 
     private String description;
 
+    /**
+     * Raw XML fragment for the {@code <tags>} block from the original .zwo file,
+     * preserved verbatim so it can be round-tripped on export. Null if the
+     * source file contained no {@code <tags>} element.
+     */
+    private String tags;
+
     /** Warm-up interval content as a JSON string. Null if no warm-up. */
     private String warmupContent;
 

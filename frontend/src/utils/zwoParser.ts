@@ -44,9 +44,18 @@ export function parseZwoFile(xml: string, fileName: string): ParsedWorkout {
         throw new Error(`${fileName} is not a valid .zwo file: missing <workout> element.`)
     }
 
-    const name = getTextContent(workoutFile, 'n') ?? fileName.replace(/\.zwo$/i, '')
+    // Prefer the <name> element (spec-compliant); fall back to the legacy <n>
+    // element used by older Zwift exports and pre-fix versions of this tool.
+    const name =
+        getTextContent(workoutFile, 'name') ??
+        getTextContent(workoutFile, 'n') ??
+        fileName.replace(/\.zwo$/i, '')
     const author = getTextContent(workoutFile, 'author')
     const description = getTextContent(workoutFile, 'description')
+
+    // Capture the raw <tags> XML fragment so it can be round-tripped on export
+    // without parsing or modifying its content.
+    const tags = extractTagsFragment(workoutFile)
 
     const intervals = parseIntervals(workoutElement)
 
@@ -54,7 +63,24 @@ export function parseZwoFile(xml: string, fileName: string): ParsedWorkout {
         throw new Error(`${fileName} contains no intervals.`)
     }
 
-    return { fileName, name, author, description, intervals }
+    return { fileName, name, author, description, tags, intervals }
+}
+
+/**
+ * Extracts the raw outer XML of the first {@code <tags>} child element from
+ * the workout file element. The raw fragment is stored verbatim so it can be
+ * written back to the export without modification.
+ *
+ * Returns null if no {@code <tags>} element is present.
+ */
+function extractTagsFragment(workoutFile: Element): string | null {
+    const tagsElement = workoutFile.querySelector('tags')
+    if (!tagsElement) {
+        return null
+    }
+    // Serialise the <tags> element back to an XML string for storage
+    const serialiser = new XMLSerializer()
+    return serialiser.serializeToString(tagsElement)
 }
 
 /**

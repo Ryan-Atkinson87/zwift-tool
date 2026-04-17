@@ -17,6 +17,7 @@ const MOCK_PARSED_WORKOUT = {
     name: 'Test Session',
     author: null,
     description: null,
+    tags: null,
     intervals: [],
 }
 

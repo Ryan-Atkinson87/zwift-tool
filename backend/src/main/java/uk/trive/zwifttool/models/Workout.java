@@ -77,6 +77,16 @@ public class Workout {
     private boolean isDraft;
 
     /**
+     * Raw XML fragment for the {@code <tags>} block from the original .zwo file,
+     * preserved verbatim so it can be round-tripped on export. Null if the
+     * source file contained no {@code <tags>} element.
+     *
+     * <p>Example value: {@code <tags>\n    <tag name="SST"/>\n</tags>}</p>
+     */
+    @Column(name = "tags", columnDefinition = "text")
+    private String tags;
+
+    /**
      * JSON array of text events displayed over the workout timeline.
      * Stored as a JSON string in a {@code jsonb} column so we can add,
      * edit, and delete entries without a schema migration per event type.
