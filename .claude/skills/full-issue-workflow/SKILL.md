@@ -63,9 +63,13 @@ Assess security, REST design, data integrity, error handling, idempotency, and p
 
 Print a verdict: **Ready to implement**, **Minor concerns**, or **Needs revision**. List any action items.
 
-### --- CHECKPOINT 1 ---
+### --- CHECKPOINT 1 — HARD STOP ---
 
-**Stop here.** Tell the user the review is complete and ask if they are happy to proceed to implementation, or if they want to address any findings first. Wait for their response.
+**HALT. Do not continue. Do not begin Phase 2. Do not write any code.**
+
+Tell the user the review is complete. Ask whether they want to proceed to implementation or address any findings first.
+
+You MUST wait for an explicit reply from the user before doing anything further. A reply of "yes", "proceed", "looks good", or similar counts. Silence does not count. Proceeding automatically past this point is a violation of the workflow.
 
 ---
 
@@ -94,9 +98,13 @@ Print a clear split:
 
 Based on the issue tasks and project instructions, print a suggested implementation order. Note any relevant existing files or structure.
 
-### --- CHECKPOINT 2 ---
+### --- CHECKPOINT 2 — HARD STOP ---
 
-**Stop here.** Ask the user to confirm the plan and work split. Wait for their response before writing any code.
+**HALT. Do not continue. Do not write any code. Do not edit any files.**
+
+Ask the user to confirm the plan and work split. Explicitly tell them: "Reply to confirm the plan and I will begin implementation."
+
+You MUST wait for an explicit reply before writing a single line of code. Proceeding automatically past this point is a violation of the workflow.
 
 ---
 
@@ -111,9 +119,13 @@ Implement the issue according to the plan confirmed in Phase 2.
 
 When implementation is complete, print a summary of what was created or changed.
 
-### --- CHECKPOINT 3 ---
+### --- CHECKPOINT 3 — HARD STOP ---
 
-**Stop here.** Tell the user implementation is complete and ask if they want to review anything before running final checks. Wait for their response.
+**HALT. Do not continue. Do not run any checks. Do not run lint, build, or tests.**
+
+Tell the user implementation is complete. List what was created or changed. Ask whether they want to review anything before you run the final checks.
+
+You MUST wait for an explicit reply before proceeding to Phase 4. Proceeding automatically past this point is a violation of the workflow.
 
 ---
 
@@ -160,9 +172,13 @@ Once all checks pass, confirm the current branch is `dev` (warn and stop if not)
 
 Print the changed file list and the commit message in the format `<prefix> <issue title> (#<issue number>)`. Nothing else — no git command walkthrough.
 
-### --- CHECKPOINT 4 ---
+### --- CHECKPOINT 4 — HARD STOP ---
 
-**Stop here.** Wait for the user to confirm they have committed and pushed.
+**HALT. Do not continue. Do not begin Phase 5.**
+
+Tell the user: the commit message and file list are above. Reply once you have committed and pushed and I will move to Phase 5.
+
+You MUST wait for an explicit confirmation from the user that they have committed and pushed before proceeding. Proceeding automatically past this point is a violation of the workflow.
 
 ---
 
@@ -174,7 +190,7 @@ Merging to main only happens at the **end of a runbook block**, not after every 
 
 > "Is this the final issue of the current runbook block? If yes, I'll run the merge-to-main checks. If no, we're done — the changes will stay on `dev` until the block is complete."
 
-**Wait for their response.** If they say no (or there is no active runbook), skip the rest of Phase 5 and jump straight to Step 5.5 (final summary, noting that merge was deferred). If they say yes, continue with Step 5.2.
+**HALT. You MUST wait for an explicit reply before doing anything else in this phase.** If they say no (or there is no active runbook), skip to Step 5.5 and note that merge was deferred. If they say yes, continue with Step 5.2.
 
 ### Step 5.2 — Pre-flight checks
 

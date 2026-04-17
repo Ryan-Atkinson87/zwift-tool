@@ -874,3 +874,15 @@ Hook files are named `use` + the thing they manage: `useWorkouts.ts`, `useBlocks
 - Icon-only buttons must have an `aria-label`
 - No arbitrary bracket values (`text-[10px]`) where a standard scale class exists - extract repeated arbitrary values to a CSS utility class in `index.css`
 - No inline `style={{}}` props for values that have a Tailwind equivalent
+
+## Workflow Checkpoints
+When executing multi-step workflows or skills that define checkpoints, STOP and wait for explicit user confirmation at each checkpoint. Never run through review → planning → implementation → final checks without pausing.
+
+## Dependency Verification
+Before importing any npm package (e.g. heroicons, icon libraries), verify it exists in package.json. If not present, use inline SVGs or existing utilities rather than assuming availability.
+
+## Build Verification
+After code edits, always run the relevant verification: `mvn verify` for Java backend changes, and `npm run lint && npm run build` for frontend changes. Report the result before handing off a commit message.
+
+## Input Controls
+When editing numeric/text input components, use uncontrolled or loosely-controlled patterns that permit intermediate invalid states (empty string, partial numbers) during typing. Validate on blur, not on every keystroke. Avoid API saves on keystroke that steal focus.
