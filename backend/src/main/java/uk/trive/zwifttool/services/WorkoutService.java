@@ -213,6 +213,7 @@ public class WorkoutService {
                 .name(request.getName())
                 .author(request.getAuthor())
                 .description(request.getDescription())
+                .tags(request.getTags())
                 .warmupBlock(warmupBlock)
                 .mainsetBlock(mainsetBlock)
                 .cooldownBlock(cooldownBlock)

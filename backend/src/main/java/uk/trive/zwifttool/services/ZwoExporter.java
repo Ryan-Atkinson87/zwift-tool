@@ -75,16 +75,20 @@ public class ZwoExporter {
      */
     public String buildZwoXml(Workout workout) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
         sb.append("<workout_file>\n");
-        appendMetaTag(sb, "n", workout.getName());
+        // Bug 1 fix: use <name> not <n>, and write the name exactly as stored with no slugification
+        appendMetaTag(sb, "name", workout.getName());
         if (workout.getAuthor() != null) {
             appendMetaTag(sb, "author", workout.getAuthor());
         }
-        if (workout.getDescription() != null) {
-            appendMetaTag(sb, "description", workout.getDescription());
-        }
+        // Bug 2 fix: always include <description>, even when null or empty
+        String description = workout.getDescription() != null ? workout.getDescription() : "";
+        appendMetaTag(sb, "description", description);
         sb.append("  <sportType>bike</sportType>\n");
+        // Bug 3 fix: round-trip the <tags> block verbatim if one was stored on import
+        if (workout.getTags() != null && !workout.getTags().isBlank()) {
+            sb.append("  ").append(workout.getTags().strip()).append("\n");
+        }
         sb.append("  <workout>\n");
 
         if (workout.getWarmupBlock() != null) {
@@ -221,15 +225,17 @@ public class ZwoExporter {
     }
 
     /**
-     * Formats a power fraction value (e.g. 0.88) to two decimal places for
-     * .zwo output. Returns {@code "0.00"} for absent or null values so the
-     * XML remains valid even when content is incomplete.
+     * Formats a power fraction value (e.g. 0.88) to four decimal places for
+     * .zwo output. Four decimal places preserve zone boundary distinctions
+     * (e.g. 0.6545 vs 0.6500) that are collapsed by two-decimal rounding.
+     * Returns {@code "0.0000"} for absent or null values so the XML remains
+     * valid even when content is incomplete.
      */
     private String formatPower(JsonNode node) {
         if (node.isNull() || node.isMissingNode()) {
-            return "0.00";
+            return "0.0000";
         }
-        return String.format("%.2f", node.asDouble());
+        return String.format("%.4f", node.asDouble());
     }
 
     /**

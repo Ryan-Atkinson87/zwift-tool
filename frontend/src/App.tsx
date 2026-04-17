@@ -238,6 +238,7 @@ export function App(): JSX.Element {
                 name: split.workout.name,
                 author: split.workout.author,
                 description: split.workout.description,
+                tags: split.workout.tags,
                 warmupContent: split.warmupIntervals.length > 0
                     ? JSON.stringify(split.warmupIntervals) : null,
                 mainsetContent: JSON.stringify(split.mainsetIntervals),
@@ -716,6 +717,7 @@ export function App(): JSX.Element {
                 name: 'New Workout',
                 author: null,
                 description: null,
+                tags: null,
                 warmupContent: null,
                 // Empty main set: a single block with no intervals yet
                 mainsetContent: '[]',
