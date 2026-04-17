@@ -16,6 +16,21 @@ import uk.trive.zwifttool.models.Workout;
 public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     /**
+     * Returns all workouts whose IDs are in the supplied list and whose
+     * {@code user_id} matches the given user.
+     *
+     * <p>Using a single batch query avoids the N+1 pattern that would occur
+     * if workouts were fetched individually in a loop. Callers should verify
+     * that the returned list size equals the requested ID count to detect
+     * ownership violations or missing records.</p>
+     *
+     * @param ids    the list of workout IDs to fetch
+     * @param userId the authenticated user's ID, used to filter by ownership
+     * @return all workouts matching both conditions
+     */
+    List<Workout> findAllByIdInAndUserId(List<UUID> ids, UUID userId);
+
+    /**
      * Returns a lightweight summary of every workout belonging to the given
      * user, ordered by most recently updated first.
      *
