@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,14 +100,17 @@ public class WorkoutService {
     public void deleteWorkout(UUID workoutId, UUID userId) {
         Workout workout = getWorkoutForUser(workoutId, userId);
 
-        List<Block> blocksToDelete = List.of(
+        // Stream.of() accepts null elements, unlike List.of() which throws NPE
+        // immediately on construction. Warm-up and cool-down are optional, so
+        // their block references may be null and must be filtered before deletion.
+        List<Block> blocksToDelete = Stream.of(
                 workout.getWarmupBlock(),
                 workout.getMainsetBlock(),
                 workout.getCooldownBlock(),
                 workout.getPrevWarmupBlock(),
                 workout.getPrevMainsetBlock(),
                 workout.getPrevCooldownBlock()
-        ).stream()
+        )
                 .filter(Objects::nonNull)
                 .filter(block -> !block.isLibraryBlock())
                 .toList();
