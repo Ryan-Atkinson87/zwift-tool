@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
+import { AppFooter } from './components/ui/AppFooter.tsx'
 import { SignInModal } from './components/auth/SignInModal.tsx'
 import { SignUpModal } from './components/auth/SignUpModal.tsx'
 import { FileUploader } from './components/import/FileUploader.tsx'
@@ -1335,6 +1336,8 @@ export function App(): JSX.Element {
                     </div>
                 </div>
             )}
+
+            <AppFooter />
 
             <SaveToLibraryModal
                 isOpen={saveToLibrarySection !== null}
