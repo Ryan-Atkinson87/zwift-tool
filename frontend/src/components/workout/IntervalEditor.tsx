@@ -292,9 +292,9 @@ interface FtpFieldProps {
     onChange: (nextFraction: number) => void
 }
 
-/** %FTP input that round-trips between integer percent and 0..1 fraction. */
+/** %FTP input that round-trips between decimal percent and 0..1 fraction. Preserves one decimal place of precision. */
 function FtpField({ label, powerFraction, onChange }: FtpFieldProps): JSX.Element {
-    const percent = powerFraction !== null ? Math.round(powerFraction * 100) : 0
+    const percent = powerFraction !== null ? Number((powerFraction * 100).toFixed(1)) : 0
     return (
         <NumberField
             label={label}

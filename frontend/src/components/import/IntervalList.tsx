@@ -107,20 +107,20 @@ function formatPower(interval: ParsedInterval): string {
     }
 
     if (interval.type === 'IntervalsT') {
-        const on = interval.onPower !== null ? `${Math.round(interval.onPower * 100)}%` : '–'
-        const off = interval.offPower !== null ? `${Math.round(interval.offPower * 100)}%` : '–'
+        const on = interval.onPower !== null ? `${Number((interval.onPower * 100).toFixed(1))}%` : '–'
+        const off = interval.offPower !== null ? `${Number((interval.offPower * 100).toFixed(1))}%` : '–'
         const repeats = interval.repeat ?? 0
         return `${repeats}× ${on} / ${off}`
     }
 
     // Ramp, Warmup, Cooldown with PowerLow and PowerHigh
     if (interval.power !== null && interval.powerHigh !== null) {
-        return `${Math.round(interval.power * 100)}% → ${Math.round(interval.powerHigh * 100)}%`
+        return `${Number((interval.power * 100).toFixed(1))}% → ${Number((interval.powerHigh * 100).toFixed(1))}%`
     }
 
     // SteadyState or single power value
     if (interval.power !== null) {
-        return `${Math.round(interval.power * 100)}%`
+        return `${Number((interval.power * 100).toFixed(1))}%`
     }
 
     return '–'
