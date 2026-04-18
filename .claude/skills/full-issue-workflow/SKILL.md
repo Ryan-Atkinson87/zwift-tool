@@ -182,6 +182,18 @@ You MUST wait for an explicit confirmation from the user that they have committe
 
 ---
 
+## Phase 4b — Update Documentation
+
+Before considering a merge, documentation should reflect the completed work.
+
+Ask the user:
+
+> "Have you run `/update-documentation` for this issue? If not, run it now — it updates README.md and CHANGELOG.md and checks for any missing standard docs. Reply once that is done (or confirm it is not needed for this issue)."
+
+**HALT. You MUST wait for an explicit reply before proceeding to Phase 5. Proceeding automatically past this point is a violation of the workflow.**
+
+---
+
 ## Phase 5 — Merge to Main (conditional)
 
 ### Step 5.1 — Check whether to merge

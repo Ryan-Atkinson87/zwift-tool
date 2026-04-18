@@ -68,7 +68,15 @@ Print the changed file list and the commit message in the format `<prefix> <shor
 
 **Stop here.** Wait for the user to confirm they have committed and pushed before continuing.
 
-### 6. Merge to Main (conditional)
+### 6. Update Documentation
+
+Before considering a merge, documentation should reflect the completed work. Ask the user:
+
+> "Have you run `/update-documentation` for this issue? If not, run it now — it updates README.md, CHANGELOG.md, and checks for any missing standard docs. Reply once that is done."
+
+**HALT. Wait for the user to confirm before continuing.**
+
+### 7. Merge to Main (conditional)
 
 Merging to main only happens at the **end of a runbook block**, not after every issue. Ask the user:
 

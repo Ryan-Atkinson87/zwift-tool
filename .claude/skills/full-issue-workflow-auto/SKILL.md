@@ -235,6 +235,20 @@ If the issue is not on the project board, skip this step.
 
 ---
 
+## Phase 4b — Update Documentation
+
+Before creating the PR, update project documentation to reflect the completed work. Run the `/update-documentation` skill inline by working through its steps directly:
+
+1. Identify the files changed in this branch vs `dev`
+2. Update `README.md` — tick off any newly completed status checklist items
+3. Update (or create) `CHANGELOG.md` — add entries under `[Unreleased]` for Added/Changed/Fixed as relevant
+4. Create `CONTRIBUTING.md` and `SECURITY.md` if they do not exist (use the templates from the update-documentation skill)
+5. Flag if `LICENSE` file is missing (do not create it)
+
+Commit any documentation changes to the issue branch before creating the PR.
+
+---
+
 ## Phase 5 — Final Summary
 
 Print a summary covering:

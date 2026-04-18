@@ -93,14 +93,30 @@ For each issue, identify anything that requires a decision before work starts:
 
 Collect all questions into a single numbered list. If there are none, say so.
 
+### Step 0.6 — Classify issues by user-input requirement
+
+For each issue, classify it as one of:
+
+- **Input-free** — fully automatable; no decisions or confirmations needed from the user during implementation
+- **Input-required** — requires the user to be present at some point: vague acceptance criteria needing clarification, manual deploy steps, ambiguous design decisions, or any out-of-code task that must happen mid-implementation
+
+Then apply this ordering rule to the final execution plan:
+
+- If the batch is **mostly input-free**, schedule input-required issues **last** — let automation run uninterrupted, then bring the user in at the end.
+- If the batch is **mostly input-required**, schedule input-required issues **first** — get the user's decisions out of the way before the automated work begins, so they do not have to re-engage mid-run.
+- If the split is roughly even, default to **last** (automation first).
+- Respect hard dependency ordering from Step 0.3 above all else — do not violate a dependency to satisfy input ordering.
+
+Label each issue in the execution plan as `[auto]` or `[needs input]` so the plan is easy to read.
+
 ### --- CHECKPOINT 1 — HARD STOP ---
 
 **HALT. Do not begin any implementation work.**
 
 Print:
 
-1. **Issues in scope** — number and title for each
-2. **Execution plan** — parallel group and sequential queue, with a brief reason for any sequential ordering
+1. **Issues in scope** — number, title, and `[auto]` or `[needs input]` classification for each
+2. **Execution plan** — parallel group and sequential queue, with a brief reason for any sequential ordering and a note explaining why input-required issues are placed first or last
 3. **Branch names** — the proposed `issue-[number]-[short-description]` name for each issue (2–4 word lowercase description derived from the issue title)
 4. **Out-of-code tasks** — anything the user must handle before or alongside this run; or "None"
 5. **Upfront questions** — numbered list; or "No questions — ready to begin"
