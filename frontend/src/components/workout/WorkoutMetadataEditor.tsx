@@ -15,6 +15,10 @@ interface Props {
     onExport?: () => void
     /** True while an export request is in flight. */
     isExporting?: boolean
+    /** The user's current FTP in watts, stored in session state by the parent. */
+    ftpWatts: number | null
+    /** Called when the user changes the FTP input. Null means the field was cleared. */
+    onFtpChange: (watts: number | null) => void
 }
 
 /**
@@ -30,10 +34,11 @@ interface Props {
  * is expected to pass {@code key={workout.id}} so that switching workouts
  * remounts the editor and picks up fresh values without an effect.</p>
  */
-export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isExporting = false }: Props): JSX.Element {
+export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isExporting = false, ftpWatts, onFtpChange }: Props): JSX.Element {
     const [name, setName] = useState<string>(workout.name)
     const [author, setAuthor] = useState<string>(workout.author ?? '')
     const [description, setDescription] = useState<string>(workout.description ?? '')
+    const [ftpStr, setFtpStr] = useState<string>(ftpWatts !== null ? String(ftpWatts) : '')
 
     function handleNameBlur(): void {
         const trimmed = name.trim()
@@ -62,6 +67,20 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
             author: next,
             description: workout.description,
         })
+    }
+
+    function handleFtpBlur(): void {
+        const trimmed = ftpStr.trim()
+        if (trimmed.length === 0) {
+            onFtpChange(null)
+            return
+        }
+        const n = parseInt(trimmed, 10)
+        if (!isNaN(n) && n > 0) {
+            onFtpChange(n)
+        } else {
+            setFtpStr(ftpWatts !== null ? String(ftpWatts) : '')
+        }
     }
 
     function handleDescriptionBlur(): void {
@@ -137,25 +156,56 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                 `}
             />
 
-            <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                onBlur={handleDescriptionBlur}
-                disabled={isSaving}
-                aria-label="Workout description"
-                placeholder="Description"
-                rows={2}
-                maxLength={2000}
-                className={`
-                    w-full px-2 py-1
-                    bg-transparent text-zinc-300
-                    text-sm
-                    border border-transparent rounded
-                    hover:border-zinc-700 focus:border-brand-500
-                    focus:outline-none transition-colors resize-y
-                    disabled:opacity-50
-                `}
-            />
+            <div className="flex items-start gap-2">
+                <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleDescriptionBlur}
+                    disabled={isSaving}
+                    aria-label="Workout description"
+                    placeholder="Description"
+                    rows={2}
+                    maxLength={2000}
+                    className={`
+                        flex-1 min-w-0 px-2 py-1
+                        bg-transparent text-zinc-300
+                        text-sm
+                        border border-transparent rounded
+                        hover:border-zinc-700 focus:border-brand-500
+                        focus:outline-none transition-colors resize-y
+                        disabled:opacity-50
+                    `}
+                />
+
+                <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-xs text-zinc-500" htmlFor="ftp-input">
+                        FTP
+                    </label>
+                    <div className="flex items-center gap-1">
+                        <input
+                            id="ftp-input"
+                            type="number"
+                            min={1}
+                            max={999}
+                            value={ftpStr}
+                            onChange={(e) => setFtpStr(e.target.value)}
+                            onBlur={handleFtpBlur}
+                            aria-label="FTP in watts"
+                            placeholder="—"
+                            className={`
+                                w-16 px-2 py-1
+                                bg-transparent text-zinc-300
+                                text-sm text-right
+                                border border-transparent rounded
+                                hover:border-zinc-700 focus:border-brand-500
+                                focus:outline-none transition-colors
+                                [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+                            `}
+                        />
+                        <span className="text-xs text-zinc-500">W</span>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

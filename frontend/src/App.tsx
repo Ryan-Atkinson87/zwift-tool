@@ -101,6 +101,8 @@ export function App(): JSX.Element {
     const [bulkReplaceError, setBulkReplaceError] = useState<string | null>(null)
     const [isExporting, setIsExporting] = useState(false)
     const [exportError, setExportError] = useState<string | null>(null)
+    // FTP stored at session level so it persists when the user switches between workouts
+    const [ftpWatts, setFtpWatts] = useState<number | null>(null)
 
     // The workout driving the editor canvas. In authenticated mode this is the
     // backend-fetched selected workout; in guest mode it is the locally-held
@@ -1094,6 +1096,8 @@ export function App(): JSX.Element {
                                 isSaving={isSavingMetadata}
                                 onExport={() => void handleExportWorkout()}
                                 isExporting={isExporting}
+                                ftpWatts={ftpWatts}
+                                onFtpChange={setFtpWatts}
                             />
                         )}
 
@@ -1137,6 +1141,7 @@ export function App(): JSX.Element {
                                 )
                                 void handleSaveTextEvents(updated)
                             }}
+                            ftpWatts={ftpWatts}
                         />
 
                         {activeWorkout !== null && (

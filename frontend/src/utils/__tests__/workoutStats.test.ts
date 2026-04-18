@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatDuration, totalDurationSeconds, normalisedPowerBeta } from '../workoutStats'
+import { formatDuration, totalDurationSeconds, normalisedPowerBeta, calculateNormalisedPower, calculateIntensityFactor, expandBarsToWatts } from '../workoutStats'
 import type { ChartBar } from '../intervalExpander'
 
 /** Builds a minimal ChartBar for testing stats functions. */
@@ -92,5 +92,79 @@ describe('normalisedPowerBeta', () => {
         // Weighted average: (83 * 1 + 98 * 2) / 3 = 279/3 = 93
         const bars = [makeBar(60, 83), makeBar(120, 98)]
         expect(normalisedPowerBeta(bars)).toBe(93)
+    })
+})
+
+describe('expandBarsToWatts', () => {
+    it('expands a single bar into one watt value per second', () => {
+        const bars = [makeBar(3, 100)]
+        // 100% of 200W FTP = 200W for each of 3 seconds
+        expect(expandBarsToWatts(bars, 200)).toEqual([200, 200, 200])
+    })
+
+    it('uses 0 watts for FreeRide bars', () => {
+        const freeRide: ChartBar = { ...makeBar(2, 0), style: 'freeride' }
+        expect(expandBarsToWatts([freeRide], 250)).toEqual([0, 0])
+    })
+
+    it('concatenates multiple bars in order', () => {
+        const bars = [makeBar(2, 50), makeBar(2, 100)]
+        // 50% of 200W = 100W, 100% of 200W = 200W
+        expect(expandBarsToWatts(bars, 200)).toEqual([100, 100, 200, 200])
+    })
+})
+
+describe('calculateNormalisedPower', () => {
+    it('returns null for fewer than 30 samples', () => {
+        const samples = Array(29).fill(200) as number[]
+        expect(calculateNormalisedPower(samples)).toBeNull()
+    })
+
+    it('returns NP equal to the constant power for a steady effort', () => {
+        // For constant power P, all rolling averages equal P, so NP = P
+        const samples = Array(60).fill(250) as number[]
+        expect(calculateNormalisedPower(samples)).toBe(250)
+    })
+
+    it('raises the rolling average to the 4th power before averaging', () => {
+        // NP > time-weighted mean for variable power (due to 4th power amplification)
+        // Two equal-length segments: 100W and 200W
+        // Time-weighted mean = 150W
+        // NP > 150W
+        const samples = [...Array(30).fill(100), ...Array(30).fill(200)] as number[]
+        const np = calculateNormalisedPower(samples)
+        expect(np).not.toBeNull()
+        expect(np!).toBeGreaterThan(150)
+    })
+
+    it('treats null values as 0 watts', () => {
+        const samples = [...Array(30).fill(null), ...Array(30).fill(200)] as (number | null)[]
+        const np = calculateNormalisedPower(samples as number[])
+        expect(np).not.toBeNull()
+    })
+
+    it('returns a value rounded to one decimal place', () => {
+        const samples = Array(60).fill(137.5) as number[]
+        const np = calculateNormalisedPower(samples)
+        expect(np).not.toBeNull()
+        // For constant power, NP = that power rounded to 1dp
+        expect(np).toBe(137.5)
+    })
+})
+
+describe('calculateIntensityFactor', () => {
+    it('returns NP divided by FTP, rounded to 2 decimal places', () => {
+        // IF = 250 / 250 = 1.00
+        expect(calculateIntensityFactor(250, 250)).toBe(1.0)
+    })
+
+    it('returns a value less than 1 for sub-threshold efforts', () => {
+        // IF = 200 / 250 = 0.80
+        expect(calculateIntensityFactor(200, 250)).toBe(0.8)
+    })
+
+    it('rounds to 2 decimal places', () => {
+        // IF = 233 / 250 = 0.932 → 0.93
+        expect(calculateIntensityFactor(233, 250)).toBe(0.93)
     })
 })
