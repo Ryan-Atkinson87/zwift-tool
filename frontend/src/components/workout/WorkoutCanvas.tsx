@@ -6,6 +6,9 @@ import {
     formatDuration,
     normalisedPowerBeta,
     totalDurationSeconds,
+    expandBarsToWatts,
+    calculateNormalisedPower,
+    calculateIntensityFactor,
 } from '../../utils/workoutStats'
 import type { ZonePresetView } from '../../api/zonePresets'
 import { IntervalPalette, PaletteItemShape } from './IntervalPalette'
@@ -119,6 +122,8 @@ interface Props {
      * The parent is responsible for persisting the updated text event list.
      */
     onMoveTextEvent?: (eventIndex: number, newOffsetSeconds: number) => void
+    /** The user's FTP in watts. When provided, NP and IF are calculated and displayed. */
+    ftpWatts?: number | null
 }
 
 /** Default Y-axis upper bound in percent FTP. Expands if any bar exceeds it. */
@@ -298,6 +303,7 @@ export function WorkoutCanvas({
     onUpdateInterval,
     onDeleteInterval,
     onMoveTextEvent,
+    ftpWatts = null,
 }: Props): JSX.Element {
     if (isLoading) {
         return (
@@ -331,6 +337,14 @@ export function WorkoutCanvas({
     const np = normalisedPowerBeta(allBars)
     const yMax = computeYMax(allBars)
 
+    // NP and IF are only calculated when the user has entered their FTP
+    const npWatts = ftpWatts !== null
+        ? calculateNormalisedPower(expandBarsToWatts(allBars, ftpWatts))
+        : null
+    const intensityFactor = npWatts !== null && ftpWatts !== null
+        ? calculateIntensityFactor(npWatts, ftpWatts)
+        : null
+
     return (
         <div className="flex flex-col w-full gap-3">
             {workout.isDraft && (
@@ -363,7 +377,12 @@ export function WorkoutCanvas({
                 onMoveTextEvent={onMoveTextEvent}
             />
 
-            <WorkoutFooter totalSeconds={total} normalisedPower={np} />
+            <WorkoutFooter
+                totalSeconds={total}
+                normalisedPower={np}
+                npWatts={npWatts}
+                intensityFactor={intensityFactor}
+            />
         </div>
     )
 }
@@ -2579,13 +2598,18 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
 interface WorkoutFooterProps {
     totalSeconds: number
     normalisedPower: number
+    /** Normalised Power in watts, only present when the user has entered their FTP. */
+    npWatts: number | null
+    /** Intensity Factor, only present when the user has entered their FTP. */
+    intensityFactor: number | null
 }
 
 /**
- * Renders the stats footer beneath the chart: total duration, normalised
- * power (beta), and a TSS placeholder labelled "Coming soon".
+ * Renders the stats footer beneath the chart: total duration, NP, and IF.
+ * NP and IF require FTP to be set; without it the beta approximation is shown
+ * and a prompt to enter FTP is displayed in place of the IF stat.
  */
-function WorkoutFooter({ totalSeconds, normalisedPower }: WorkoutFooterProps): JSX.Element {
+function WorkoutFooter({ totalSeconds, normalisedPower, npWatts, intensityFactor }: WorkoutFooterProps): JSX.Element {
     return (
         <div className="flex flex-wrap items-center gap-6 px-1 text-sm">
             <div className="flex items-baseline gap-2">
@@ -2593,15 +2617,29 @@ function WorkoutFooter({ totalSeconds, normalisedPower }: WorkoutFooterProps): J
                 <span className="text-white font-medium">{formatDuration(totalSeconds)}</span>
             </div>
 
-            <div className="flex items-baseline gap-2">
-                <span className="text-zinc-400">NP (beta)</span>
-                <span className="text-white font-medium">{normalisedPower}% FTP</span>
-            </div>
+            {npWatts !== null ? (
+                <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">NP</span>
+                    <span className="text-white font-medium">{npWatts}W</span>
+                </div>
+            ) : (
+                <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">NP (beta)</span>
+                    <span className="text-white font-medium">{normalisedPower}% FTP</span>
+                </div>
+            )}
 
-            <div className="flex items-baseline gap-2">
-                <span className="text-zinc-400">TSS</span>
-                <span className="text-zinc-500 italic">Coming soon</span>
-            </div>
+            {intensityFactor !== null ? (
+                <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">IF</span>
+                    <span className="text-white font-medium">{intensityFactor}</span>
+                </div>
+            ) : (
+                <div className="flex items-baseline gap-2">
+                    <span className="text-zinc-400">IF</span>
+                    <span className="text-zinc-500 text-xs">Enter FTP above</span>
+                </div>
+            )}
         </div>
     )
 }
