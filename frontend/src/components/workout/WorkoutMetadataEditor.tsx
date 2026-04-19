@@ -69,8 +69,8 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
         })
     }
 
-    function handleFtpBlur(): void {
-        const trimmed = ftpStr.trim()
+    function commitFtp(raw: string): void {
+        const trimmed = raw.trim()
         if (trimmed.length === 0) {
             onFtpChange(null)
             return
@@ -80,6 +80,19 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
             onFtpChange(n)
         } else {
             setFtpStr(ftpWatts !== null ? String(ftpWatts) : '')
+        }
+    }
+
+    function handleFtpChange(value: string): void {
+        setFtpStr(value)
+        const trimmed = value.trim()
+        if (trimmed.length === 0) {
+            onFtpChange(null)
+        } else {
+            const n = parseInt(trimmed, 10)
+            if (!isNaN(n) && n > 0) {
+                onFtpChange(n)
+            }
         }
     }
 
@@ -188,8 +201,9 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                             min={1}
                             max={999}
                             value={ftpStr}
-                            onChange={(e) => setFtpStr(e.target.value)}
-                            onBlur={handleFtpBlur}
+                            onChange={(e) => handleFtpChange(e.target.value)}
+                            onBlur={(e) => commitFtp(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
                             aria-label="FTP in watts"
                             placeholder="—"
                             className={`
