@@ -915,7 +915,7 @@ export function App(): JSX.Element {
             {/* ── Header ── */}
             <header className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-zinc-700">
                 <div className="flex items-center gap-2.5">
-                    <img src="/trive-symbol-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
+                    <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
                     <div className="flex flex-col leading-none">
                         <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400">Trive Dev</span>
                         <span className="text-base font-bold text-white">Zwift Tool</span>
