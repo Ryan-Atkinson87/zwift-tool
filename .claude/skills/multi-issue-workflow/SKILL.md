@@ -1,7 +1,7 @@
 ---
 description: Work through all "In Progress" GitHub issues — branch per issue, TDD, implement, draft PR to dev, move to "In Review"
 argument-hint: (no arguments — issues are pulled automatically from the "In Progress" column of the Zwift Tool project)
-allowed-tools: Read, Glob, Grep, Edit, Write, Agent, Bash(gh:*), Bash(jq:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git pull:*), Bash(git rev-list:*), Bash(git checkout:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git worktree:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*), mcp__github__create_pull_request, mcp__github__get_issue, mcp__github__list_issues, mcp__github__get_pull_request, mcp__github__list_pull_requests, mcp__github__get_pull_request_status, mcp__github__update_issue, mcp__github__add_issue_comment
+allowed-tools: Read, Glob, Grep, Edit, Write, Agent, Bash(gh:*), Bash(jq:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git pull:*), Bash(git rev-list:*), Bash(git checkout:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git worktree:*), Bash(git rm:*), Bash(npm run *:*), Bash(npm install:*), Bash(mvn *:*), Bash(cd *:*), Bash(cp:*), Bash(ls:*), Bash(for:*), Bash(echo:*), mcp__github__create_pull_request, mcp__github__get_issue, mcp__github__list_issues, mcp__github__get_pull_request, mcp__github__list_pull_requests, mcp__github__get_pull_request_status, mcp__github__update_issue, mcp__github__add_issue_comment
 ---
 
 ## Overview
@@ -141,13 +141,14 @@ git pull origin dev
 
 ### Step 1.2 — Create and push all branches
 
-For each issue in the batch:
+For each issue in the batch, create and push the branch **without switching HEAD**:
 
 ```bash
-git checkout -b issue-[number]-[short-description] dev
+git branch issue-[number]-[short-description] dev
 git push origin issue-[number]-[short-description]
-git checkout dev
 ```
+
+`git branch <name> <start-point>` creates the branch locally without checking it out, so the working directory stays on `dev` throughout. No `git checkout` calls are needed here — each worktree (Step 1.3) attaches to its branch independently.
 
 Confirm each branch is pushed before creating the next.
 
@@ -169,35 +170,31 @@ Print a summary:
 
 ## Phase 2 — Execute Issues
 
-### When to use sub-agents vs. inline execution
+### Sub-agent approach — always use `general-purpose`
 
-Sub-agents have a cold-start cost — they re-read reference files and re-derive context from scratch. Only use them when there is a concrete benefit:
+**Always use sub-agents for every issue, both parallel and sequential.** Never fall back to inline execution. Running inline causes every file write and bash command to prompt the user for approval individually; sub-agents batch their work and those approvals are covered by the skill's `allowed-tools`.
 
-| Scenario | Approach |
-|----------|----------|
-| Parallel group (2+ non-conflicting issues) | Sub-agents — run simultaneously for speed |
-| Sequential + custom agent type available (`issue-implementer`) | Sub-agent — scoped tools, right model, keeps orchestrator context clean |
-| Sequential + no custom agent type (falling back to `general-purpose`) | **Inline — main agent does the work directly, no sub-agent** |
-
-Currently, `issue-implementer` is always available, so all issues use sub-agents. If that agent is ever unavailable and the batch is entirely sequential, skip the sub-agent entirely and execute the workflow steps from the Sub-agent invocation section inline.
+> **Note on `issue-implementer`:** A custom agent definition exists at `.claude/agents/issue-implementer.md` but it cannot be spawned via the `Agent` tool's `subagent_type` parameter — that parameter only accepts the five built-in types (`claude-code-guide`, `Explore`, `general-purpose`, `Plan`, `statusline-setup`). Custom agents can only be invoked as the primary session agent by the user. Always use `general-purpose` here.
 
 ### Parallel execution
 
-For issues in the parallel group, spawn all their sub-agents **simultaneously in a single call** (multiple Agent tool invocations in one message). Each sub-agent uses the `issue-implementer` type and receives the dynamic context prompt defined in the Sub-agent invocation section below.
+For issues in the parallel group, spawn all their sub-agents **simultaneously in a single call** (multiple Agent tool invocations in one message). Each sub-agent uses `subagent_type: "general-purpose"` and receives the dynamic context prompt defined in the Sub-agent invocation section below.
 
 Wait for all parallel sub-agents to complete before proceeding to the sequential queue or Phase 3. If any sub-agent reports a failure, note it and handle it in Phase 3.
 
 ### Sequential execution
 
-For issues in the sequential queue, spawn one sub-agent at a time using the `issue-implementer` type. Wait for each to complete and succeed before spawning the next. Respect the ordering determined in Phase 0.
+For issues in the sequential queue, spawn one `general-purpose` sub-agent at a time. Wait for each to complete and succeed before spawning the next. Respect the ordering determined in Phase 0.
 
 ### Sub-agent invocation
 
-Spawn a sub-agent of type `issue-implementer`. The agent's system prompt handles the static workflow — only pass the dynamic context below.
+Spawn a sub-agent of type `general-purpose`. Pass the full self-contained prompt below — the sub-agent has no memory of this conversation and must receive everything it needs to act.
 
 Prompt to pass (fill in all bracketed values):
 
 ```
+You are implementing a GitHub issue for the Zwift Tool project.
+
 Worktree: /tmp/zwift-tool-issue-[number]
 Branch: issue-[number]-[short-description]
 
@@ -206,6 +203,25 @@ Labels: [labels]
 
 Full issue body:
 [full issue body pasted verbatim]
+
+Instructions:
+1. Read /tmp/zwift-tool-issue-[number]/internal_docs/INSTRUCTIONS_COPY.md and /tmp/zwift-tool-issue-[number]/CLAUDE.md before writing any code.
+2. Write failing tests first, then implement the solution (TDD).
+3. Run the relevant build verification after implementation:
+   - Frontend changes: cd /tmp/zwift-tool-issue-[number]/frontend && npm install && npm run lint && npm run build
+   - Backend changes: cd /tmp/zwift-tool-issue-[number]/backend && mvn verify
+4. Stage, commit, and push all changes:
+   git -C /tmp/zwift-tool-issue-[number] add <files>
+   git -C /tmp/zwift-tool-issue-[number] commit -m "<message>"
+   git -C /tmp/zwift-tool-issue-[number] push origin issue-[number]-[short-description]
+5. Reply with a structured result:
+
+STATUS: success | failed
+BRANCH: issue-[number]-[short-description]
+FILES CHANGED: <bullet list of files created or modified>
+TESTS ADDED: <description of tests, or "None — <reason>">
+MANUAL TESTING NEEDED: <bullet list, or "None">
+FAILURE REASON: <if failed, explain what went wrong>
 ```
 
 ---

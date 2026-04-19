@@ -1,7 +1,7 @@
 ---
 description: Read current PR or branch changes and update README.md, CHANGELOG.md, and other project documentation
 argument-hint: <pr-number or leave blank to use current branch vs dev>
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh issue view:*)
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git status:*), Bash(git tag:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(cat *package.json*)
 ---
 
 ## Overview
@@ -104,7 +104,49 @@ Print: the CHANGELOG entries added.
 
 ---
 
-### Step 4 — Check for missing standard documentation
+### Step 4 — Check and update version numbers
+
+The project version is stored in two places and must always be kept in sync:
+
+- `frontend/package.json` — `"version"` field
+- `backend/pom.xml` — `<version>` tag directly under `<artifactId>zwift-tool</artifactId>` (not the Spring Boot parent version)
+
+Read the current version from `frontend/package.json`.
+
+Then look up the GitHub milestone associated with the issues in this change set:
+
+```bash
+gh issue list --repo Ryan-Atkinson87/zwift-tool --state closed --json number,milestone --limit 50
+```
+
+Identify which milestone the completed issues belong to. The milestone title is the version number (e.g. `v1.1.0`). Strip the leading `v` when writing to files (e.g. `1.1.0`).
+
+**Version bump rules** (follow semver — `MAJOR.MINOR.PATCH`):
+- **PATCH** bump: bug fixes only, no new user-facing features
+- **MINOR** bump: at least one new user-facing feature added, no breaking changes
+- **MAJOR** bump: breaking changes or a full rewrite
+
+Apply the bump if the milestone version is higher than the current stored version, or if the semver rules indicate a bump is needed and no milestone is set.
+
+If the version needs updating:
+1. Update `"version"` in `frontend/package.json`
+2. Update `<version>` in `backend/pom.xml` (set it to the plain version, e.g. `1.1.0` — not `1.1.0-SNAPSHOT`)
+3. Promote the current `[Unreleased]` block in `CHANGELOG.md` to a versioned release entry:
+
+```markdown
+## [1.1.0] - YYYY-MM-DD
+```
+
+   Insert a fresh empty `[Unreleased]` block above it.
+
+If the version does not need updating, print: "Version unchanged at X.Y.Z."
+
+Print: current version, new version (or "no change"), and which files were updated.
+
+---
+
+### Step 5 — Check for missing standard documentation
+
 
 Check whether the following files exist at the repository root. Create any that are missing.
 
@@ -140,12 +182,13 @@ If the LICENSE file already exists, no action is needed.
 
 ---
 
-### Step 5 — Summary
+### Step 6 — Summary
 
 Print a final summary:
 
 - **README.md**: what changed, or "no changes needed"
 - **CHANGELOG.md**: list of entries added
+- **Version**: old version → new version, or "no change"
 - **New files created**: list any new files (CONTRIBUTING.md, SECURITY.md), or "none"
 - **Action required**: list anything that needs manual action (e.g. LICENSE file), or "none"
 
