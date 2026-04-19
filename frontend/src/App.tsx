@@ -5,6 +5,7 @@ import { SignUpModal } from './components/auth/SignUpModal.tsx'
 import { FileUploader } from './components/import/FileUploader.tsx'
 import { IntervalList } from './components/import/IntervalList.tsx'
 import { SectionSplitter, type SectionSplit } from './components/import/SectionSplitter.tsx'
+import { DuplicateNameModal } from './components/import/DuplicateNameModal.tsx'
 import { useAuth } from './hooks/useAuth.ts'
 import { useWorkouts } from './hooks/useWorkouts.ts'
 import { useWorkout } from './hooks/useWorkout.ts'
@@ -101,8 +102,8 @@ export function App(): JSX.Element {
     const [bulkReplaceError, setBulkReplaceError] = useState<string | null>(null)
     const [isExporting, setIsExporting] = useState(false)
     const [exportError, setExportError] = useState<string | null>(null)
-    // FTP stored at session level so it persists when the user switches between workouts
-    const [ftpWatts, setFtpWatts] = useState<number | null>(null)
+    const [pendingClashes, setPendingClashes] = useState<Array<{ incoming: ParsedWorkout; existingId: string }>>([])
+    const currentClash = pendingClashes[0] ?? null
 
     // The workout driving the editor canvas. In authenticated mode this is the
     // backend-fetched selected workout; in guest mode it is the locally-held
@@ -171,13 +172,70 @@ export function App(): JSX.Element {
     }
 
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
-        setParsedWorkouts(workouts)
         setSaveSuccess(null)
         setSaveError(null)
-        // Auto-start splitting if only one file was uploaded
-        if (workouts.length === 1) {
-            setSplittingWorkout(workouts[0])
+
+        if (!isAuthenticated) {
+            // Guest mode: no saved workouts to clash with
+            setParsedWorkouts(workouts)
+            if (workouts.length === 1) setSplittingWorkout(workouts[0])
+            return
         }
+
+        const clashes: Array<{ incoming: ParsedWorkout; existingId: string }> = []
+        const nonClashing: ParsedWorkout[] = []
+
+        for (const workout of workouts) {
+            const existing = savedWorkouts.find((w) => w.name === workout.name)
+            if (existing) {
+                clashes.push({ incoming: workout, existingId: existing.id })
+            } else {
+                nonClashing.push(workout)
+            }
+        }
+
+        // Add non-clashing workouts to the import queue immediately
+        setParsedWorkouts((prev) => [...prev, ...nonClashing])
+        if (clashes.length === 0 && nonClashing.length === 1) {
+            setSplittingWorkout(nonClashing[0])
+        }
+
+        if (clashes.length > 0) {
+            setPendingClashes(clashes)
+        }
+    }
+
+    function resolveClash(resolvedWorkout: ParsedWorkout | null): void {
+        setPendingClashes((prev) => {
+            const remaining = prev.slice(1)
+            // When the last clash is resolved, auto-start split if it produced one workout
+            if (remaining.length === 0 && resolvedWorkout !== null) {
+                setParsedWorkouts((current) => {
+                    const updated = [...current, resolvedWorkout]
+                    if (updated.length === 1) setSplittingWorkout(updated[0])
+                    return updated
+                })
+            } else if (resolvedWorkout !== null) {
+                setParsedWorkouts((current) => [...current, resolvedWorkout])
+            }
+            return remaining
+        })
+    }
+
+    function handleClashRename(newName: string): void {
+        if (currentClash === null) return
+        resolveClash({ ...currentClash.incoming, name: newName })
+    }
+
+    async function handleClashReplace(): Promise<void> {
+        if (currentClash === null) return
+        await deleteWorkout(currentClash.existingId)
+        await reloadWorkouts()
+        resolveClash(currentClash.incoming)
+    }
+
+    function handleClashCancel(): void {
+        resolveClash(null)
     }
 
     function handleStartSplit(workout: ParsedWorkout): void {
@@ -1096,8 +1154,6 @@ export function App(): JSX.Element {
                                 isSaving={isSavingMetadata}
                                 onExport={() => void handleExportWorkout()}
                                 isExporting={isExporting}
-                                ftpWatts={ftpWatts}
-                                onFtpChange={setFtpWatts}
                             />
                         )}
 
@@ -1141,7 +1197,6 @@ export function App(): JSX.Element {
                                 )
                                 void handleSaveTextEvents(updated)
                             }}
-                            ftpWatts={ftpWatts}
                         />
 
                         {activeWorkout !== null && (
@@ -1343,6 +1398,14 @@ export function App(): JSX.Element {
             )}
 
             <AppFooter />
+
+            <DuplicateNameModal
+                isOpen={currentClash !== null}
+                incomingName={currentClash?.incoming.name ?? ''}
+                onRename={handleClashRename}
+                onReplace={handleClashReplace}
+                onCancel={handleClashCancel}
+            />
 
             <SaveToLibraryModal
                 isOpen={saveToLibrarySection !== null}

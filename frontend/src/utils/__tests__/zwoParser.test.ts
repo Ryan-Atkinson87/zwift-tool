@@ -45,6 +45,28 @@ describe('parseZwoFile', () => {
             expect(interval.power).toBeCloseTo(0.88)
         })
 
+        it('preserves sub-integer FTP% precision on import', () => {
+            const xml = `<workout_file>
+  <n>Precision Test</n>
+  <workout>
+    <SteadyState Duration="300" Power="0.876"/>
+    <IntervalsT Repeat="3" OnDuration="60" OffDuration="30" OnPower="1.134" OffPower="0.567"/>
+    <Warmup Duration="300" PowerLow="0.401" PowerHigh="0.749"/>
+  </workout>
+</workout_file>`
+            const result = parseZwoFile(xml, 'precision.zwo')
+            const steady = result.intervals[0]
+            const intervals = result.intervals[1]
+            const warmup = result.intervals[2]
+
+            // Parser must not round — values should match the XML exactly
+            expect(steady.power).toBe(0.876)
+            expect(intervals.onPower).toBe(1.134)
+            expect(intervals.offPower).toBe(0.567)
+            expect(warmup.power).toBe(0.401)
+            expect(warmup.powerHigh).toBe(0.749)
+        })
+
         it('parses all six supported interval types', () => {
             const result = parseZwoFile(ALL_INTERVAL_TYPES_ZWO, 'all-types.zwo')
             expect(result.intervals).toHaveLength(6)
