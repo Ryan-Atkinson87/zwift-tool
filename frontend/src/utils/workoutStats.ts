@@ -48,3 +48,64 @@ export function normalisedPowerBeta(bars: ChartBar[]): number {
     )
     return Math.round(weighted / total)
 }
+
+/**
+ * Expands a list of chart bars into a flat per-second array of absolute
+ * power values in watts. FreeRide bars contribute 0W because they have no
+ * defined power target.
+ *
+ * @param bars the expanded chart bars for every section
+ * @param ftpWatts the user's FTP in watts, used to convert %FTP to watts
+ * @return array of watts values, one entry per second of workout duration
+ */
+export function expandBarsToWatts(bars: ChartBar[], ftpWatts: number): number[] {
+    const samples: number[] = []
+    for (const bar of bars) {
+        const watts = bar.style === 'freeride' ? 0 : (bar.powerPercent / 100) * ftpWatts
+        for (let s = 0; s < bar.durationSeconds; s++) {
+            samples.push(watts)
+        }
+    }
+    return samples
+}
+
+/**
+ * Calculates Normalised Power (NP) in watts using the standard 30-second
+ * rolling fourth-power algorithm.
+ *
+ * <p>Algorithm: replace nulls with 0, compute 30-second rolling averages,
+ * raise each to the 4th power, take the mean, then take the 4th root.</p>
+ *
+ * @param powerSamplesWatts per-second power values in watts; nulls treated as 0
+ * @return NP in watts rounded to 1 decimal place, or null if fewer than 30 samples
+ */
+export function calculateNormalisedPower(powerSamplesWatts: (number | null)[]): number | null {
+    const clean = powerSamplesWatts.map((v) => v ?? 0)
+    if (clean.length < 30) return null
+
+    const rollingAverages: number[] = []
+    for (let i = 0; i <= clean.length - 30; i++) {
+        let windowSum = 0
+        for (let j = i; j < i + 30; j++) {
+            windowSum += clean[j]
+        }
+        rollingAverages.push(windowSum / 30)
+    }
+
+    const meanFourthPower =
+        rollingAverages.reduce((sum, avg) => sum + avg ** 4, 0) / rollingAverages.length
+    const np = meanFourthPower ** 0.25
+
+    return Math.round(np * 10) / 10
+}
+
+/**
+ * Calculates Intensity Factor (IF) as the ratio of Normalised Power to FTP.
+ *
+ * @param npWatts Normalised Power in watts
+ * @param ftpWatts the user's FTP in watts
+ * @return IF rounded to 2 decimal places
+ */
+export function calculateIntensityFactor(npWatts: number, ftpWatts: number): number {
+    return Math.round((npWatts / ftpWatts) * 100) / 100
+}

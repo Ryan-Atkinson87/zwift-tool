@@ -57,9 +57,19 @@ Run tests based on the areas that changed:
 
 Print results. If tests fail, stop and report.
 
-### 5. Hand Off Merge to User
+### 5. Documentation Check
 
-Once all checks pass, do NOT run git checkout, git merge, or git push yourself. Tell the user to run:
+Before handing off the merge, check whether documentation has been updated for the changes being merged.
+
+Ask the user:
+
+> "Have you run `/update-documentation` for the changes on `dev`? If not, run it now before merging — it updates README.md, CHANGELOG.md, and checks for missing standard docs."
+
+**HALT. Wait for the user to confirm they have run `/update-documentation` (or confirm it is not needed for this merge) before proceeding.**
+
+### 6. Hand Off Merge to User
+
+Once all checks pass and documentation is confirmed up to date, do NOT run git checkout, git merge, or git push yourself. Tell the user to run:
 
 ```
 git checkout main
@@ -67,7 +77,7 @@ git merge dev --no-ff -m "merge: dev into main"
 git push origin main
 ```
 
-### 6. Hand Off Dev Sync to User
+### 7. Hand Off Dev Sync to User
 
 Tell the user to sync dev with main:
 
@@ -79,7 +89,7 @@ git push origin dev
 
 This keeps `dev` in sync with `main` so that future work starts from a clean base.
 
-### 7. Summary
+### 8. Summary
 
 Once the user confirms the merge and sync are done, print a final summary:
 

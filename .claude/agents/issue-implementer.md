@@ -1,7 +1,7 @@
 ---
 name: issue-implementer
 description: Implements a single GitHub issue in a git worktree using TDD. Writes failing tests first, implements, verifies all checks pass, then commits and pushes. Used by multi-issue-workflow.
-tools: Read, Glob, Grep, Edit, Write, Agent, Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git status *), Bash(git diff *), Bash(git log *), Bash(git fetch *), Bash(git checkout *), Bash(cd *), Bash(ls *), Bash(npm run lint*), Bash(npm run build*), Bash(npm run dev*), Bash(npm test*), Bash(mvn verify*), Bash(mvn test*), Bash(mvn spring-boot*)
+tools: Read, Glob, Grep, Edit, Write, Agent, Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git fetch:*), Bash(git checkout:*), Bash(cd:*), Bash(ls:*), Bash(npm run lint:*), Bash(npm run build:*), Bash(npm run dev:*), Bash(npm test:*), Bash(mvn verify:*), Bash(mvn test:*), Bash(mvn spring-boot:*)
 model: sonnet
 ---
 

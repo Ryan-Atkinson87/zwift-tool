@@ -598,6 +598,8 @@ src/
       SignUpModal.tsx
     ui/
       Modal.tsx                 -- shared modal wrapper
+      AppFooter.tsx             -- app footer shown on all pages
+      PrivacyPage.tsx           -- privacy policy page content
   hooks/
     useWorkouts.ts              -- workout list state and fetching
     useWorkout.ts               -- single workout state for the editor
@@ -621,7 +623,9 @@ src/
     workoutStats.ts             -- TSS, duration, and interval stat calculations
     editorDraft.ts              -- editor draft state helpers
     intervalExpander.ts         -- expands IntervalsT repeats into flat lists
+    paletteItems.ts             -- builds draggable palette item definitions from zone presets
     zwoExporter.ts              -- client-side .zwo XML generation for guest mode export
+  sentry.ts                     -- Sentry initialisation (frontend error tracking)
 ```
 
 `.zwo` export is handled by the backend (`ZwoExporter.java`) for authenticated users. In guest mode, export is handled client-side by `src/utils/zwoExporter.ts`.
@@ -716,21 +720,18 @@ Apply classes in a consistent order so any component is easy to scan:
 
 #### Conditional classes
 
-Use a template literal for simple conditions. For multiple conditions, use the `clsx` library.
+Use a template literal for conditional classes. For multiple conditions, use a joined array of strings.
 
 ```typescript
-// Simple condition - template literal is fine
+// Simple condition - template literal
 <div className={`px-4 py-2 rounded ${isSelected ? 'bg-zinc-700' : 'bg-zinc-800'}`}>
 
-// Multiple conditions - use clsx for readability
-import clsx from 'clsx'
-
-<div className={clsx(
+// Multiple conditions - join an array of conditional strings
+<div className={[
     'px-4 py-2 rounded transition-colours',
-    isSelected && 'bg-zinc-700 border-indigo-500',
-    !isSelected && 'bg-zinc-800 border-zinc-700',
-    isDisabled && 'opacity-50 cursor-not-allowed',
-)}>
+    isSelected ? 'bg-zinc-700 border-indigo-500' : 'bg-zinc-800 border-zinc-700',
+    isDisabled ? 'opacity-50 cursor-not-allowed' : '',
+].filter(Boolean).join(' ')}>
 ```
 
 #### Spacing scale reference

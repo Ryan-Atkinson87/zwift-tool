@@ -23,7 +23,7 @@ Zwift Tool treats every workout as three distinct, swappable sections:
 
 All editing, saving, and bulk replacement operates at the section level.
 
-### Core Features (MVP)
+### Core Features
 
 - Upload one or more `.zwo` files and define section boundaries on import
 - Visual bar chart display: width = duration, height = %FTP, colour = Zwift zone
@@ -31,6 +31,7 @@ All editing, saving, and bulk replacement operates at the section level.
 - Save any section to a private block library and reuse it across workouts
 - Bulk-replace the same section across multiple saved workouts in one action
 - Export as a single `.zwo` file or multiple workouts as a `.zip`
+- Normalised power (NP) and intensity factor (IF) calculated live from an FTP input
 
 ---
 
@@ -55,13 +56,13 @@ Planned MVP scope:
 
 - [x] Repository setup
 - [x] Backend scaffolding and database schema
-- [ ] Authentication (sign up, sign in, sign out)
-- [ ] Workout upload and section split flow
-- [ ] Workout visualisation (bar chart, three sections)
-- [ ] Interval editing
-- [ ] Block library
-- [ ] Bulk section replacement
-- [ ] Export (single file and zip)
+- [x] Authentication (sign up, sign in, sign out)
+- [x] Workout upload and section split flow
+- [x] Workout visualisation (bar chart, three sections)
+- [x] Interval editing
+- [x] Block library
+- [x] Bulk section replacement
+- [x] Export (single file and zip)
 
 ---
 
@@ -104,4 +105,4 @@ Not open for contributions at this stage. Issues and feedback welcome.
 
 ## Licence
 
-MIT
+AGPL-3.0-only

@@ -127,37 +127,37 @@ interface IntervalRowProps {
  */
 function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalRowProps): JSX.Element {
     const [powerStr, setPowerStr] = useState(
-        interval.power !== null ? String(Math.round(interval.power * 100)) : '',
+        interval.power !== null ? String(Number((interval.power * 100).toFixed(1))) : '',
     )
     const [powerHighStr, setPowerHighStr] = useState(
-        interval.powerHigh !== null ? String(Math.round(interval.powerHigh * 100)) : '',
+        interval.powerHigh !== null ? String(Number((interval.powerHigh * 100).toFixed(1))) : '',
     )
     const [durationStr, setDurationStr] = useState(String(interval.durationSeconds))
     const [repeatStr, setRepeatStr] = useState(String(interval.repeat ?? 1))
     const [onDurationStr, setOnDurationStr] = useState(String(interval.onDuration ?? 0))
     const [offDurationStr, setOffDurationStr] = useState(String(interval.offDuration ?? 0))
     const [onPowerStr, setOnPowerStr] = useState(
-        interval.onPower !== null ? String(Math.round(interval.onPower * 100)) : '',
+        interval.onPower !== null ? String(Number((interval.onPower * 100).toFixed(1))) : '',
     )
     const [offPowerStr, setOffPowerStr] = useState(
-        interval.offPower !== null ? String(Math.round(interval.offPower * 100)) : '',
+        interval.offPower !== null ? String(Number((interval.offPower * 100).toFixed(1))) : '',
     )
 
     function commitPower(): void {
-        const n = parseInt(powerStr, 10)
+        const n = parseFloat(powerStr)
         if (!isNaN(n) && n >= 0) {
             onUpdate({ ...interval, power: n / 100 })
         } else {
-            setPowerStr(interval.power !== null ? String(Math.round(interval.power * 100)) : '')
+            setPowerStr(interval.power !== null ? String(Number((interval.power * 100).toFixed(1))) : '')
         }
     }
 
     function commitPowerHigh(): void {
-        const n = parseInt(powerHighStr, 10)
+        const n = parseFloat(powerHighStr)
         if (!isNaN(n) && n >= 0) {
             onUpdate({ ...interval, powerHigh: n / 100 })
         } else {
-            setPowerHighStr(interval.powerHigh !== null ? String(Math.round(interval.powerHigh * 100)) : '')
+            setPowerHighStr(interval.powerHigh !== null ? String(Number((interval.powerHigh * 100).toFixed(1))) : '')
         }
     }
 
@@ -207,20 +207,20 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
     }
 
     function commitOnPower(): void {
-        const n = parseInt(onPowerStr, 10)
+        const n = parseFloat(onPowerStr)
         if (!isNaN(n) && n >= 0) {
             onUpdate({ ...interval, onPower: n / 100 })
         } else {
-            setOnPowerStr(interval.onPower !== null ? String(Math.round(interval.onPower * 100)) : '')
+            setOnPowerStr(interval.onPower !== null ? String(Number((interval.onPower * 100).toFixed(1))) : '')
         }
     }
 
     function commitOffPower(): void {
-        const n = parseInt(offPowerStr, 10)
+        const n = parseFloat(offPowerStr)
         if (!isNaN(n) && n >= 0) {
             onUpdate({ ...interval, offPower: n / 100 })
         } else {
-            setOffPowerStr(interval.offPower !== null ? String(Math.round(interval.offPower * 100)) : '')
+            setOffPowerStr(interval.offPower !== null ? String(Number((interval.offPower * 100).toFixed(1))) : '')
         }
     }
 
