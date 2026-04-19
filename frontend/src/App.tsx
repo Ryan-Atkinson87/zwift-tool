@@ -104,6 +104,7 @@ export function App(): JSX.Element {
     const [exportError, setExportError] = useState<string | null>(null)
     const [pendingClashes, setPendingClashes] = useState<Array<{ incoming: ParsedWorkout; existingId: string }>>([])
     const currentClash = pendingClashes[0] ?? null
+    const [ftpWatts, setFtpWatts] = useState<number | null>(null)
 
     // The workout driving the editor canvas. In authenticated mode this is the
     // backend-fetched selected workout; in guest mode it is the locally-held
@@ -1160,6 +1161,8 @@ export function App(): JSX.Element {
                                 isSaving={isSavingMetadata}
                                 onExport={() => void handleExportWorkout()}
                                 isExporting={isExporting}
+                                ftpWatts={ftpWatts}
+                                onFtpChange={setFtpWatts}
                             />
                         )}
 
@@ -1171,6 +1174,7 @@ export function App(): JSX.Element {
                             workout={activeWorkout}
                             isLoading={isAuthenticated ? isLoadingSelectedWorkout : false}
                             error={isAuthenticated ? selectedWorkoutError : null}
+                            ftpWatts={ftpWatts}
                             onUndoSection={isAuthenticated
                                 ? (section) => void handleUndoSection(section)
                                 : undefined}
