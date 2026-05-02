@@ -15,6 +15,7 @@ import { useState, useRef, useMemo, type JSX } from 'react'
 import type { ParsedInterval, ParsedWorkout } from '../../types/workout'
 import { expandIntervalsToBars, type ChartBar } from '../../utils/intervalExpander'
 import { getColourForZone, getZoneForPower } from '../../utils/zoneColours'
+import { useContainerWidth } from '../../hooks/useContainerWidth'
 
 interface Props {
     workout: ParsedWorkout
@@ -46,11 +47,14 @@ const GROUP_INNER_GAP_SECONDS = 1
 /** Default Y-axis upper bound in percent FTP. Expands if any bar exceeds this. */
 const DEFAULT_Y_MAX_PERCENT = 140
 
-/** Assumed container width in screen pixels for aspect-ratio corner-radius compensation. */
-const ASSUMED_CONTAINER_PX = 700
-
 /** Corner radius in screen-pixel-equivalent SVG units. */
 const RY_PX = 4
+
+/**
+ * Minimum touch hit area in screen pixels for the boundary drag handles.
+ * 44px meets the WCAG 2.5.5 recommended touch target size.
+ */
+const MIN_TOUCH_HIT_PX = 44
 
 /**
  * Each empty-section zone is 20% of the total SVG width, so the bars occupy
@@ -84,6 +88,10 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
     const [cooldownStart, setCooldownStart] = useState(intervalCount)
     const [boundaryDrag, setBoundaryDrag] = useState<BoundaryDrag | null>(null)
     const svgRef = useRef<SVGSVGElement | null>(null)
+
+    // Measure the actual rendered container width so corner radii and hit areas
+    // are scaled correctly regardless of viewport size.
+    const { ref: chartContainerRef, width: containerWidth } = useContainerWidth(700)
 
     const bars = useMemo(
         () => expandIntervalsToBars(intervals, 'split'),
@@ -230,7 +238,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                 Drag the handles to define where the warm-up ends and cool-down begins.
             </p>
 
-            <div className="flex flex-col w-full px-3 py-3 bg-zinc-800/40 border border-zinc-700 rounded-lg overflow-hidden">
+            <div ref={chartContainerRef} className="flex flex-col w-full px-3 py-3 bg-zinc-800/40 border border-zinc-700 rounded-lg overflow-hidden">
                 {/* Section label row: each label floats at the centre of its section. */}
                 <div className="relative h-5 mb-1">
                     <span
@@ -326,6 +334,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                             x={barsXOffset + barLocalX[i]}
                             yMax={yMax}
                             svgTotalWidth={totalSvgWidth}
+                            containerWidth={containerWidth}
                         />
                     ))}
 
@@ -334,6 +343,8 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                         x={wuBoundaryX}
                         isActive={boundaryDrag !== null && boundaryDrag.which === 'WU'}
                         onPointerDown={(e) => handleBoundaryPointerDown('WU', e)}
+                        svgTotalWidth={totalSvgWidth}
+                        containerWidth={containerWidth}
                     />
 
                     {/* Main Set / Cool-Down boundary handle */}
@@ -341,6 +352,8 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                         x={cdBoundaryX}
                         isActive={boundaryDrag !== null && boundaryDrag.which === 'CD'}
                         onPointerDown={(e) => handleBoundaryPointerDown('CD', e)}
+                        svgTotalWidth={totalSvgWidth}
+                        containerWidth={containerWidth}
                     />
                 </svg>
             </div>
@@ -412,21 +425,29 @@ interface BoundaryHandleProps {
     x: number
     isActive: boolean
     onPointerDown: (e: React.PointerEvent) => void
+    /** Full SVG viewBox width in SVG units (seconds). Used to convert px to SVG units. */
+    svgTotalWidth: number
+    /** Measured container width in screen pixels. Used to guarantee the 44px touch target. */
+    containerWidth: number
 }
 
 /**
  * A draggable vertical boundary handle rendered as a bright green line with a
  * rounded capsule grip at the centre. The capsule uses vectorEffect so it
  * renders at a fixed screen-pixel size regardless of SVG aspect ratio.
- * A wider invisible rect provides a generous pointer target.
+ * A wider invisible rect provides a touch-friendly pointer target (minimum 44px).
  */
-function BoundaryHandle({ x, isActive, onPointerDown }: BoundaryHandleProps): JSX.Element {
+function BoundaryHandle({ x, isActive, onPointerDown, svgTotalWidth, containerWidth }: BoundaryHandleProps): JSX.Element {
     const idleColour = 'rgba(34, 197, 94, 0.75)'
     const activeColour = 'rgba(34, 197, 94, 1.0)'
     const colour = isActive ? activeColour : idleColour
     const lineWidth = isActive ? 2.5 : 2
     const capsuleWidth = isActive ? 12 : 10
-    const hitAreaWidth = 20
+
+    // Convert the minimum touch hit area from screen pixels to SVG units.
+    // The SVG is scaled non-uniformly so we derive the ratio from the measured container.
+    const svgUnitsPerPx = containerWidth > 0 ? svgTotalWidth / containerWidth : 1
+    const hitAreaWidth = Math.max(20, MIN_TOUCH_HIT_PX * svgUnitsPerPx)
 
     return (
         <g onPointerDown={onPointerDown} style={{ cursor: 'col-resize' }}>
@@ -487,6 +508,8 @@ interface SplitBarShapeProps {
     x: number
     yMax: number
     svgTotalWidth: number
+    /** Measured container width in screen pixels. Used for aspect-ratio corner-radius compensation. */
+    containerWidth: number
 }
 
 /**
@@ -494,8 +517,11 @@ interface SplitBarShapeProps {
  * Supports flat, ramp, and free-ride bar styles with zone colouring,
  * matching the appearance of the main workout canvas.
  */
-function SplitBarShape({ bar, x, yMax, svgTotalWidth }: SplitBarShapeProps): JSX.Element {
+function SplitBarShape({ bar, x, yMax, svgTotalWidth, containerWidth }: SplitBarShapeProps): JSX.Element {
     const ry = RY_PX
+    // Use the measured container width instead of a hardcoded assumption so
+    // corner radii look correct on any viewport width.
+    const effectiveContainerPx = containerWidth > 0 ? containerWidth : 700
 
     if (bar.style === 'ramp' && bar.startPowerPercent !== null && bar.endPowerPercent !== null) {
         const startHeight = (bar.startPowerPercent / yMax) * PLOT_HEIGHT
@@ -504,7 +530,7 @@ function SplitBarShape({ bar, x, yMax, svgTotalWidth }: SplitBarShapeProps): JSX
         const endY = PLOT_HEIGHT - endHeight
         const w = bar.durationSeconds
         const rx = Math.min(
-            RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX,
+            RY_PX * svgTotalWidth / effectiveContainerPx,
             w * 0.25,
             startHeight * 0.15,
             endHeight * 0.15,
@@ -563,7 +589,7 @@ function SplitBarShape({ bar, x, yMax, svgTotalWidth }: SplitBarShapeProps): JSX
     const y = PLOT_HEIGHT - height
     const w = bar.durationSeconds
     const fill = getColourForZone(getZoneForPower(bar.powerPercent))
-    const rxFlat = Math.min(RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.25)
+    const rxFlat = Math.min(RY_PX * svgTotalWidth / effectiveContainerPx, w * 0.25)
     const ryFlat = Math.min(ry, height / 3)
     const rectPath = [
         `M ${x + rxFlat},${y}`,
