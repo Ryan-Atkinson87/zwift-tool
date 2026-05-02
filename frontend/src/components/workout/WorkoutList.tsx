@@ -98,6 +98,10 @@ export function WorkoutList({
                             checked={allSelected}
                             onChange={() => onSelectAll(allSelected ? [] : workouts.map((w) => w.id))}
                             aria-label="Select all workouts"
+                            // Prevent the browser scrolling the hidden input into view when it
+                            // receives focus via the label click. The visual span and onChange
+                            // handler cover all interaction needs.
+                            tabIndex={-1}
                             className="sr-only"
                         />
                         <span
