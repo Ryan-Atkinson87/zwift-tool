@@ -971,35 +971,82 @@ export function App(): JSX.Element {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden">
+        <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
 
             {/* ── Header ── */}
-            <header className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-zinc-700">
-                <div className="flex items-center gap-2.5">
-                    <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400">Trive Dev</span>
-                        <span className="text-base font-bold text-white">Zwift Tool</span>
+            {/*
+              * Two-row responsive layout:
+              * - Primary row (all widths): logo on the left, auth controls on the right.
+              * - Secondary row (md and above only): secondary actions (zone presets,
+              *   export all) hidden on narrow viewports to prevent overflow.
+              * overflow-x-hidden ensures no horizontal scroll at any width.
+              */}
+            <header className="shrink-0 px-4 py-3 border-b border-zinc-700 overflow-x-hidden">
+                {/* Primary row: logo + auth controls — always visible */}
+                <div className="flex items-center justify-between min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
+                        <div className="flex flex-col leading-none min-w-0">
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400 truncate">Trive Dev</span>
+                            <span className="text-base font-bold text-white truncate">Zwift Tool</span>
+                        </div>
                     </div>
+                    {isAuthenticated ? (
+                        <div className="flex items-center gap-3 shrink-0">
+                            <span className="hidden sm:inline text-sm text-zinc-300">
+                                Signed in as <span className="text-white font-medium">{user?.email}</span>
+                            </span>
+                            <button
+                                onClick={() => { handleClearSelection(); void signOut() }}
+                                className={`
+                                    px-3 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign out
+                            </button>
+                        </div>
+                    ) : guestMode ? (
+                        // In guest mode show compact auth controls so the user can sign
+                        // in at any point without leaving the editor
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setIsSignInOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-brand-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign in
+                            </button>
+                            <button
+                                onClick={() => setIsSignUpOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign up
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
-                {isAuthenticated ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-zinc-300">
-                            Signed in as <span className="text-white font-medium">{user?.email}</span>
-                        </span>
-                        <button
-                            onClick={() => { handleClearSelection(); void signOut() }}
-                            className={`
-                                px-3 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign out
-                        </button>
+
+                {/* Secondary row: zone presets + export all — hidden on mobile to prevent overflow */}
+                {isAuthenticated && (
+                    <div className="hidden md:flex items-center gap-3 mt-2">
                         {savedWorkouts.length > 0 && (
                             <button
                                 onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
@@ -1031,47 +1078,20 @@ export function App(): JSX.Element {
                             Zone presets
                         </button>
                     </div>
-                ) : guestMode ? (
-                    // In guest mode show compact auth controls so the user can sign
-                    // in at any point without leaving the editor
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsSignInOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-brand-600 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-brand-500 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign in
-                        </button>
-                        <button
-                            onClick={() => setIsSignUpOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign up
-                        </button>
-                    </div>
-                ) : null}
+                )}
             </header>
 
             {/* ── Three-panel body or landing ── */}
             {showEditor ? (
-                <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden overflow-x-hidden">
 
-                    {/* Left panel: workout list */}
-                    {isLeftCollapsed ? (
-                        <aside className="w-10 shrink-0 border-r border-zinc-700 flex flex-col items-center py-3">
+                    {/* Left panel: workout list.
+                        On mobile (flex-col stacking) the expanded panel always shows regardless
+                        of isLeftCollapsed — a collapsed strip would occupy the full viewport
+                        width for a single button, which is unusable. On md+ the collapse strip
+                        appears and the expanded panel hides as normal. */}
+                    {isLeftCollapsed && (
+                        <aside className="hidden md:flex md:w-10 shrink-0 border-r border-zinc-700 flex-col items-center py-3">
                             <button
                                 onClick={() => setIsLeftCollapsed(false)}
                                 aria-label="Expand workout list"
@@ -1082,9 +1102,14 @@ export function App(): JSX.Element {
                                 </svg>
                             </button>
                         </aside>
-                    ) : (
-                        <aside className="w-72 shrink-0 border-r border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
-                            <div className="flex justify-end">
+                    )}
+                    <aside className={[
+                        'w-full md:w-56 lg:w-72 shrink-0 border-r border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3',
+                        // At md+ hide the expanded panel when collapsed (the narrow strip above takes its place)
+                        isLeftCollapsed ? 'md:hidden' : '',
+                    ].filter(Boolean).join(' ')}>
+                            {/* Collapse button is hidden on mobile where panels stack vertically */}
+                            <div className="hidden md:flex justify-end">
                                 <button
                                     onClick={() => setIsLeftCollapsed(true)}
                                     aria-label="Collapse workout list"
@@ -1144,12 +1169,11 @@ export function App(): JSX.Element {
                             )}
 
                             {saveError && (
-                                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                <p className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                     {saveError}
                                 </p>
                             )}
-                        </aside>
-                    )}
+                    </aside>
 
                     {/* Centre panel: canvas and editors */}
                     <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
@@ -1167,7 +1191,7 @@ export function App(): JSX.Element {
                         )}
 
                         {exportError !== null && (
-                            <p className="text-sm text-red-300">{exportError}</p>
+                            <p className="text-sm text-red-200">{exportError}</p>
                         )}
 
                         <WorkoutCanvas
@@ -1226,19 +1250,19 @@ export function App(): JSX.Element {
                         )}
 
                         {metadataError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {metadataError}
                             </p>
                         )}
 
                         {undoError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {undoError}
                             </p>
                         )}
 
                         {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 Auto-save failed: {autosaveError}
                             </p>
                         )}
@@ -1260,9 +1284,12 @@ export function App(): JSX.Element {
                         )}
                     </main>
 
-                    {/* Right panel: block library */}
-                    {isRightCollapsed ? (
-                        <aside className="w-10 shrink-0 border-l border-zinc-700 flex flex-col items-center py-3">
+                    {/* Right panel: block library.
+                        Same pattern as the left panel: on mobile the expanded panel always
+                        shows (stacked below the editor). On md+ the collapse strip is visible
+                        and the expanded panel hides when isRightCollapsed is true. */}
+                    {isRightCollapsed && (
+                        <aside className="hidden md:flex md:w-10 shrink-0 border-l border-zinc-700 flex-col items-center py-3">
                             <button
                                 onClick={() => setIsRightCollapsed(false)}
                                 aria-label="Expand block library"
@@ -1273,83 +1300,93 @@ export function App(): JSX.Element {
                                 </svg>
                             </button>
                         </aside>
-                    ) : (
-                        <aside className="w-80 shrink-0 border-l border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
-                            <div className="flex justify-start">
+                    )}
+                    <aside className={[
+                        'w-full md:w-64 lg:w-80 shrink-0 border-l border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3',
+                        // At md+ hide the expanded panel when collapsed (the narrow strip above takes its place)
+                        isRightCollapsed ? 'md:hidden' : '',
+                    ].filter(Boolean).join(' ')}>
+                        {/* Collapse button is hidden on mobile where panels stack vertically */}
+                        <div className="hidden md:flex justify-start">
+                            <button
+                                onClick={() => setIsRightCollapsed(true)}
+                                aria-label="Collapse block library"
+                                className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {isAuthenticated ? (
+                            <>
                                 <button
+<<<<<<< feat/issue-149-touch-targets
                                     onClick={() => setIsRightCollapsed(true)}
                                     aria-label="Collapse block library"
                                     className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+=======
+                                    onClick={() => setIsCreateBlockOpen(true)}
+                                    className={`
+                                        w-full px-4 py-2
+                                        bg-brand-600 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-brand-500 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
+>>>>>>> dev
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                        <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                                    </svg>
+                                    + New block
+                                </button>
+
+                                <BlockLibrary
+                                    blocks={libraryBlocks}
+                                    isLoading={isLoadingBlocks}
+                                    error={blocksError}
+                                    onEditBlock={(block) => setEditingBlock(block)}
+                                    onDeleteBlock={deleteLibraryBlock}
+                                />
+                            </>
+                        ) : (
+                            // Guest mode: locked block library panel
+                            <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
+                                    <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
+                                </svg>
+                                <p className="text-sm text-zinc-400 leading-relaxed">
+                                    Sign in to save your workouts and access the block library.
+                                </p>
+                                <button
+                                    onClick={() => setIsSignInOpen(true)}
+                                    className={`
+                                        px-4 py-2
+                                        bg-brand-600 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-brand-500 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
+                                >
+                                    Sign in
+                                </button>
+                                <button
+                                    onClick={() => setIsSignUpOpen(true)}
+                                    className={`
+                                        px-4 py-2
+                                        bg-zinc-700 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-zinc-600 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
+                                >
+                                    Create account
                                 </button>
                             </div>
-
-                            {isAuthenticated ? (
-                                <>
-                                    <button
-                                        onClick={() => setIsCreateBlockOpen(true)}
-                                        className={`
-                                            w-full px-4 py-2
-                                            bg-brand-600 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-brand-500 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        + New block
-                                    </button>
-
-                                    <BlockLibrary
-                                        blocks={libraryBlocks}
-                                        isLoading={isLoadingBlocks}
-                                        error={blocksError}
-                                        onEditBlock={(block) => setEditingBlock(block)}
-                                        onDeleteBlock={deleteLibraryBlock}
-                                    />
-                                </>
-                            ) : (
-                                // Guest mode: locked block library panel
-                                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
-                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
-                                    </svg>
-                                    <p className="text-sm text-zinc-400 leading-relaxed">
-                                        Sign in to save your workouts and access the block library.
-                                    </p>
-                                    <button
-                                        onClick={() => setIsSignInOpen(true)}
-                                        className={`
-                                            px-4 py-2
-                                            bg-brand-600 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-brand-500 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        Sign in
-                                    </button>
-                                    <button
-                                        onClick={() => setIsSignUpOpen(true)}
-                                        className={`
-                                            px-4 py-2
-                                            bg-zinc-700 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-zinc-600 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        Create account
-                                    </button>
-                                </div>
-                            )}
-                        </aside>
-                    )}
+                        )}
+                    </aside>
                 </div>
             ) : (
                 // Landing screen: shown before the user has signed in or chosen guest mode
