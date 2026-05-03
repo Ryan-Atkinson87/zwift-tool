@@ -170,7 +170,7 @@ export function Modal({ isOpen, onClose, title, children, titleId }: Props): JSX
                     <h2 id={resolvedTitleId} className="text-xl font-semibold">{title}</h2>
                     <button
                         onClick={onClose}
-                        className="text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
+                        className="min-w-11 min-h-11 flex items-center justify-center text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
                         aria-label="Close modal"
                     >
                         &#x2715;
