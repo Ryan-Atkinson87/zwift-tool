@@ -1,4 +1,5 @@
 import { useState, useRef, type JSX } from 'react'
+import { useContainerWidth } from '../../hooks/useContainerWidth'
 import type { BlockDetail, ParsedInterval, SectionType, WorkoutDetail } from '../../types/workout'
 import { expandIntervalsToBars, type ChartBar } from '../../utils/intervalExpander'
 import { getColourForZone, getZoneForPower } from '../../utils/zoneColours'
@@ -825,7 +826,10 @@ function ChartArea({
     onMoveTextEvent,
 }: ChartAreaProps): JSX.Element {
     const svgRef = useRef<SVGSVGElement | null>(null)
-    const containerRef = useRef<HTMLDivElement | null>(null)
+    // Measure the real container width so corner radii and hit areas are
+    // accurate on any viewport. The ref doubles as the existing containerRef
+    // used for text event drag position calculation.
+    const { ref: containerRef, width: containerWidth } = useContainerWidth(700)
     const [boundaryDragActive, setBoundaryDragActive] = useState<BoundaryDragActive | null>(null)
     // Each boundary tracks its own pending state so both can be moved before saving.
     const [wuMsPending, setWuMsPending] = useState<{ count: number; snapPositions: number[] } | null>(null)
@@ -1412,6 +1416,7 @@ function ChartArea({
                         layouts={layouts}
                         totalWidth={totalWidth}
                         yMax={yMax}
+                        containerWidth={containerWidth}
                         onSelectInterval={
                             barDragState === null && resizeDragState === null && paletteDragState === null
                                 ? onSelectInterval
@@ -1710,6 +1715,8 @@ interface UnifiedChartProps {
     layouts: SectionLayout[]
     totalWidth: number
     yMax: number
+    /** Measured container width in screen pixels, used for corner radius and hit area scaling. */
+    containerWidth: number
     onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
     selectedInterval: { sectionType: SectionType; intervalIndex: number } | null
     wuMsHandleX: number
@@ -1760,6 +1767,7 @@ function UnifiedChart({
     layouts,
     totalWidth,
     yMax,
+    containerWidth,
     onSelectInterval,
     selectedInterval,
     wuMsHandleX,
@@ -1820,6 +1828,7 @@ function UnifiedChart({
                     layout.section.type,
                     layout.xOffset,
                     totalWidth,
+                    containerWidth,
                     onSelectInterval,
                     selectedInterval?.sectionType === layout.section.type
                         ? selectedInterval.intervalIndex
@@ -1850,6 +1859,7 @@ function UnifiedChart({
                         yMax,
                         barDragState.pointerSvgX - barDragState.grabOffsetX,
                         totalWidth,
+                        containerWidth,
                     )}
                 </g>
             )}
@@ -1893,6 +1903,8 @@ function UnifiedChart({
                     canMove={canMoveBoundary && !isDraggingBar}
                     onPointerDown={onBoundaryPointerDown}
                     isDraggingBoundary={isDraggingBoundary}
+                    svgTotalWidth={totalWidth}
+                    containerWidth={containerWidth}
                 />
             )}
 
@@ -1906,11 +1918,19 @@ function UnifiedChart({
                     canMove={canMoveBoundary && !isDraggingBar}
                     onPointerDown={onBoundaryPointerDown}
                     isDraggingBoundary={isDraggingBoundary}
+                    svgTotalWidth={totalWidth}
+                    containerWidth={containerWidth}
                 />
             )}
         </svg>
     )
 }
+
+/**
+ * Minimum touch hit area in screen pixels for boundary drag handles.
+ * 44px meets the WCAG 2.5.5 recommended touch target size.
+ */
+const MIN_TOUCH_HIT_PX = 44
 
 interface BoundaryHandleProps {
     x: number
@@ -1920,12 +1940,17 @@ interface BoundaryHandleProps {
     canMove: boolean
     onPointerDown: (boundary: 'WU_MS' | 'MS_CD', e: React.PointerEvent) => void
     isDraggingBoundary: boolean
+    /** Full SVG viewBox width in SVG units. Used to convert screen px to SVG units. */
+    svgTotalWidth: number
+    /** Measured container width in screen pixels. Used to guarantee the 44px touch target. */
+    containerWidth: number
 }
 
 /**
  * A draggable vertical handle rendered between two sections. The handle is a
  * subtle line with small tick marks, styled to hint at interactivity without
- * dominating the chart.
+ * dominating the chart. The hit area is scaled to meet the 44px minimum touch
+ * target regardless of viewport width.
  */
 function BoundaryHandle({
     x,
@@ -1935,6 +1960,8 @@ function BoundaryHandle({
     canMove,
     onPointerDown,
     isDraggingBoundary,
+    svgTotalWidth,
+    containerWidth,
 }: BoundaryHandleProps): JSX.Element {
     const colour = isActive
         ? 'rgba(255,255,255,0.9)'
@@ -1943,8 +1970,10 @@ function BoundaryHandle({
         : 'rgba(161,161,170,0.35)' // subtle zinc when idle
 
     const cursor = canMove && !isDraggingBoundary ? 'col-resize' : 'default'
-    // A wider invisible rect behind the line gives a larger pointer target
-    const hitAreaWidth = 12
+    // Convert the minimum touch hit area from screen pixels to SVG units so the
+    // pointer target meets WCAG 2.5.5 regardless of how the SVG is scaled.
+    const svgUnitsPerPx = containerWidth > 0 ? svgTotalWidth / containerWidth : 1
+    const hitAreaWidth = Math.max(12, MIN_TOUCH_HIT_PX * svgUnitsPerPx)
 
     return (
         <g
@@ -1996,6 +2025,8 @@ function BoundaryHandle({
  * @param xOffset                    offset added to every bar's local x position
  * @param svgTotalWidth              full SVG viewBox width in seconds, used to compute
  *                                   aspect-ratio-compensated corner radii
+ * @param containerWidth             measured container width in screen pixels, paired with
+ *                                   svgTotalWidth to produce accurate screen-pixel conversions
  * @param onSelectInterval           called when the user clicks a bar
  * @param selectedIndex              interval index that should receive a highlight stroke
  * @param onBarPointerDown           called when the user initiates a drag on a bar
@@ -2011,6 +2042,7 @@ function buildSectionShapes(
     sectionType: SectionType,
     xOffset: number,
     svgTotalWidth: number,
+    containerWidth: number,
     onSelectInterval: ((sectionType: SectionType, intervalIndex: number) => void) | undefined,
     selectedIndex: number | null,
     onBarPointerDown:
@@ -2122,6 +2154,7 @@ function buildSectionShapes(
                 x={cursor}
                 yMax={yMax}
                 svgTotalWidth={svgTotalWidth}
+                containerWidth={containerWidth}
                 isSelected={isSelected}
                 isDragging={isDragging}
                 onClick={handleClick}
@@ -2149,6 +2182,7 @@ function buildGhostShapes(
     yMax: number,
     ghostX: number,
     svgTotalWidth: number,
+    containerWidth: number,
 ): JSX.Element[] {
     const shapes: JSX.Element[] = []
     let cursor = ghostX
@@ -2169,6 +2203,7 @@ function buildGhostShapes(
                 x={cursor}
                 yMax={yMax}
                 svgTotalWidth={svgTotalWidth}
+                containerWidth={containerWidth}
                 isSelected={false}
                 isDragging={false}
             />,
@@ -2190,6 +2225,12 @@ interface BarShapeProps {
      * preserveAspectRatio="none", so corners look circular rather than sloped.
      */
     svgTotalWidth: number
+    /**
+     * Measured container width in screen pixels. Used alongside svgTotalWidth
+     * to convert screen-pixel constants (corner radii, hit areas) into correct
+     * SVG units at any viewport width.
+     */
+    containerWidth: number
     isSelected: boolean
     /** True when this bar is the one being dragged. Renders faded. */
     isDragging: boolean
@@ -2228,6 +2269,7 @@ function BarShape({
     x,
     yMax,
     svgTotalWidth,
+    containerWidth,
     isSelected,
     isDragging,
     onClick,
@@ -2250,13 +2292,11 @@ function BarShape({
 
     // The SVG uses preserveAspectRatio="none" with a fixed height of PLOT_HEIGHT
     // px. This means 1 SVG y-unit = 1px exactly, but 1 SVG x-unit varies by
-    // workout duration. To produce circular-looking corners, ry is fixed in
-    // SVG units (= px) and rx is scaled by the viewBox aspect ratio.
-    // ASSUMED_CONTAINER_PX is a reasonable estimate of the rendered container
-    // width in screen pixels; the assumption only affects how circular the
-    // corners appear, not correctness.
-    const ASSUMED_CONTAINER_PX = 700
+    // workout duration and container width. To produce circular-looking corners,
+    // ry is fixed in SVG units (= px) and rx is scaled by the actual viewBox
+    // aspect ratio derived from the measured container width.
     const RY_PX = 4
+    const effectiveContainerPx = containerWidth > 0 ? containerWidth : 700
     const ry = RY_PX   // SVG y-units ≈ screen px since height is fixed 1:1
 
     if (bar.style === 'ramp' && bar.startPowerPercent !== null && bar.endPowerPercent !== null) {
@@ -2269,7 +2309,7 @@ function BarShape({
         // rx compensates for non-uniform SVG scaling so corners look circular.
         // Capped at 25% of bar width and 15% of each end height.
         const rx = Math.min(
-            RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX,
+            RY_PX * svgTotalWidth / effectiveContainerPx,
             w * 0.25,
             startHeight * 0.15,
             endHeight * 0.15,
@@ -2313,7 +2353,7 @@ function BarShape({
         const gradientId = `ramp-${x}-${bar.durationSeconds}`
 
         const HANDLE_HIT_PX_RAMP = 8
-        const hitWRamp = Math.min(HANDLE_HIT_PX_RAMP * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.4)
+        const hitWRamp = Math.min(HANDLE_HIT_PX_RAMP * svgTotalWidth / effectiveContainerPx, w * 0.4)
         const isResizingRamp = liveDurationSeconds !== undefined
         const rampRightLineColour = hoverRight || isResizingRamp
             ? 'rgba(255,255,255,0.85)'
@@ -2413,7 +2453,7 @@ function BarShape({
     const fill = getColourForZone(getZoneForPower(renderPower))
     // rx compensates for non-uniform SVG scaling; ry is in px-equivalent units.
     // Both are capped to prevent over-rounding short or flat bars.
-    const rxFlat = Math.min(RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.25)
+    const rxFlat = Math.min(RY_PX * svgTotalWidth / effectiveContainerPx, w * 0.25)
     const ryFlat = Math.min(ry, height / 3)
     // Axis-aligned edges allow separate rx/ry in the path for a proper elliptical
     // corner. Only the top two corners are rounded; the bottom stays flush.
@@ -2451,7 +2491,7 @@ function BarShape({
     // Same technique as rxFlat above. Capped at 40% of the bar dimension so
     // handles never swamp a very short or very flat bar.
     const HANDLE_HIT_PX = 8
-    const hitWRight = Math.min(HANDLE_HIT_PX * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.4)
+    const hitWRight = Math.min(HANDLE_HIT_PX * svgTotalWidth / effectiveContainerPx, w * 0.4)
     const hitHTop = Math.min(HANDLE_HIT_PX, height * 0.4)
 
     // Active drag detection for styling: live values are only passed when this

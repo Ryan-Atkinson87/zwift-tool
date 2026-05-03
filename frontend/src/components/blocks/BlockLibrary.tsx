@@ -49,7 +49,7 @@ export function BlockLibrary({ blocks, isLoading, error, onEditBlock, onDeleteBl
     if (error !== null) {
         return (
             <div className="w-full px-4 py-4 bg-red-900/30 border border-red-800 rounded-lg">
-                <p role="alert" className="text-sm text-red-300">{error}</p>
+                <p role="alert" className="text-sm text-red-200">{error}</p>
             </div>
         )
     }

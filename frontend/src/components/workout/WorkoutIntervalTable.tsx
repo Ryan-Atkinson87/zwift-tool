@@ -242,7 +242,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                     onClick={onDelete}
                     disabled={deleteDisabled}
                     className={`
-                        px-2 py-1
+                        px-2 min-h-11 flex items-center
                         bg-red-900/50 text-red-200
                         label-tiny
                         rounded
