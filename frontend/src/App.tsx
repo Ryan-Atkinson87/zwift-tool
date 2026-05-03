@@ -1144,7 +1144,7 @@ export function App(): JSX.Element {
                             )}
 
                             {saveError && (
-                                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                <p className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                     {saveError}
                                 </p>
                             )}
@@ -1167,7 +1167,7 @@ export function App(): JSX.Element {
                         )}
 
                         {exportError !== null && (
-                            <p className="text-sm text-red-300">{exportError}</p>
+                            <p className="text-sm text-red-200">{exportError}</p>
                         )}
 
                         <WorkoutCanvas
@@ -1226,19 +1226,19 @@ export function App(): JSX.Element {
                         )}
 
                         {metadataError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {metadataError}
                             </p>
                         )}
 
                         {undoError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {undoError}
                             </p>
                         )}
 
                         {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 Auto-save failed: {autosaveError}
                             </p>
                         )}
