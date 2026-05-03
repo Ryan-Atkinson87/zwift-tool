@@ -131,11 +131,11 @@ export function WorkoutList({
                 save we keep showing the existing list so the layout does
                 not collapse and the focused field stays in place. */}
             {isLoading && workouts.length === 0 && (
-                <p className="text-sm text-zinc-400">Loading workouts...</p>
+                <p role="status" aria-live="polite" className="text-sm text-zinc-400">Loading workouts...</p>
             )}
 
             {error && !isLoading && (
-                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                <p role="alert" className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
                     {error}
                 </p>
             )}

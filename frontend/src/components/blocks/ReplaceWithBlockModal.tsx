@@ -95,7 +95,7 @@ export function ReplaceWithBlockModal({
                 )}
 
                 {error !== null && (
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p role="alert" className="text-sm text-red-400">{error}</p>
                 )}
 
                 <div className="flex justify-end gap-3 mt-2">

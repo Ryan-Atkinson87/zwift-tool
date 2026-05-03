@@ -307,8 +307,11 @@ export function WorkoutCanvas({
 }: Props): JSX.Element {
     if (isLoading) {
         return (
-            <div className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
-                <p className="text-sm text-zinc-400">Loading workout...</p>
+            <div
+                className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center"
+                aria-busy="true"
+            >
+                <p role="status" aria-live="polite" className="text-sm text-zinc-400">Loading workout...</p>
             </div>
         )
     }
@@ -316,7 +319,7 @@ export function WorkoutCanvas({
     if (error) {
         return (
             <div className="w-full px-4 py-12 bg-red-900/30 border border-red-800 rounded-lg text-center">
-                <p className="text-sm text-red-300">{error}</p>
+                <p role="alert" className="text-sm text-red-300">{error}</p>
             </div>
         )
     }
