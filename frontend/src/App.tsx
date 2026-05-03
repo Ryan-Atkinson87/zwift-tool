@@ -1322,11 +1322,6 @@ export function App(): JSX.Element {
                         {isAuthenticated ? (
                             <>
                                 <button
-<<<<<<< feat/issue-149-touch-targets
-                                    onClick={() => setIsRightCollapsed(true)}
-                                    aria-label="Collapse block library"
-                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
-=======
                                     onClick={() => setIsCreateBlockOpen(true)}
                                     className={`
                                         w-full px-4 py-2
@@ -1336,7 +1331,6 @@ export function App(): JSX.Element {
                                         hover:bg-brand-500 transition-colors
                                         focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                     `}
->>>>>>> dev
                                 >
                                     + New block
                                 </button>
