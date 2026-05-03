@@ -964,8 +964,11 @@ export function App(): JSX.Element {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
-                <p className="text-zinc-400 text-sm">Loading...</p>
+            <div
+                className="flex items-center justify-center min-h-screen bg-zinc-900 text-white"
+                aria-busy="true"
+            >
+                <p role="status" aria-live="polite" className="text-zinc-400 text-sm">Loading...</p>
             </div>
         )
     }
@@ -1163,13 +1166,13 @@ export function App(): JSX.Element {
                             )}
 
                             {saveSuccess && (
-                                <p className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
+                                <p role="status" aria-live="polite" className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
                                     {saveSuccess}
                                 </p>
                             )}
 
                             {saveError && (
-                                <p className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
+                                <p role="alert" className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                     {saveError}
                                 </p>
                             )}
@@ -1191,7 +1194,7 @@ export function App(): JSX.Element {
                         )}
 
                         {exportError !== null && (
-                            <p className="text-sm text-red-200">{exportError}</p>
+                            <p role="alert" className="text-sm text-red-200">{exportError}</p>
                         )}
 
                         <WorkoutCanvas
@@ -1250,19 +1253,19 @@ export function App(): JSX.Element {
                         )}
 
                         {metadataError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {metadataError}
                             </p>
                         )}
 
                         {undoError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {undoError}
                             </p>
                         )}
 
                         {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 Auto-save failed: {autosaveError}
                             </p>
                         )}

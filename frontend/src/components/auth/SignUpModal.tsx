@@ -125,7 +125,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                         autoComplete="email"
                     />
                     {emailError && (
-                        <p className="text-sm text-red-400">{emailError}</p>
+                        <p role="alert" className="text-sm text-red-400">{emailError}</p>
                     )}
                 </div>
 
@@ -154,12 +154,12 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                         autoComplete="new-password"
                     />
                     {passwordError && (
-                        <p className="text-sm text-red-400">{passwordError}</p>
+                        <p role="alert" className="text-sm text-red-400">{passwordError}</p>
                     )}
                 </div>
 
                 {serverError && (
-                    <p className="text-sm text-red-400 text-center">{serverError}</p>
+                    <p role="alert" className="text-sm text-red-400 text-center">{serverError}</p>
                 )}
 
                 <button
