@@ -974,32 +974,79 @@ export function App(): JSX.Element {
         <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
 
             {/* ── Header ── */}
-            <header className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-zinc-700">
-                <div className="flex items-center gap-2.5">
-                    <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400">Trive Dev</span>
-                        <span className="text-base font-bold text-white">Zwift Tool</span>
+            {/*
+              * Two-row responsive layout:
+              * - Primary row (all widths): logo on the left, auth controls on the right.
+              * - Secondary row (md and above only): secondary actions (zone presets,
+              *   export all) hidden on narrow viewports to prevent overflow.
+              * overflow-x-hidden ensures no horizontal scroll at any width.
+              */}
+            <header className="shrink-0 px-4 py-3 border-b border-zinc-700 overflow-x-hidden">
+                {/* Primary row: logo + auth controls — always visible */}
+                <div className="flex items-center justify-between min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
+                        <div className="flex flex-col leading-none min-w-0">
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400 truncate">Trive Dev</span>
+                            <span className="text-base font-bold text-white truncate">Zwift Tool</span>
+                        </div>
                     </div>
+                    {isAuthenticated ? (
+                        <div className="flex items-center gap-3 shrink-0">
+                            <span className="hidden sm:inline text-sm text-zinc-300">
+                                Signed in as <span className="text-white font-medium">{user?.email}</span>
+                            </span>
+                            <button
+                                onClick={() => { handleClearSelection(); void signOut() }}
+                                className={`
+                                    px-3 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign out
+                            </button>
+                        </div>
+                    ) : guestMode ? (
+                        // In guest mode show compact auth controls so the user can sign
+                        // in at any point without leaving the editor
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setIsSignInOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-brand-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign in
+                            </button>
+                            <button
+                                onClick={() => setIsSignUpOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign up
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
-                {isAuthenticated ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-zinc-300">
-                            Signed in as <span className="text-white font-medium">{user?.email}</span>
-                        </span>
-                        <button
-                            onClick={() => { handleClearSelection(); void signOut() }}
-                            className={`
-                                px-3 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign out
-                        </button>
+
+                {/* Secondary row: zone presets + export all — hidden on mobile to prevent overflow */}
+                {isAuthenticated && (
+                    <div className="hidden md:flex items-center gap-3 mt-2">
                         {savedWorkouts.length > 0 && (
                             <button
                                 onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
@@ -1031,38 +1078,7 @@ export function App(): JSX.Element {
                             Zone presets
                         </button>
                     </div>
-                ) : guestMode ? (
-                    // In guest mode show compact auth controls so the user can sign
-                    // in at any point without leaving the editor
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsSignInOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-brand-600 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-brand-500 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign in
-                        </button>
-                        <button
-                            onClick={() => setIsSignUpOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign up
-                        </button>
-                    </div>
-                ) : null}
+                )}
             </header>
 
             {/* ── Three-panel body or landing ── */}
