@@ -94,7 +94,7 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
                             onClick={(e) => { e.stopPropagation(); onEdit() }}
                             aria-label="Edit block"
                             className={`
-                                shrink-0 p-0.5
+                                shrink-0 min-w-11 min-h-11 flex items-center justify-center
                                 text-zinc-500
                                 hover:text-white transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
@@ -112,7 +112,7 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
                             onClick={handleDeleteClick}
                             aria-label="Delete block"
                             className={`
-                                shrink-0 p-0.5
+                                shrink-0 min-w-11 min-h-11 flex items-center justify-center
                                 text-zinc-500
                                 hover:text-red-400 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
