@@ -172,6 +172,61 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Saves a batch of workouts directly, placing all intervals into the main
+     * set block with no warm-up or cool-down. Used for multi-file imports to
+     * skip the section splitter step entirely.
+     *
+     * @param workouts the parsed workouts to save
+     */
+    async function saveParsedWorkoutsAsMainset(workouts: ParsedWorkout[]): Promise<void> {
+        setIsSaving(true)
+        setSaveError(null)
+
+        const errors: string[] = []
+
+        for (const workout of workouts) {
+            try {
+                await saveWorkout({
+                    name: workout.name,
+                    author: workout.author,
+                    description: workout.description,
+                    tags: workout.tags,
+                    warmupContent: null,
+                    mainsetContent: JSON.stringify(workout.intervals),
+                    cooldownContent: null,
+                    warmupDurationSeconds: null,
+                    mainsetDurationSeconds: sumDuration(workout.intervals),
+                    cooldownDurationSeconds: null,
+                    warmupIntervalCount: null,
+                    mainsetIntervalCount: workout.intervals.length,
+                    cooldownIntervalCount: null,
+                })
+            } catch (error) {
+                errors.push(
+                    error instanceof Error
+                        ? error.message
+                        : `Failed to save "${workout.name}".`
+                )
+            }
+        }
+
+        setIsSaving(false)
+
+        if (errors.length > 0) {
+            setSaveError(errors.join(' '))
+        } else {
+            const count = workouts.length
+            setSaveSuccess(
+                count === 1
+                    ? `"${workouts[0]!.name}" saved successfully.`
+                    : `${count} workouts saved successfully.`
+            )
+        }
+
+        void reloadWorkouts()
+    }
+
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
         setSaveSuccess(null)
         setSaveError(null)
@@ -195,11 +250,20 @@ export function App(): JSX.Element {
             }
         }
 
-        // Add non-clashing workouts to the import queue immediately
-        setParsedWorkouts((prev) => [...prev, ...nonClashing])
-        if (clashes.length === 0 && nonClashing.length === 1) {
-            setSplittingWorkout(nonClashing[0])
+        if (clashes.length === 0) {
+            if (nonClashing.length === 1) {
+                // Single file: show the section splitter as before
+                setParsedWorkouts(nonClashing)
+                setSplittingWorkout(nonClashing[0])
+            } else if (nonClashing.length > 1) {
+                // Multiple files: save all immediately as mainset-only, no splitter
+                void saveParsedWorkoutsAsMainset(nonClashing)
+            }
+            return
         }
+
+        // Queue any non-clashing workouts for after clashes are resolved
+        setParsedWorkouts((prev) => [...prev, ...nonClashing])
 
         if (clashes.length > 0) {
             setPendingClashes(clashes)
@@ -209,12 +273,17 @@ export function App(): JSX.Element {
     function resolveClash(resolvedWorkout: ParsedWorkout | null): void {
         setPendingClashes((prev) => {
             const remaining = prev.slice(1)
-            // When the last clash is resolved, auto-start split if it produced one workout
             if (remaining.length === 0 && resolvedWorkout !== null) {
                 setParsedWorkouts((current) => {
                     const updated = [...current, resolvedWorkout]
-                    if (updated.length === 1) setSplittingWorkout(updated[0])
-                    return updated
+                    if (updated.length === 1) {
+                        // Single resolved workout: show the section splitter
+                        setSplittingWorkout(updated[0])
+                        return updated
+                    }
+                    // Multiple resolved workouts: bypass splitter and save immediately
+                    void saveParsedWorkoutsAsMainset(updated)
+                    return []
                 })
             } else if (resolvedWorkout !== null) {
                 setParsedWorkouts((current) => [...current, resolvedWorkout])
