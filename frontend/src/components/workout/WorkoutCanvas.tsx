@@ -275,6 +275,8 @@ interface PaletteDragState {
     /** Current pointer position in client (screen) coordinates for ghost positioning. */
     clientX: number
     clientY: number
+    /** True once the pointer has moved past pointerdown. Prevents the ghost appearing on a bare tap/click. */
+    hasMoved: boolean
 }
 
 /**
@@ -1012,23 +1014,36 @@ function ChartArea({
      * allowing the drop target to be tracked even when the pointer is outside
      * the palette.
      */
-    function handlePaletteItemPointerDown(interval: ParsedInterval, e: React.PointerEvent): void {
+    function handlePaletteItemPointerDown(
+        interval: ParsedInterval,
+        pointerId: number,
+        clientX: number,
+        clientY: number,
+    ): void {
         if (svgRef.current === null) return
-        e.preventDefault()
         // Transfer capture to the SVG so pointermove/up fire there during drag.
-        svgRef.current.setPointerCapture(e.pointerId)
+        // pointerId may be used from a setTimeout callback (touch long-press), so
+        // we accept primitives rather than the original React event.
+        svgRef.current.setPointerCapture(pointerId)
         setPaletteDragState({
             interval,
             dropSection: null,
             dropInsertIndex: null,
             dropIndicatorX: null,
-            clientX: e.clientX,
-            clientY: e.clientY,
+            clientX,
+            clientY,
+            hasMoved: false,
         })
     }
 
     function handleSvgPointerMove(e: React.PointerEvent<SVGSVGElement>): void {
         if (svgRef.current === null) return
+        // Palette drags don't call preventDefault at pointerdown (the 200ms hold
+        // window must leave scroll open). Suppress scroll here once the SVG owns
+        // the pointer capture and a palette drag is in progress.
+        if (paletteDragState !== null) {
+            e.preventDefault()
+        }
         const { x: svgX, y: svgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
 
         if (resizeDragState !== null) {
@@ -1088,6 +1103,7 @@ function ChartArea({
                     dropIndicatorX: dropX,
                     clientX: e.clientX,
                     clientY: e.clientY,
+                    hasMoved: true,
                 } : null)
             } else {
                 setPaletteDragState((prev) => prev !== null ? {
@@ -1097,6 +1113,7 @@ function ChartArea({
                     dropIndicatorX: null,
                     clientX: e.clientX,
                     clientY: e.clientY,
+                    hasMoved: true,
                 } : null)
             }
             return
@@ -1212,6 +1229,17 @@ function ChartArea({
                 onMoveInterval?.(sourceSection, sourceIntervalIndex, ghostSection, ghostInsertIndex)
             }
         }
+    }
+
+    function handleSvgPointerCancel(e: React.PointerEvent<SVGSVGElement>): void {
+        if (svgRef.current !== null) {
+            svgRef.current.releasePointerCapture(e.pointerId)
+        }
+        setBarDragState(null)
+        setPaletteDragState(null)
+        setResizeDragState(null)
+        setBoundaryDragActive(null)
+        setTextEventDragState(null)
     }
 
     function handleSaveBoundary(): void {
@@ -1434,6 +1462,7 @@ function ChartArea({
                         onBarPointerDown={handleBarPointerDown}
                         onSvgPointerMove={handleSvgPointerMove}
                         onSvgPointerUp={handleSvgPointerUp}
+                        onSvgPointerCancel={handleSvgPointerCancel}
                         canDrag={
                             (onReorderInterval !== undefined || onMoveInterval !== undefined)
                             && resizeDragState === null
@@ -1685,12 +1714,12 @@ function ChartArea({
                 <IntervalPalette
                     zonePresets={zonePresets}
                     onItemPointerDown={handlePaletteItemPointerDown}
-                    isDragging={paletteDragState !== null}
+                    isDragging={paletteDragState !== null && paletteDragState.hasMoved}
                 />
             )}
 
             {/* Floating ghost: follows the cursor while dragging from the palette. */}
-            {paletteDragState !== null && (
+            {paletteDragState !== null && paletteDragState.hasMoved && (
                 <div
                     style={{
                         position: 'fixed',
@@ -1736,6 +1765,7 @@ interface UnifiedChartProps {
     ) => void
     onSvgPointerMove: (e: React.PointerEvent<SVGSVGElement>) => void
     onSvgPointerUp: (e: React.PointerEvent<SVGSVGElement>) => void
+    onSvgPointerCancel: (e: React.PointerEvent<SVGSVGElement>) => void
     /** Whether bar drag is enabled (parent has provided drag callbacks). */
     canDrag: boolean
     /** Whether boundary drag is enabled (parent has provided boundary callback). */
@@ -1781,6 +1811,7 @@ function UnifiedChart({
     onBarPointerDown,
     onSvgPointerMove,
     onSvgPointerUp,
+    onSvgPointerCancel,
     canDrag,
     canMoveBoundary,
     onResizeHandlePointerDown,
@@ -1798,6 +1829,7 @@ function UnifiedChart({
             style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none' }}
             onPointerMove={onSvgPointerMove}
             onPointerUp={onSvgPointerUp}
+            onPointerCancel={onSvgPointerCancel}
         >
             {/* Section background rects */}
             {layouts.map((layout) => {
@@ -1849,7 +1881,7 @@ function UnifiedChart({
             {/* Ghost bar: follows the cursor in both axes. The grab offsets
                 ensure the bar stays under exactly the pixel that was clicked
                 rather than jumping to a centred or left-aligned position. */}
-            {barDragState !== null && (
+            {barDragState !== null && barDragState.hasMoved && (
                 <g
                     pointerEvents="none"
                     transform={`translate(0, ${barDragState.pointerSvgY - barDragState.grabOffsetY})`}
@@ -1865,7 +1897,7 @@ function UnifiedChart({
             )}
 
             {/* Drop indicator: thick solid line at the snapped insert position. */}
-            {barDragState !== null && (
+            {barDragState !== null && barDragState.hasMoved && (
                 <line
                     x1={barDragState.ghostX}
                     y1={-TOP_PADDING}
