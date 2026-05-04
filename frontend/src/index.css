@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
 /* Prevent the browser's overscroll (rubber-band) effect from revealing the
-   default white page background at the top and bottom of the viewport. */
+   default white page background at the top and bottom of the viewport.
+   overscroll-behavior-y: none also disables Chrome's pull-to-refresh gesture,
+   which would otherwise reload the page when the user drags down from the top
+   of a scrollable panel. */
 @layer base {
     html {
         @apply bg-zinc-900;
         font-family: 'Raleway', ui-sans-serif, system-ui, sans-serif;
+        overscroll-behavior-y: none;
     }
 }
 
