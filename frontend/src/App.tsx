@@ -47,11 +47,21 @@ export function App(): JSX.Element {
     const [isSaving, setIsSaving] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
-    const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+    const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(() =>
+        sessionStorage.getItem('zwift-tool.selectedWorkoutId')
+    )
     const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([])
     const [isSelectMode, setIsSelectMode] = useState(false)
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
     const [isRightCollapsed, setIsRightCollapsed] = useState(false)
+    // Mobile-only panel navigation: 'list' shows the workout list, 'editor' shows the canvas.
+    // On md+ all panels are always visible regardless of this state.
+    // Restored from sessionStorage so a pull-to-refresh doesn't drop the user back to the list.
+    const [mobilePanel, setMobilePanel] = useState<'list' | 'editor'>(() => {
+        const workoutId = sessionStorage.getItem('zwift-tool.selectedWorkoutId')
+        const panel = sessionStorage.getItem('zwift-tool.mobilePanel')
+        return (panel === 'editor' && workoutId !== null) ? 'editor' : 'list'
+    })
 
     // Guest mode: true once the user has chosen to use the tool without signing in
     const [guestMode, setGuestMode] = useState(false)
@@ -127,6 +137,20 @@ export function App(): JSX.Element {
             setSplittingWorkout(null)
         }
     }, [isAuthenticated])
+
+    // Persist selected workout and mobile panel across page reloads so a
+    // pull-to-refresh or accidental reload returns the user to where they were.
+    useEffect(() => {
+        if (selectedWorkoutId !== null) {
+            sessionStorage.setItem('zwift-tool.selectedWorkoutId', selectedWorkoutId)
+        } else {
+            sessionStorage.removeItem('zwift-tool.selectedWorkoutId')
+        }
+    }, [selectedWorkoutId])
+
+    useEffect(() => {
+        sessionStorage.setItem('zwift-tool.mobilePanel', mobilePanel)
+    }, [mobilePanel])
 
     // Auto-save loop. In guest mode selectedWorkout is null so this hook is
     // effectively inactive — guest edits update guestWorkout directly instead.
@@ -234,7 +258,10 @@ export function App(): JSX.Element {
         if (!isAuthenticated) {
             // Guest mode: no saved workouts to clash with
             setParsedWorkouts(workouts)
-            if (workouts.length === 1) setSplittingWorkout(workouts[0])
+            if (workouts.length === 1) {
+                setSplittingWorkout(workouts[0])
+                setMobilePanel('editor')
+            }
             return
         }
 
@@ -255,6 +282,7 @@ export function App(): JSX.Element {
                 // Single file: show the section splitter as before
                 setParsedWorkouts(nonClashing)
                 setSplittingWorkout(nonClashing[0])
+                setMobilePanel('editor')
             } else if (nonClashing.length > 1) {
                 // Multiple files: save all immediately as mainset-only, no splitter
                 void saveParsedWorkoutsAsMainset(nonClashing)
@@ -312,6 +340,7 @@ export function App(): JSX.Element {
         setSplittingWorkout(workout)
         setSaveSuccess(null)
         setSaveError(null)
+        setMobilePanel('editor')
     }
 
     async function handleConfirmSplit(split: SectionSplit): Promise<void> {
@@ -359,6 +388,7 @@ export function App(): JSX.Element {
             setParsedWorkouts((prev) =>
                 prev.filter((w) => w.fileName !== split.workout.fileName)
             )
+            setMobilePanel('editor')
             return
         }
 
@@ -389,6 +419,8 @@ export function App(): JSX.Element {
 
             setSaveSuccess(`"${split.workout.name}" saved successfully.`)
             setSplittingWorkout(null)
+            // Return to the list on mobile so the user can see and select the saved workout
+            setMobilePanel('list')
 
             // Remove the saved workout from the parsed list
             setParsedWorkouts((prev) =>
@@ -838,6 +870,7 @@ export function App(): JSX.Element {
                 createdAt: now,
                 updatedAt: now,
             })
+            setMobilePanel('editor')
             return
         }
 
@@ -864,6 +897,7 @@ export function App(): JSX.Element {
             setSaveSuccess('New blank workout created.')
             await reloadWorkouts()
             setSelectedWorkoutId(created.id)
+            setMobilePanel('editor')
         } catch (error) {
             setSaveError(error instanceof Error ? error.message : 'Failed to create blank workout.')
         } finally {
@@ -1176,10 +1210,13 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside className={[
-                        'w-full md:w-56 lg:w-72 shrink-0 border-r border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3',
-                        // At md+ hide the expanded panel when collapsed (the narrow strip above takes its place)
-                        isLeftCollapsed ? 'md:hidden' : '',
-                    ].filter(Boolean).join(' ')}>
+                        'w-full md:w-56 lg:w-72 shrink-0 border-r border-zinc-700 flex-col overflow-y-auto p-3 gap-3',
+                        // Mobile: show only when on the list panel; md+: follow collapse state.
+                        // All four combinations produce a single non-conflicting display class.
+                        mobilePanel === 'list'
+                            ? (isLeftCollapsed ? 'flex md:hidden' : 'flex')
+                            : (isLeftCollapsed ? 'hidden' : 'hidden md:flex'),
+                    ].join(' ')}>
                             {/* Collapse button is hidden on mobile where panels stack vertically */}
                             <div className="hidden md:flex justify-end">
                                 <button
@@ -1220,7 +1257,7 @@ export function App(): JSX.Element {
                                     selectedWorkoutIds={selectedWorkoutIds}
                                     isSelectMode={isSelectMode}
                                     isExporting={isExporting}
-                                    onSelect={setSelectedWorkoutId}
+                                    onSelect={(id) => { setSelectedWorkoutId(id); setMobilePanel('editor') }}
                                     onToggleSelect={handleToggleWorkoutSelect}
                                     onSelectModeChange={setIsSelectMode}
                                     onClearSelection={handleClearSelection}
@@ -1248,7 +1285,23 @@ export function App(): JSX.Element {
                     </aside>
 
                     {/* Centre panel: canvas and editors */}
-                    <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
+                    <main className={[
+                        'flex-1 flex-col overflow-y-auto p-4 gap-4',
+                        // Mobile: show only when on the editor panel; md+: always shown
+                        mobilePanel === 'list' ? 'hidden md:flex' : 'flex',
+                    ].join(' ')}>
+                        {/* Mobile back button — only visible below md breakpoint */}
+                        <button
+                            onClick={() => setMobilePanel('list')}
+                            className="md:hidden flex items-center gap-1 text-sm text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded self-start"
+                            aria-label="Back to workout list"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
+                                <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                            </svg>
+                            Back to workouts
+                        </button>
+
                         {activeWorkout !== null && (
                             <WorkoutMetadataEditor
                                 key={activeWorkout.id}
@@ -1374,10 +1427,11 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside className={[
-                        'w-full md:w-64 lg:w-80 shrink-0 border-l border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3',
-                        // At md+ hide the expanded panel when collapsed (the narrow strip above takes its place)
-                        isRightCollapsed ? 'md:hidden' : '',
-                    ].filter(Boolean).join(' ')}>
+                        'w-full md:w-64 lg:w-80 shrink-0 border-l border-zinc-700 flex-col overflow-y-auto p-3 gap-3',
+                        // Mobile: always hide the right panel (block library modals remain accessible).
+                        // md+: follow collapse state.
+                        isRightCollapsed ? 'hidden' : 'hidden md:flex',
+                    ].join(' ')}>
                         {/* Collapse button is hidden on mobile where panels stack vertically */}
                         <div className="hidden md:flex justify-start">
                             <button
