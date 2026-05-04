@@ -1,6 +1,6 @@
 import { fetchWithAuth } from './client'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * A single effective zone preset as returned by the backend, with either

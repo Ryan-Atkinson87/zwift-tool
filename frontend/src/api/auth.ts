@@ -1,6 +1,6 @@
 import type { AuthResponse, SignInRequest, SignUpRequest } from '../types/auth.ts'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * Registers a new user with email and password.
