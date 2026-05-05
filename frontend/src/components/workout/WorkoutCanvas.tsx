@@ -1395,6 +1395,7 @@ function ChartArea({
                                         type="button"
                                         onClick={() => onSaveToLibrary(section.type)}
                                         title="Save this section to your block library"
+                                        aria-label="Save this section to your block library"
                                         className={`
                                             px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
@@ -1404,7 +1405,24 @@ function ChartArea({
                                             focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                         `}
                                     >
-                                        Save
+                                        <span className="hidden sm:inline">Save</span>
+                                        <svg
+                                            className="sm:hidden w-3.5 h-3.5"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            aria-hidden="true"
+                                        >
+                                            {/* Floppy disk body with notched top-right corner */}
+                                            <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+                                            {/* Write-protect shutter slot at top */}
+                                            <rect x="5" y="2" width="4" height="3.5" rx="0.3" />
+                                            {/* Label area at bottom */}
+                                            <rect x="4" y="8.5" width="8" height="4" rx="0.5" />
+                                        </svg>
                                     </button>
                                 )}
                                 {onReplaceSection !== undefined && (
@@ -1412,6 +1430,7 @@ function ChartArea({
                                         type="button"
                                         onClick={() => onReplaceSection(section.type)}
                                         title="Replace this section with a saved library block"
+                                        aria-label="Replace this section with a saved library block"
                                         className={`
                                             px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
@@ -1421,7 +1440,22 @@ function ChartArea({
                                             focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                         `}
                                     >
-                                        Replace
+                                        <span className="hidden sm:inline">Replace</span>
+                                        <svg
+                                            className="sm:hidden w-3.5 h-3.5"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="M13.5 2.5A6.5 6.5 0 0 0 3 5.5" />
+                                            <polyline points="1 4 3 6 5 4" />
+                                            <path d="M2.5 13.5A6.5 6.5 0 0 0 13 10.5" />
+                                            <polyline points="15 12 13 10 11 12" />
+                                        </svg>
                                     </button>
                                 )}
                             </div>
@@ -2692,6 +2726,7 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
             onClick={() => onClick?.(sectionType)}
             disabled={disabled}
             title="Undo last change to this section"
+            aria-label="Undo last change to this section"
             className={`
                 px-2 py-0.5
                 bg-zinc-700 text-zinc-200
@@ -2702,7 +2737,20 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-700
             `}
         >
-            Undo
+            <span className="hidden sm:inline">Undo</span>
+            <svg
+                className="sm:hidden w-3.5 h-3.5"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M2.5 6H10a3.5 3.5 0 0 1 0 7H6" />
+                <polyline points="5.5 3 2.5 6 5.5 9" />
+            </svg>
         </button>
     )
 }
