@@ -1979,10 +1979,11 @@ interface BoundaryHandleProps {
 }
 
 /**
- * A draggable vertical handle rendered between two sections. The handle is a
- * subtle line with small tick marks, styled to hint at interactivity without
- * dominating the chart. The hit area is scaled to meet the 44px minimum touch
- * target regardless of viewport width.
+ * A draggable vertical handle rendered between two sections. The full-height
+ * line remains visible but is non-interactive outside the grab capsule. Only
+ * the capsule near the top of the chart responds to pointer events, preventing
+ * accidental activation when the user drags bars across section boundaries on
+ * mobile. The capsule style mirrors the SectionSplitter boundary handles.
  */
 function BoundaryHandle({
     x,
@@ -1995,54 +1996,90 @@ function BoundaryHandle({
     svgTotalWidth,
     containerWidth,
 }: BoundaryHandleProps): JSX.Element {
-    const colour = isActive
+    const lineColour = isActive
         ? 'rgba(255,255,255,0.9)'
         : hasPending
-        ? 'rgba(34,197,94,0.9)'    // brand green when pending
-        : 'rgba(161,161,170,0.35)' // subtle zinc when idle
+        ? 'rgba(34,197,94,0.9)'
+        : 'rgba(161,161,170,0.35)'
+
+    const capsuleColour = isActive
+        ? 'rgba(34,197,94,1.0)'
+        : hasPending
+        ? 'rgba(34,197,94,0.9)'
+        : canMove
+        ? 'rgba(34,197,94,0.75)'
+        : 'rgba(161,161,170,0.25)'
 
     const cursor = canMove && !isDraggingBoundary ? 'col-resize' : 'default'
-    // Convert the minimum touch hit area from screen pixels to SVG units so the
-    // pointer target meets WCAG 2.5.5 regardless of how the SVG is scaled.
     const svgUnitsPerPx = containerWidth > 0 ? svgTotalWidth / containerWidth : 1
     const hitAreaWidth = Math.max(12, MIN_TOUCH_HIT_PX * svgUnitsPerPx)
 
+    // Capsule sits in the upper part of the TOP_PADDING zone (y = -TOP_PADDING to 0).
+    // Starting 18 SVG units from the very top so it reads as "near top, not at top".
+    const capsuleTop = -(TOP_PADDING * 0.82)
+    const capsuleBottom = -(TOP_PADDING * 0.48)
+    const capsuleCentre = (capsuleTop + capsuleBottom) / 2
+    const capsuleStrokeWidth = isActive ? 12 : 10
+
+    // Hit area covers the capsule with touch padding; stays entirely above the bars.
+    const hitTop = -(TOP_PADDING * 0.92)
+    const hitHeight = TOP_PADDING * 0.70
+
     return (
-        <g
-            onPointerDown={canMove ? (e) => onPointerDown(boundary, e) : undefined}
-            style={{ cursor }}
-        >
-            {/* Invisible wide hit area */}
-            <rect
-                x={x - hitAreaWidth / 2}
-                y={-TOP_PADDING}
-                width={hitAreaWidth}
-                height={PLOT_HEIGHT + TOP_PADDING}
-                fill="transparent"
-            />
-            {/* Visible line */}
+        <g>
+            {/* Full-height line: always visible, never interactive. */}
             <line
                 x1={x}
                 y1={-TOP_PADDING}
                 x2={x}
                 y2={PLOT_HEIGHT}
-                stroke={colour}
+                stroke={lineColour}
                 strokeWidth={isActive || hasPending ? 2 : 1}
                 vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
             />
-            {/* Grip ticks at the centre of the line */}
-            {[PLOT_HEIGHT * 0.42, PLOT_HEIGHT * 0.5, PLOT_HEIGHT * 0.58].map((tickY) => (
+
+            {/* Grab capsule: only this region initiates a boundary drag. */}
+            <g
+                onPointerDown={canMove ? (e) => onPointerDown(boundary, e) : undefined}
+                style={{ cursor }}
+            >
+                {/* Invisible hit area restricted to the capsule region */}
+                <rect
+                    x={x - hitAreaWidth / 2}
+                    y={hitTop}
+                    width={hitAreaWidth}
+                    height={hitHeight}
+                    fill="transparent"
+                />
+
+                {/* Capsule body */}
                 <line
-                    key={tickY}
-                    x1={x - 3}
-                    y1={tickY}
-                    x2={x + 3}
-                    y2={tickY}
-                    stroke={colour}
-                    strokeWidth={isActive || hasPending ? 2 : 1}
+                    x1={x}
+                    y1={capsuleTop}
+                    x2={x}
+                    y2={capsuleBottom}
+                    stroke={capsuleColour}
+                    strokeWidth={capsuleStrokeWidth}
+                    strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
                 />
-            ))}
+
+                {/* Three dot grip ridges inside the capsule */}
+                {[capsuleCentre - 8, capsuleCentre, capsuleCentre + 8].map((tickY) => (
+                    <line
+                        key={tickY}
+                        x1={x}
+                        y1={tickY}
+                        x2={x}
+                        y2={tickY}
+                        stroke="rgba(0,0,0,0.35)"
+                        strokeWidth={4}
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                ))}
+            </g>
         </g>
     )
 }
