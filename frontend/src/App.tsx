@@ -54,13 +54,13 @@ export function App(): JSX.Element {
     const [isSelectMode, setIsSelectMode] = useState(false)
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
     const [isRightCollapsed, setIsRightCollapsed] = useState(false)
-    // Mobile-only panel navigation: 'list' shows the workout list, 'editor' shows the canvas.
+    // Mobile-only panel navigation: 'workouts' and 'blocks' slide drawers over the editor canvas.
     // On md+ all panels are always visible regardless of this state.
     // Restored from sessionStorage so a pull-to-refresh doesn't drop the user back to the list.
-    const [mobilePanel, setMobilePanel] = useState<'list' | 'editor'>(() => {
+    const [mobilePanel, setMobilePanel] = useState<'editor' | 'workouts' | 'blocks'>(() => {
         const workoutId = sessionStorage.getItem('zwift-tool.selectedWorkoutId')
         const panel = sessionStorage.getItem('zwift-tool.mobilePanel')
-        return (panel === 'editor' && workoutId !== null) ? 'editor' : 'list'
+        return (panel === 'editor' && workoutId !== null) ? 'editor' : 'workouts'
     })
 
     // Guest mode: true once the user has chosen to use the tool without signing in
@@ -419,8 +419,8 @@ export function App(): JSX.Element {
 
             setSaveSuccess(`"${split.workout.name}" saved successfully.`)
             setSplittingWorkout(null)
-            // Return to the list on mobile so the user can see and select the saved workout
-            setMobilePanel('list')
+            // Open the workouts drawer on mobile so the user can see and select the saved workout
+            setMobilePanel('workouts')
 
             // Remove the saved workout from the parsed list
             setParsedWorkouts((prev) =>
@@ -1189,13 +1189,60 @@ export function App(): JSX.Element {
 
             {/* ── Three-panel body or landing ── */}
             {showEditor ? (
-                <div className="flex flex-col md:flex-row flex-1 overflow-hidden overflow-x-hidden">
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden overflow-x-hidden relative">
+
+                    {/* Mobile backdrop — fades in behind the open drawer so the 1/6 strip
+                        beside it is visibly dimmed. Always in the DOM so the fade can animate. */}
+                    <div
+                        className={[
+                            'md:hidden absolute inset-0 z-40 bg-black/20 transition-opacity duration-300',
+                            (mobilePanel === 'workouts' || mobilePanel === 'blocks')
+                                ? 'opacity-100'
+                                : 'opacity-0 pointer-events-none',
+                        ].join(' ')}
+                        onClick={() => setMobilePanel('editor')}
+                        aria-hidden="true"
+                    />
+
+                    {/* Mobile side tabs — vertical handles at the left and right edges of the
+                        content area. The tab for the currently-open drawer is hidden; the
+                        opposite tab stays visible above the backdrop so the user can switch. */}
+                    {mobilePanel !== 'workouts' && (
+                        <button
+                            onClick={() => setMobilePanel('workouts')}
+                            aria-label="Open workout list"
+                            className={`
+                                md:hidden absolute left-0 top-14 z-50
+                                bg-zinc-700 border border-zinc-600 rounded-r-lg
+                                hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            <span className="block [writing-mode:vertical-rl] rotate-180 px-1.5 py-4 text-xs font-semibold text-white">
+                                Workouts
+                            </span>
+                        </button>
+                    )}
+                    {mobilePanel !== 'blocks' && (
+                        <button
+                            onClick={() => setMobilePanel('blocks')}
+                            aria-label="Open block library"
+                            className={`
+                                md:hidden absolute right-0 top-14 z-50
+                                bg-zinc-700 border border-zinc-600 rounded-l-lg
+                                hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            <span className="block [writing-mode:vertical-rl] px-1.5 py-4 text-xs font-semibold text-white">
+                                Blocks
+                            </span>
+                        </button>
+                    )}
 
                     {/* Left panel: workout list.
-                        On mobile (flex-col stacking) the expanded panel always shows regardless
-                        of isLeftCollapsed — a collapsed strip would occupy the full viewport
-                        width for a single button, which is unusable. On md+ the collapse strip
-                        appears and the expanded panel hides as normal. */}
+                        Mobile: absolute drawer sliding in from the left (5/6 width), shown only
+                        when the workouts panel is active. md+: static panel, collapse as normal. */}
                     {isLeftCollapsed && (
                         <aside className="hidden md:flex md:w-10 shrink-0 border-r border-zinc-700 flex-col items-center py-3">
                             <button
@@ -1210,14 +1257,29 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside className={[
-                        'w-full md:w-56 lg:w-72 shrink-0 border-r border-zinc-700 flex-col overflow-y-auto p-3 gap-3',
-                        // Mobile: show only when on the list panel; md+: follow collapse state.
-                        // All four combinations produce a single non-conflicting display class.
-                        mobilePanel === 'list'
-                            ? (isLeftCollapsed ? 'flex md:hidden' : 'flex')
-                            : (isLeftCollapsed ? 'hidden' : 'hidden md:flex'),
+                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
+                        // Mobile: always absolutely positioned, slide in/out via transform
+                        'absolute inset-y-0 left-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                        mobilePanel === 'workouts' ? 'translate-x-0' : '-translate-x-full',
+                        // Desktop: static in-flow panel, no transform, collapse as normal
+                        isLeftCollapsed
+                            ? 'md:hidden md:translate-x-0 md:transition-none'
+                            : 'md:flex md:static md:inset-auto md:left-auto md:w-56 lg:w-72 md:flex-none md:z-auto md:translate-x-0 md:transition-none',
                     ].join(' ')}>
-                            {/* Collapse button is hidden on mobile where panels stack vertically */}
+                            {/* Mobile close button — collapses the workouts drawer back to the left */}
+                            <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
+                                <span className="text-sm font-semibold text-white">Workouts</span>
+                                <button
+                                    onClick={() => setMobilePanel('editor')}
+                                    aria-label="Close workout list"
+                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {/* Desktop collapse button */}
                             <div className="hidden md:flex justify-end">
                                 <button
                                     onClick={() => setIsLeftCollapsed(true)}
@@ -1284,35 +1346,21 @@ export function App(): JSX.Element {
                             )}
                     </aside>
 
-                    {/* Centre panel: canvas and editors */}
-                    <main className={[
-                        'flex-1 flex-col overflow-y-auto p-4 gap-4',
-                        // Mobile: show only when on the editor panel; md+: always shown
-                        mobilePanel === 'list' ? 'hidden md:flex' : 'flex',
-                    ].join(' ')}>
-                        {/* Mobile back button — only visible below md breakpoint */}
-                        <button
-                            onClick={() => setMobilePanel('list')}
-                            className="md:hidden flex items-center gap-1 text-sm text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded self-start"
-                            aria-label="Back to workout list"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
-                                <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-                            </svg>
-                            Back to workouts
-                        </button>
-
+                    {/* Centre panel: canvas and editors — always visible on mobile as the base layer */}
+                    <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
                         {activeWorkout !== null && (
-                            <WorkoutMetadataEditor
-                                key={activeWorkout.id}
-                                workout={activeWorkout}
-                                onSave={(next) => void handleSaveMetadata(next)}
-                                isSaving={isSavingMetadata}
-                                onExport={() => void handleExportWorkout()}
-                                isExporting={isExporting}
-                                ftpWatts={ftpWatts}
-                                onFtpChange={setFtpWatts}
-                            />
+                            <div className="px-6 md:px-0">
+                                <WorkoutMetadataEditor
+                                    key={activeWorkout.id}
+                                    workout={activeWorkout}
+                                    onSave={(next) => void handleSaveMetadata(next)}
+                                    isSaving={isSavingMetadata}
+                                    onExport={() => void handleExportWorkout()}
+                                    isExporting={isExporting}
+                                    ftpWatts={ftpWatts}
+                                    onFtpChange={setFtpWatts}
+                                />
+                            </div>
                         )}
 
                         {exportError !== null && (
@@ -1410,9 +1458,8 @@ export function App(): JSX.Element {
                     </main>
 
                     {/* Right panel: block library.
-                        Same pattern as the left panel: on mobile the expanded panel always
-                        shows (stacked below the editor). On md+ the collapse strip is visible
-                        and the expanded panel hides when isRightCollapsed is true. */}
+                        Mobile: absolute drawer sliding in from the right (5/6 width), shown only
+                        when the blocks panel is active. md+: static panel, collapse as normal. */}
                     {isRightCollapsed && (
                         <aside className="hidden md:flex md:w-10 shrink-0 border-l border-zinc-700 flex-col items-center py-3">
                             <button
@@ -1427,12 +1474,29 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside className={[
-                        'w-full md:w-64 lg:w-80 shrink-0 border-l border-zinc-700 flex-col overflow-y-auto p-3 gap-3',
-                        // Mobile: always hide the right panel (block library modals remain accessible).
-                        // md+: follow collapse state.
-                        isRightCollapsed ? 'hidden' : 'hidden md:flex',
+                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
+                        // Mobile: always absolutely positioned, slide in/out via transform
+                        'absolute inset-y-0 right-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                        mobilePanel === 'blocks' ? 'translate-x-0' : 'translate-x-full',
+                        // Desktop: static in-flow panel, no transform, collapse as normal
+                        isRightCollapsed
+                            ? 'md:hidden md:translate-x-0 md:transition-none'
+                            : 'md:flex md:static md:inset-auto md:right-auto md:w-64 lg:w-80 md:shrink-0 md:z-auto md:translate-x-0 md:transition-none',
                     ].join(' ')}>
-                        {/* Collapse button is hidden on mobile where panels stack vertically */}
+                        {/* Mobile close button — collapses the blocks drawer back to the right */}
+                        <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
+                            <button
+                                onClick={() => setMobilePanel('editor')}
+                                aria-label="Close block library"
+                                className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                            <span className="text-sm font-semibold text-white">Blocks</span>
+                        </div>
+                        {/* Desktop collapse button */}
                         <div className="hidden md:flex justify-start">
                             <button
                                 onClick={() => setIsRightCollapsed(true)}
