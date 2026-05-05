@@ -281,16 +281,20 @@ function BlockPreviewSvg({
      * subsequent pointermove and pointerup events fire there, allowing the
      * drop target to be tracked while the pointer is outside the palette.
      */
-    function handlePaletteItemPointerDown(interval: ParsedInterval, e: React.PointerEvent): void {
+    function handlePaletteItemPointerDown(
+        interval: ParsedInterval,
+        pointerId: number,
+        clientX: number,
+        clientY: number,
+    ): void {
         if (svgRef.current === null) return
-        e.preventDefault()
-        svgRef.current.setPointerCapture(e.pointerId)
+        svgRef.current.setPointerCapture(pointerId)
         setPaletteDragState({
             interval,
             dropInsertIndex: null,
             dropIndicatorX: null,
-            clientX: e.clientX,
-            clientY: e.clientY,
+            clientX,
+            clientY,
         })
     }
 

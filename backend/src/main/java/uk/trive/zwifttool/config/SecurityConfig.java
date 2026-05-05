@@ -1,5 +1,6 @@
 package uk.trive.zwifttool.config;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +35,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     @Value("${app.cors.allowed-origin}")
-    private String allowedOrigin;
+    private String allowedOrigins;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -125,10 +126,13 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Only allow requests from the configured frontend origin.
-        // Production: https://zwifttool.trivedev.uk
-        // Local dev:  http://localhost:5173
-        config.setAllowedOrigins(List.of(allowedOrigin));
+        // Accepts a comma-separated list so multiple origins can be permitted simultaneously,
+        // e.g. localhost:5173 and a LAN IP for mobile testing.
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOrigins(origins);
 
         // Allow credentials so the browser sends HttpOnly cookies cross-origin
         config.setAllowCredentials(true);

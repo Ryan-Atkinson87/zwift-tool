@@ -159,7 +159,7 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
                     {errors.map((error, index) => (
                         <p
                             key={index}
-                            className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md"
+                            className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md"
                         >
                             {error}
                         </p>

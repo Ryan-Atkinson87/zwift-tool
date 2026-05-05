@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - Unreleased
+
+### Added
+
+- Responsive three-panel layout that stacks vertically on mobile and tablet (#145)
+- Responsive header that prevents overflow and wraps controls on small screens (#146)
+- Focus trap, `aria-dialog`, and focus restoration across all modals (#147)
+- Touch targets increased to 44×44px minimum for all icon-only buttons (#149)
+- `aria-live` regions to announce loading and error states to screen readers (#151)
+
+### Fixed
+
+- Colour contrast improved across placeholder text, disabled states, and links to meet WCAG 2.1 AA (#148)
+- `WorkoutCanvas` and `SectionSplitter` SVG now scales responsively on small screens (#150)
+- `BlockCard` replaced `role="button"` div with a semantic `<button>` element (#152)
+
 ## [1.1.0] - 2026-04-19
 
 ### Added

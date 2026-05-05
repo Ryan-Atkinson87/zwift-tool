@@ -25,9 +25,10 @@ const SECTION_LABELS: Record<SectionType, string> = {
  * Highlights when selected. Includes a delete button with an inline
  * confirmation step to prevent accidental deletion.
  *
- * <p>The entire card surface is the click target. The delete icon and
- * confirmation buttons call {@code e.stopPropagation()} so they do not
- * accidentally trigger the card select.</p>
+ * The card uses a relative-positioned wrapper with an absolutely-positioned
+ * primary action button covering the full card surface. Edit and delete buttons
+ * sit above the primary button via z-index, so they do not nest inside it,
+ * which would be invalid HTML.
  */
 export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDelete = undefined }: Props): JSX.Element {
     const [isPendingDelete, setIsPendingDelete] = useState(false)
@@ -47,32 +48,30 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
         onDelete?.()
     }
 
-    function handleKeyDown(e: React.KeyboardEvent): void {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onClick()
-        }
-    }
-
     return (
+        // Relative positioning allows the primary action button to fill the card
+        // with absolute inset-0, while action buttons sit above it via z-10.
         <div
-            role="button"
-            tabIndex={0}
-            onClick={onClick}
-            onKeyDown={handleKeyDown}
             className={`
-                flex flex-col gap-1 text-left
+                relative flex flex-col gap-1
                 w-full px-3 py-2
                 border rounded-lg
-                cursor-pointer transition-colors
-                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                transition-colors
                 ${isSelected
                     ? 'bg-zinc-700 border-brand-500'
                     : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 hover:border-zinc-600'}
             `}
         >
-            {/* Header row: section badge, stats, and delete button */}
-            <div className="flex items-center justify-between gap-2">
+            {/* Primary action button covers the entire card surface */}
+            <button
+                type="button"
+                aria-label={`Select block ${block.name}`}
+                onClick={onClick}
+                className="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+            />
+
+            {/* Header row: section badge, stats, and action buttons — above the primary button via z-10 */}
+            <div className="relative z-10 flex items-center justify-between gap-2">
                 <span
                     className={`
                         px-1.5 py-0.5
@@ -94,7 +93,7 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
                             onClick={(e) => { e.stopPropagation(); onEdit() }}
                             aria-label="Edit block"
                             className={`
-                                shrink-0 p-0.5
+                                shrink-0 min-w-11 min-h-11 flex items-center justify-center
                                 text-zinc-500
                                 hover:text-white transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
@@ -112,7 +111,7 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
                             onClick={handleDeleteClick}
                             aria-label="Delete block"
                             className={`
-                                shrink-0 p-0.5
+                                shrink-0 min-w-11 min-h-11 flex items-center justify-center
                                 text-zinc-500
                                 hover:text-red-400 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded
@@ -135,15 +134,15 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
                 </div>
             </div>
 
-            {/* Block name and description */}
-            <p className="text-sm font-medium text-white truncate">{block.name}</p>
+            {/* Block name and description — above the primary button via z-10 */}
+            <p className="relative z-10 text-sm font-medium text-white truncate">{block.name}</p>
             {block.description !== null && block.description.length > 0 && (
-                <p className="text-xs text-zinc-400 line-clamp-2">{block.description}</p>
+                <p className="relative z-10 text-xs text-zinc-400 line-clamp-2">{block.description}</p>
             )}
 
-            {/* Inline delete confirmation */}
+            {/* Inline delete confirmation — above the primary button via z-10 */}
             {onDelete !== undefined && isPendingDelete && (
-                <div className="flex items-center justify-between gap-2 mt-1 pt-1 border-t border-zinc-600">
+                <div className="relative z-10 flex items-center justify-between gap-2 mt-1 pt-1 border-t border-zinc-600">
                     <p className="text-xs text-zinc-300">Delete this block?</p>
                     <div className="flex gap-2">
                         <button

@@ -47,11 +47,21 @@ export function App(): JSX.Element {
     const [isSaving, setIsSaving] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
-    const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+    const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(() =>
+        sessionStorage.getItem('zwift-tool.selectedWorkoutId')
+    )
     const [selectedWorkoutIds, setSelectedWorkoutIds] = useState<string[]>([])
     const [isSelectMode, setIsSelectMode] = useState(false)
     const [isLeftCollapsed, setIsLeftCollapsed] = useState(false)
     const [isRightCollapsed, setIsRightCollapsed] = useState(false)
+    // Mobile-only panel navigation: 'workouts' and 'blocks' slide drawers over the editor canvas.
+    // On md+ all panels are always visible regardless of this state.
+    // Restored from sessionStorage so a pull-to-refresh doesn't drop the user back to the list.
+    const [mobilePanel, setMobilePanel] = useState<'editor' | 'workouts' | 'blocks'>(() => {
+        const workoutId = sessionStorage.getItem('zwift-tool.selectedWorkoutId')
+        const panel = sessionStorage.getItem('zwift-tool.mobilePanel')
+        return (panel === 'editor' && workoutId !== null) ? 'editor' : 'workouts'
+    })
 
     // Guest mode: true once the user has chosen to use the tool without signing in
     const [guestMode, setGuestMode] = useState(false)
@@ -128,6 +138,20 @@ export function App(): JSX.Element {
         }
     }, [isAuthenticated])
 
+    // Persist selected workout and mobile panel across page reloads so a
+    // pull-to-refresh or accidental reload returns the user to where they were.
+    useEffect(() => {
+        if (selectedWorkoutId !== null) {
+            sessionStorage.setItem('zwift-tool.selectedWorkoutId', selectedWorkoutId)
+        } else {
+            sessionStorage.removeItem('zwift-tool.selectedWorkoutId')
+        }
+    }, [selectedWorkoutId])
+
+    useEffect(() => {
+        sessionStorage.setItem('zwift-tool.mobilePanel', mobilePanel)
+    }, [mobilePanel])
+
     // Auto-save loop. In guest mode selectedWorkout is null so this hook is
     // effectively inactive — guest edits update guestWorkout directly instead.
     const {
@@ -172,6 +196,61 @@ export function App(): JSX.Element {
         }
     }
 
+    /**
+     * Saves a batch of workouts directly, placing all intervals into the main
+     * set block with no warm-up or cool-down. Used for multi-file imports to
+     * skip the section splitter step entirely.
+     *
+     * @param workouts the parsed workouts to save
+     */
+    async function saveParsedWorkoutsAsMainset(workouts: ParsedWorkout[]): Promise<void> {
+        setIsSaving(true)
+        setSaveError(null)
+
+        const errors: string[] = []
+
+        for (const workout of workouts) {
+            try {
+                await saveWorkout({
+                    name: workout.name,
+                    author: workout.author,
+                    description: workout.description,
+                    tags: workout.tags,
+                    warmupContent: null,
+                    mainsetContent: JSON.stringify(workout.intervals),
+                    cooldownContent: null,
+                    warmupDurationSeconds: null,
+                    mainsetDurationSeconds: sumDuration(workout.intervals),
+                    cooldownDurationSeconds: null,
+                    warmupIntervalCount: null,
+                    mainsetIntervalCount: workout.intervals.length,
+                    cooldownIntervalCount: null,
+                })
+            } catch (error) {
+                errors.push(
+                    error instanceof Error
+                        ? error.message
+                        : `Failed to save "${workout.name}".`
+                )
+            }
+        }
+
+        setIsSaving(false)
+
+        if (errors.length > 0) {
+            setSaveError(errors.join(' '))
+        } else {
+            const count = workouts.length
+            setSaveSuccess(
+                count === 1
+                    ? `"${workouts[0]!.name}" saved successfully.`
+                    : `${count} workouts saved successfully.`
+            )
+        }
+
+        void reloadWorkouts()
+    }
+
     function handleFilesParsed(workouts: ParsedWorkout[]): void {
         setSaveSuccess(null)
         setSaveError(null)
@@ -179,7 +258,10 @@ export function App(): JSX.Element {
         if (!isAuthenticated) {
             // Guest mode: no saved workouts to clash with
             setParsedWorkouts(workouts)
-            if (workouts.length === 1) setSplittingWorkout(workouts[0])
+            if (workouts.length === 1) {
+                setSplittingWorkout(workouts[0])
+                setMobilePanel('editor')
+            }
             return
         }
 
@@ -195,11 +277,21 @@ export function App(): JSX.Element {
             }
         }
 
-        // Add non-clashing workouts to the import queue immediately
-        setParsedWorkouts((prev) => [...prev, ...nonClashing])
-        if (clashes.length === 0 && nonClashing.length === 1) {
-            setSplittingWorkout(nonClashing[0])
+        if (clashes.length === 0) {
+            if (nonClashing.length === 1) {
+                // Single file: show the section splitter as before
+                setParsedWorkouts(nonClashing)
+                setSplittingWorkout(nonClashing[0])
+                setMobilePanel('editor')
+            } else if (nonClashing.length > 1) {
+                // Multiple files: save all immediately as mainset-only, no splitter
+                void saveParsedWorkoutsAsMainset(nonClashing)
+            }
+            return
         }
+
+        // Queue any non-clashing workouts for after clashes are resolved
+        setParsedWorkouts((prev) => [...prev, ...nonClashing])
 
         if (clashes.length > 0) {
             setPendingClashes(clashes)
@@ -209,12 +301,17 @@ export function App(): JSX.Element {
     function resolveClash(resolvedWorkout: ParsedWorkout | null): void {
         setPendingClashes((prev) => {
             const remaining = prev.slice(1)
-            // When the last clash is resolved, auto-start split if it produced one workout
             if (remaining.length === 0 && resolvedWorkout !== null) {
                 setParsedWorkouts((current) => {
                     const updated = [...current, resolvedWorkout]
-                    if (updated.length === 1) setSplittingWorkout(updated[0])
-                    return updated
+                    if (updated.length === 1) {
+                        // Single resolved workout: show the section splitter
+                        setSplittingWorkout(updated[0])
+                        return updated
+                    }
+                    // Multiple resolved workouts: bypass splitter and save immediately
+                    void saveParsedWorkoutsAsMainset(updated)
+                    return []
                 })
             } else if (resolvedWorkout !== null) {
                 setParsedWorkouts((current) => [...current, resolvedWorkout])
@@ -243,6 +340,7 @@ export function App(): JSX.Element {
         setSplittingWorkout(workout)
         setSaveSuccess(null)
         setSaveError(null)
+        setMobilePanel('editor')
     }
 
     async function handleConfirmSplit(split: SectionSplit): Promise<void> {
@@ -290,6 +388,7 @@ export function App(): JSX.Element {
             setParsedWorkouts((prev) =>
                 prev.filter((w) => w.fileName !== split.workout.fileName)
             )
+            setMobilePanel('editor')
             return
         }
 
@@ -320,6 +419,8 @@ export function App(): JSX.Element {
 
             setSaveSuccess(`"${split.workout.name}" saved successfully.`)
             setSplittingWorkout(null)
+            // Open the workouts drawer on mobile so the user can see and select the saved workout
+            setMobilePanel('workouts')
 
             // Remove the saved workout from the parsed list
             setParsedWorkouts((prev) =>
@@ -769,6 +870,7 @@ export function App(): JSX.Element {
                 createdAt: now,
                 updatedAt: now,
             })
+            setMobilePanel('editor')
             return
         }
 
@@ -795,6 +897,7 @@ export function App(): JSX.Element {
             setSaveSuccess('New blank workout created.')
             await reloadWorkouts()
             setSelectedWorkoutId(created.id)
+            setMobilePanel('editor')
         } catch (error) {
             setSaveError(error instanceof Error ? error.message : 'Failed to create blank workout.')
         } finally {
@@ -964,42 +1067,92 @@ export function App(): JSX.Element {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-zinc-900 text-white">
-                <p className="text-zinc-400 text-sm">Loading...</p>
+            <div
+                className="flex items-center justify-center min-h-screen bg-zinc-900 text-white"
+                aria-busy="true"
+            >
+                <p role="status" aria-live="polite" className="text-zinc-400 text-sm">Loading...</p>
             </div>
         )
     }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden">
+        <div className="flex flex-col h-dvh bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
 
             {/* ── Header ── */}
-            <header className="flex items-center justify-between shrink-0 px-4 py-3 border-b border-zinc-700">
-                <div className="flex items-center gap-2.5">
-                    <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400">Trive Dev</span>
-                        <span className="text-base font-bold text-white">Zwift Tool</span>
+            {/*
+              * Two-row responsive layout:
+              * - Primary row (all widths): logo on the left, auth controls on the right.
+              * - Secondary row (md and above only): secondary actions (zone presets,
+              *   export all) hidden on narrow viewports to prevent overflow.
+              * overflow-x-hidden ensures no horizontal scroll at any width.
+              */}
+            <header className="shrink-0 px-4 py-3 border-b border-zinc-700 overflow-x-hidden">
+                {/* Primary row: logo + auth controls — always visible */}
+                <div className="flex items-center justify-between min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
+                        <div className="flex flex-col leading-none min-w-0">
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400 truncate">Trive Dev</span>
+                            <span className="text-base font-bold text-white truncate">Zwift Tool</span>
+                        </div>
                     </div>
+                    {isAuthenticated ? (
+                        <div className="flex items-center gap-3 shrink-0">
+                            <span className="hidden sm:inline text-sm text-zinc-300">
+                                Signed in as <span className="text-white font-medium">{user?.email}</span>
+                            </span>
+                            <button
+                                onClick={() => { handleClearSelection(); void signOut() }}
+                                className={`
+                                    px-3 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign out
+                            </button>
+                        </div>
+                    ) : guestMode ? (
+                        // In guest mode show compact auth controls so the user can sign
+                        // in at any point without leaving the editor
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setIsSignInOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-brand-600 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-brand-500 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign in
+                            </button>
+                            <button
+                                onClick={() => setIsSignUpOpen(true)}
+                                className={`
+                                    px-4 py-1.5
+                                    bg-zinc-700 text-white
+                                    text-sm font-medium
+                                    rounded-md
+                                    hover:bg-zinc-600 transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                `}
+                            >
+                                Sign up
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
-                {isAuthenticated ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-zinc-300">
-                            Signed in as <span className="text-white font-medium">{user?.email}</span>
-                        </span>
-                        <button
-                            onClick={() => { handleClearSelection(); void signOut() }}
-                            className={`
-                                px-3 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign out
-                        </button>
+
+                {/* Secondary row: zone presets + export all — hidden on mobile to prevent overflow */}
+                {isAuthenticated && (
+                    <div className="hidden md:flex items-center gap-3 mt-2">
                         {savedWorkouts.length > 0 && (
                             <button
                                 onClick={() => void handleExportSelected(savedWorkouts.map((w) => w.id))}
@@ -1031,64 +1184,107 @@ export function App(): JSX.Element {
                             Zone presets
                         </button>
                     </div>
-                ) : guestMode ? (
-                    // In guest mode show compact auth controls so the user can sign
-                    // in at any point without leaving the editor
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsSignInOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-brand-600 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-brand-500 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign in
-                        </button>
-                        <button
-                            onClick={() => setIsSignUpOpen(true)}
-                            className={`
-                                px-4 py-1.5
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                            `}
-                        >
-                            Sign up
-                        </button>
-                    </div>
-                ) : null}
+                )}
             </header>
 
             {/* ── Three-panel body or landing ── */}
             {showEditor ? (
-                <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden overflow-x-hidden relative">
 
-                    {/* Left panel: workout list */}
-                    {isLeftCollapsed ? (
-                        <aside className="w-10 shrink-0 border-r border-zinc-700 flex flex-col items-center py-3">
+                    {/* Mobile backdrop — fades in behind the open drawer so the 1/6 strip
+                        beside it is visibly dimmed. Always in the DOM so the fade can animate. */}
+                    <div
+                        className={[
+                            'md:hidden absolute inset-0 z-40 bg-black/20 transition-opacity duration-300',
+                            (mobilePanel === 'workouts' || mobilePanel === 'blocks')
+                                ? 'opacity-100'
+                                : 'opacity-0 pointer-events-none',
+                        ].join(' ')}
+                        onClick={() => setMobilePanel('editor')}
+                        aria-hidden="true"
+                    />
+
+                    {/* Mobile side tabs — vertical handles at the left and right edges of the
+                        content area. The tab for the currently-open drawer is hidden; the
+                        opposite tab stays visible above the backdrop so the user can switch. */}
+                    {mobilePanel !== 'workouts' && (
+                        <button
+                            onClick={() => setMobilePanel('workouts')}
+                            aria-label="Open workout list"
+                            className={`
+                                md:hidden absolute left-0 top-14 z-50
+                                bg-zinc-700 border border-zinc-600 rounded-r-lg
+                                hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            <span className="block [writing-mode:vertical-rl] rotate-180 px-1.5 py-4 text-xs font-semibold text-white">
+                                Workouts
+                            </span>
+                        </button>
+                    )}
+                    {mobilePanel !== 'blocks' && (
+                        <button
+                            onClick={() => setMobilePanel('blocks')}
+                            aria-label="Open block library"
+                            className={`
+                                md:hidden absolute right-0 top-14 z-50
+                                bg-zinc-700 border border-zinc-600 rounded-l-lg
+                                hover:bg-zinc-600 transition-colors
+                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                            `}
+                        >
+                            <span className="block [writing-mode:vertical-rl] px-1.5 py-4 text-xs font-semibold text-white">
+                                Blocks
+                            </span>
+                        </button>
+                    )}
+
+                    {/* Left panel: workout list.
+                        Mobile: absolute drawer sliding in from the left (5/6 width), shown only
+                        when the workouts panel is active. md+: static panel, collapse as normal. */}
+                    {isLeftCollapsed && (
+                        <aside className="hidden md:flex md:w-10 shrink-0 border-r border-zinc-700 flex-col items-center py-3">
                             <button
                                 onClick={() => setIsLeftCollapsed(false)}
                                 aria-label="Expand workout list"
-                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                                 </svg>
                             </button>
                         </aside>
-                    ) : (
-                        <aside className="w-72 shrink-0 border-r border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
-                            <div className="flex justify-end">
+                    )}
+                    <aside className={[
+                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
+                        // Mobile: always absolutely positioned, slide in/out via transform
+                        'absolute inset-y-0 left-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                        mobilePanel === 'workouts' ? 'translate-x-0' : '-translate-x-full',
+                        // Desktop: static in-flow panel, no transform, collapse as normal
+                        isLeftCollapsed
+                            ? 'md:hidden md:translate-x-0 md:transition-none'
+                            : 'md:flex md:static md:inset-auto md:left-auto md:w-56 lg:w-72 md:flex-none md:z-auto md:translate-x-0 md:transition-none',
+                    ].join(' ')}>
+                            {/* Mobile close button — collapses the workouts drawer back to the left */}
+                            <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
+                                <span className="text-sm font-semibold text-white">Workouts</span>
+                                <button
+                                    onClick={() => setMobilePanel('editor')}
+                                    aria-label="Close workout list"
+                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {/* Desktop collapse button */}
+                            <div className="hidden md:flex justify-end">
                                 <button
                                     onClick={() => setIsLeftCollapsed(true)}
                                     aria-label="Collapse workout list"
-                                    className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                         <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
@@ -1123,7 +1319,7 @@ export function App(): JSX.Element {
                                     selectedWorkoutIds={selectedWorkoutIds}
                                     isSelectMode={isSelectMode}
                                     isExporting={isExporting}
-                                    onSelect={setSelectedWorkoutId}
+                                    onSelect={(id) => { setSelectedWorkoutId(id); setMobilePanel('editor') }}
                                     onToggleSelect={handleToggleWorkoutSelect}
                                     onSelectModeChange={setIsSelectMode}
                                     onClearSelection={handleClearSelection}
@@ -1138,36 +1334,37 @@ export function App(): JSX.Element {
                             )}
 
                             {saveSuccess && (
-                                <p className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
+                                <p role="status" aria-live="polite" className="px-3 py-2 bg-green-900/40 text-green-300 text-sm rounded-md">
                                     {saveSuccess}
                                 </p>
                             )}
 
                             {saveError && (
-                                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                                <p role="alert" className="px-3 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                     {saveError}
                                 </p>
                             )}
-                        </aside>
-                    )}
+                    </aside>
 
-                    {/* Centre panel: canvas and editors */}
+                    {/* Centre panel: canvas and editors — always visible on mobile as the base layer */}
                     <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
                         {activeWorkout !== null && (
-                            <WorkoutMetadataEditor
-                                key={activeWorkout.id}
-                                workout={activeWorkout}
-                                onSave={(next) => void handleSaveMetadata(next)}
-                                isSaving={isSavingMetadata}
-                                onExport={() => void handleExportWorkout()}
-                                isExporting={isExporting}
-                                ftpWatts={ftpWatts}
-                                onFtpChange={setFtpWatts}
-                            />
+                            <div className="px-6 md:px-0">
+                                <WorkoutMetadataEditor
+                                    key={activeWorkout.id}
+                                    workout={activeWorkout}
+                                    onSave={(next) => void handleSaveMetadata(next)}
+                                    isSaving={isSavingMetadata}
+                                    onExport={() => void handleExportWorkout()}
+                                    isExporting={isExporting}
+                                    ftpWatts={ftpWatts}
+                                    onFtpChange={setFtpWatts}
+                                />
+                            </div>
                         )}
 
                         {exportError !== null && (
-                            <p className="text-sm text-red-300">{exportError}</p>
+                            <p role="alert" className="text-sm text-red-200">{exportError}</p>
                         )}
 
                         <WorkoutCanvas
@@ -1226,19 +1423,19 @@ export function App(): JSX.Element {
                         )}
 
                         {metadataError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {metadataError}
                             </p>
                         )}
 
                         {undoError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 {undoError}
                             </p>
                         )}
 
                         {isAuthenticated && autosaveStatus === 'error' && autosaveError && (
-                            <p className="px-4 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                            <p role="alert" className="px-4 py-2 bg-red-900/40 text-red-200 text-sm rounded-md">
                                 Auto-save failed: {autosaveError}
                             </p>
                         )}
@@ -1260,96 +1457,120 @@ export function App(): JSX.Element {
                         )}
                     </main>
 
-                    {/* Right panel: block library */}
-                    {isRightCollapsed ? (
-                        <aside className="w-10 shrink-0 border-l border-zinc-700 flex flex-col items-center py-3">
+                    {/* Right panel: block library.
+                        Mobile: absolute drawer sliding in from the right (5/6 width), shown only
+                        when the blocks panel is active. md+: static panel, collapse as normal. */}
+                    {isRightCollapsed && (
+                        <aside className="hidden md:flex md:w-10 shrink-0 border-l border-zinc-700 flex-col items-center py-3">
                             <button
                                 onClick={() => setIsRightCollapsed(false)}
                                 aria-label="Expand block library"
-                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
                                 </svg>
                             </button>
                         </aside>
-                    ) : (
-                        <aside className="w-80 shrink-0 border-l border-zinc-700 flex flex-col overflow-y-auto p-3 gap-3">
-                            <div className="flex justify-start">
+                    )}
+                    <aside className={[
+                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
+                        // Mobile: always absolutely positioned, slide in/out via transform
+                        'absolute inset-y-0 right-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                        mobilePanel === 'blocks' ? 'translate-x-0' : 'translate-x-full',
+                        // Desktop: static in-flow panel, no transform, collapse as normal
+                        isRightCollapsed
+                            ? 'md:hidden md:translate-x-0 md:transition-none'
+                            : 'md:flex md:static md:inset-auto md:right-auto md:w-64 lg:w-80 md:shrink-0 md:z-auto md:translate-x-0 md:transition-none',
+                    ].join(' ')}>
+                        {/* Mobile close button — collapses the blocks drawer back to the right */}
+                        <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
+                            <button
+                                onClick={() => setMobilePanel('editor')}
+                                aria-label="Close block library"
+                                className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                            <span className="text-sm font-semibold text-white">Blocks</span>
+                        </div>
+                        {/* Desktop collapse button */}
+                        <div className="hidden md:flex justify-start">
+                            <button
+                                onClick={() => setIsRightCollapsed(true)}
+                                aria-label="Collapse block library"
+                                className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {isAuthenticated ? (
+                            <>
                                 <button
-                                    onClick={() => setIsRightCollapsed(true)}
-                                    aria-label="Collapse block library"
-                                    className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                    onClick={() => setIsCreateBlockOpen(true)}
+                                    className={`
+                                        w-full px-4 py-2
+                                        bg-brand-600 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-brand-500 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                        <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                                    </svg>
+                                    + New block
+                                </button>
+
+                                <BlockLibrary
+                                    blocks={libraryBlocks}
+                                    isLoading={isLoadingBlocks}
+                                    error={blocksError}
+                                    onEditBlock={(block) => setEditingBlock(block)}
+                                    onDeleteBlock={deleteLibraryBlock}
+                                />
+                            </>
+                        ) : (
+                            // Guest mode: locked block library panel
+                            <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
+                                    <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
+                                </svg>
+                                <p className="text-sm text-zinc-400 leading-relaxed">
+                                    Sign in to save your workouts and access the block library.
+                                </p>
+                                <button
+                                    onClick={() => setIsSignInOpen(true)}
+                                    className={`
+                                        px-4 py-2
+                                        bg-brand-600 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-brand-500 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
+                                >
+                                    Sign in
+                                </button>
+                                <button
+                                    onClick={() => setIsSignUpOpen(true)}
+                                    className={`
+                                        px-4 py-2
+                                        bg-zinc-700 text-white
+                                        text-sm font-medium
+                                        rounded-md
+                                        hover:bg-zinc-600 transition-colors
+                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                                    `}
+                                >
+                                    Create account
                                 </button>
                             </div>
-
-                            {isAuthenticated ? (
-                                <>
-                                    <button
-                                        onClick={() => setIsCreateBlockOpen(true)}
-                                        className={`
-                                            w-full px-4 py-2
-                                            bg-brand-600 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-brand-500 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        + New block
-                                    </button>
-
-                                    <BlockLibrary
-                                        blocks={libraryBlocks}
-                                        isLoading={isLoadingBlocks}
-                                        error={blocksError}
-                                        onEditBlock={(block) => setEditingBlock(block)}
-                                        onDeleteBlock={deleteLibraryBlock}
-                                    />
-                                </>
-                            ) : (
-                                // Guest mode: locked block library panel
-                                <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-4 py-8">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-zinc-600">
-                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 0 0-5.25 5.25v3a3 3 0 0 0-3 3v6.75a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3v-6.75a3 3 0 0 0-3-3v-3c0-2.9-2.35-5.25-5.25-5.25Zm3.75 8.25v-3a3.75 3.75 0 1 0-7.5 0v3h7.5Z" clipRule="evenodd" />
-                                    </svg>
-                                    <p className="text-sm text-zinc-400 leading-relaxed">
-                                        Sign in to save your workouts and access the block library.
-                                    </p>
-                                    <button
-                                        onClick={() => setIsSignInOpen(true)}
-                                        className={`
-                                            px-4 py-2
-                                            bg-brand-600 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-brand-500 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        Sign in
-                                    </button>
-                                    <button
-                                        onClick={() => setIsSignUpOpen(true)}
-                                        className={`
-                                            px-4 py-2
-                                            bg-zinc-700 text-white
-                                            text-sm font-medium
-                                            rounded-md
-                                            hover:bg-zinc-600 transition-colors
-                                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
-                                        `}
-                                    >
-                                        Create account
-                                    </button>
-                                </div>
-                            )}
-                        </aside>
-                    )}
+                        )}
+                    </aside>
                 </div>
             ) : (
                 // Landing screen: shown before the user has signed in or chosen guest mode

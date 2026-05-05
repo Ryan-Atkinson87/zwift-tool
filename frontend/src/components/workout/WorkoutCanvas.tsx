@@ -1,4 +1,5 @@
-import { useState, useRef, type JSX } from 'react'
+import { useState, useRef, useEffect, type JSX } from 'react'
+import { useContainerWidth } from '../../hooks/useContainerWidth'
 import type { BlockDetail, ParsedInterval, SectionType, WorkoutDetail } from '../../types/workout'
 import { expandIntervalsToBars, type ChartBar } from '../../utils/intervalExpander'
 import { getColourForZone, getZoneForPower } from '../../utils/zoneColours'
@@ -248,6 +249,9 @@ interface BarDragState {
      * distinguish a click from a drag so a bare click never triggers a reorder.
      */
     hasMoved: boolean
+    /** Client X/Y at pointerdown, used to compute the drag threshold distance. */
+    startClientX: number
+    startClientY: number
 }
 
 /** State for a text event drag that is currently in progress. */
@@ -274,6 +278,8 @@ interface PaletteDragState {
     /** Current pointer position in client (screen) coordinates for ghost positioning. */
     clientX: number
     clientY: number
+    /** True once the pointer has moved past pointerdown. Prevents the ghost appearing on a bare tap/click. */
+    hasMoved: boolean
 }
 
 /**
@@ -307,8 +313,11 @@ export function WorkoutCanvas({
 }: Props): JSX.Element {
     if (isLoading) {
         return (
-            <div className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
-                <p className="text-sm text-zinc-400">Loading workout...</p>
+            <div
+                className="w-full px-4 py-12 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center"
+                aria-busy="true"
+            >
+                <p role="status" aria-live="polite" className="text-sm text-zinc-400">Loading workout...</p>
             </div>
         )
     }
@@ -316,7 +325,7 @@ export function WorkoutCanvas({
     if (error) {
         return (
             <div className="w-full px-4 py-12 bg-red-900/30 border border-red-800 rounded-lg text-center">
-                <p className="text-sm text-red-300">{error}</p>
+                <p role="alert" className="text-sm text-red-300">{error}</p>
             </div>
         )
     }
@@ -822,7 +831,10 @@ function ChartArea({
     onMoveTextEvent,
 }: ChartAreaProps): JSX.Element {
     const svgRef = useRef<SVGSVGElement | null>(null)
-    const containerRef = useRef<HTMLDivElement | null>(null)
+    // Measure the real container width so corner radii and hit areas are
+    // accurate on any viewport. The ref doubles as the existing containerRef
+    // used for text event drag position calculation.
+    const { ref: containerRef, width: containerWidth } = useContainerWidth(700)
     const [boundaryDragActive, setBoundaryDragActive] = useState<BoundaryDragActive | null>(null)
     // Each boundary tracks its own pending state so both can be moved before saving.
     const [wuMsPending, setWuMsPending] = useState<{ count: number; snapPositions: number[] } | null>(null)
@@ -831,6 +843,20 @@ function ChartArea({
     const [resizeDragState, setResizeDragState] = useState<ResizeDragState | null>(null)
     const [paletteDragState, setPaletteDragState] = useState<PaletteDragState | null>(null)
     const [textEventDragState, setTextEventDragState] = useState<TextEventDragState | null>(null)
+
+    // Track whether any drag gesture is active using a ref so the selectstart
+    // listener below can read it synchronously without a state-timing gap.
+    const isDraggingRef = useRef(false)
+
+    // Suppress text selection across the entire page during any drag. The ref
+    // is set synchronously in each pointerdown handler so this listener always
+    // sees the correct value when selectstart fires (which is synchronous with
+    // the pointer event that initiates a potential selection).
+    useEffect(() => {
+        const prevent = (e: Event) => { if (isDraggingRef.current) e.preventDefault() }
+        document.addEventListener('selectstart', prevent)
+        return () => document.removeEventListener('selectstart', prevent)
+    }, [])
 
     const { layouts, totalWidth } = computeLayout(sections, totalSeconds)
     const [warmupLayout, mainsetLayout, cooldownLayout] = layouts
@@ -893,6 +919,7 @@ function ChartArea({
 
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
 
         const warmupIntervalCount = countIntervals(warmupLayout.section.bars)
@@ -943,6 +970,7 @@ function ChartArea({
         if (svgRef.current === null) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
         const { x: startSvgX, y: startSvgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
         setResizeDragState({
@@ -967,6 +995,7 @@ function ChartArea({
         if (svgRef.current === null) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
 
         const { x: pointerSvgX, y: pointerSvgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
@@ -996,6 +1025,8 @@ function ChartArea({
             grabOffsetX,
             grabOffsetY: pointerSvgY,
             hasMoved: false,
+            startClientX: e.clientX,
+            startClientY: e.clientY,
         })
     }
 
@@ -1005,23 +1036,37 @@ function ChartArea({
      * allowing the drop target to be tracked even when the pointer is outside
      * the palette.
      */
-    function handlePaletteItemPointerDown(interval: ParsedInterval, e: React.PointerEvent): void {
+    function handlePaletteItemPointerDown(
+        interval: ParsedInterval,
+        pointerId: number,
+        clientX: number,
+        clientY: number,
+    ): void {
         if (svgRef.current === null) return
-        e.preventDefault()
+        isDraggingRef.current = true
         // Transfer capture to the SVG so pointermove/up fire there during drag.
-        svgRef.current.setPointerCapture(e.pointerId)
+        // pointerId may be used from a setTimeout callback (touch long-press), so
+        // we accept primitives rather than the original React event.
+        svgRef.current.setPointerCapture(pointerId)
         setPaletteDragState({
             interval,
             dropSection: null,
             dropInsertIndex: null,
             dropIndicatorX: null,
-            clientX: e.clientX,
-            clientY: e.clientY,
+            clientX,
+            clientY,
+            hasMoved: false,
         })
     }
 
     function handleSvgPointerMove(e: React.PointerEvent<SVGSVGElement>): void {
         if (svgRef.current === null) return
+        // Suppress browser scroll and text selection while any drag is active.
+        // Palette drags do not call preventDefault at pointerdown (the 200ms hold
+        // window must leave scroll open), so we suppress here instead.
+        if (barDragState !== null || resizeDragState !== null || boundaryDragActive !== null || paletteDragState !== null) {
+            e.preventDefault()
+        }
         const { x: svgX, y: svgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
 
         if (resizeDragState !== null) {
@@ -1081,6 +1126,7 @@ function ChartArea({
                     dropIndicatorX: dropX,
                     clientX: e.clientX,
                     clientY: e.clientY,
+                    hasMoved: true,
                 } : null)
             } else {
                 setPaletteDragState((prev) => prev !== null ? {
@@ -1090,6 +1136,7 @@ function ChartArea({
                     dropIndicatorX: null,
                     clientX: e.clientX,
                     clientY: e.clientY,
+                    hasMoved: true,
                 } : null)
             }
             return
@@ -1115,6 +1162,14 @@ function ChartArea({
             )
             const ghostX = starts[insertIdx] ?? targetLayout.xOffset + targetLayout.sectionWidth
 
+            // Only commit hasMoved once the pointer has travelled more than 5px from
+            // the grab point. This prevents a small click tremor from being treated as
+            // a reorder, which would suppress the selection callback on pointerup.
+            const DRAG_THRESHOLD_PX = 5
+            const newHasMoved =
+                barDragState.hasMoved ||
+                Math.hypot(e.clientX - barDragState.startClientX, e.clientY - barDragState.startClientY) >= DRAG_THRESHOLD_PX
+
             setBarDragState((prev) =>
                 prev !== null
                     ? {
@@ -1124,7 +1179,7 @@ function ChartArea({
                         ghostX,
                         pointerSvgX: svgX,
                         pointerSvgY: svgY,
-                        hasMoved: true,
+                        hasMoved: newHasMoved,
                     }
                     : null,
             )
@@ -1132,6 +1187,7 @@ function ChartArea({
     }
 
     function handleSvgPointerUp(e: React.PointerEvent<SVGSVGElement>): void {
+        isDraggingRef.current = false
         if (svgRef.current !== null) {
             svgRef.current.releasePointerCapture(e.pointerId)
         }
@@ -1207,6 +1263,18 @@ function ChartArea({
         }
     }
 
+    function handleSvgPointerCancel(e: React.PointerEvent<SVGSVGElement>): void {
+        isDraggingRef.current = false
+        if (svgRef.current !== null) {
+            svgRef.current.releasePointerCapture(e.pointerId)
+        }
+        setBarDragState(null)
+        setPaletteDragState(null)
+        setResizeDragState(null)
+        setBoundaryDragActive(null)
+        setTextEventDragState(null)
+    }
+
     function handleSaveBoundary(): void {
         if (onSaveBoundaries === undefined) return
         if (wuMsPending === null && msCdPending === null) return
@@ -1264,6 +1332,7 @@ function ChartArea({
         if (containerRef.current === null || onMoveTextEvent === undefined) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         const rect = containerRef.current.getBoundingClientRect()
         // Record how far the pointer is from the event bar's left edge so the
         // bar does not jump when first grabbed.
@@ -1304,6 +1373,7 @@ function ChartArea({
     }
 
     function handleContainerPointerUp(e: React.PointerEvent): void {
+        isDraggingRef.current = false
         if (textEventDragState === null) return
         if (containerRef.current !== null) {
             containerRef.current.releasePointerCapture(e.pointerId)
@@ -1360,6 +1430,7 @@ function ChartArea({
                                         type="button"
                                         onClick={() => onSaveToLibrary(section.type)}
                                         title="Save this section to your block library"
+                                        aria-label="Save this section to your block library"
                                         className={`
                                             px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
@@ -1369,7 +1440,24 @@ function ChartArea({
                                             focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                         `}
                                     >
-                                        Save
+                                        <span className="hidden sm:inline">Save</span>
+                                        <svg
+                                            className="sm:hidden w-3.5 h-3.5"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            aria-hidden="true"
+                                        >
+                                            {/* Floppy disk body with notched top-right corner */}
+                                            <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+                                            {/* Write-protect shutter slot at top */}
+                                            <rect x="5" y="2" width="4" height="3.5" rx="0.3" />
+                                            {/* Label area at bottom */}
+                                            <rect x="4" y="8.5" width="8" height="4" rx="0.5" />
+                                        </svg>
                                     </button>
                                 )}
                                 {onReplaceSection !== undefined && (
@@ -1377,6 +1465,7 @@ function ChartArea({
                                         type="button"
                                         onClick={() => onReplaceSection(section.type)}
                                         title="Replace this section with a saved library block"
+                                        aria-label="Replace this section with a saved library block"
                                         className={`
                                             px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
@@ -1386,7 +1475,22 @@ function ChartArea({
                                             focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                         `}
                                     >
-                                        Replace
+                                        <span className="hidden sm:inline">Replace</span>
+                                        <svg
+                                            className="sm:hidden w-3.5 h-3.5"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="M13.5 2.5A6.5 6.5 0 0 0 3 5.5" />
+                                            <polyline points="1 4 3 6 5 4" />
+                                            <path d="M2.5 13.5A6.5 6.5 0 0 0 13 10.5" />
+                                            <polyline points="15 12 13 10 11 12" />
+                                        </svg>
                                     </button>
                                 )}
                             </div>
@@ -1409,6 +1513,7 @@ function ChartArea({
                         layouts={layouts}
                         totalWidth={totalWidth}
                         yMax={yMax}
+                        containerWidth={containerWidth}
                         onSelectInterval={
                             barDragState === null && resizeDragState === null && paletteDragState === null
                                 ? onSelectInterval
@@ -1426,6 +1531,7 @@ function ChartArea({
                         onBarPointerDown={handleBarPointerDown}
                         onSvgPointerMove={handleSvgPointerMove}
                         onSvgPointerUp={handleSvgPointerUp}
+                        onSvgPointerCancel={handleSvgPointerCancel}
                         canDrag={
                             (onReorderInterval !== undefined || onMoveInterval !== undefined)
                             && resizeDragState === null
@@ -1470,6 +1576,7 @@ function ChartArea({
                                     top: 4,
                                     height: 14,
                                     backgroundColor: 'rgba(255, 255, 255, 0.90)',
+                                    touchAction: canDragEvent ? 'none' : undefined,
                                 }}
                                 onPointerDown={
                                     canDragEvent
@@ -1677,12 +1784,12 @@ function ChartArea({
                 <IntervalPalette
                     zonePresets={zonePresets}
                     onItemPointerDown={handlePaletteItemPointerDown}
-                    isDragging={paletteDragState !== null}
+                    isDragging={paletteDragState !== null && paletteDragState.hasMoved}
                 />
             )}
 
             {/* Floating ghost: follows the cursor while dragging from the palette. */}
-            {paletteDragState !== null && (
+            {paletteDragState !== null && paletteDragState.hasMoved && (
                 <div
                     style={{
                         position: 'fixed',
@@ -1707,6 +1814,8 @@ interface UnifiedChartProps {
     layouts: SectionLayout[]
     totalWidth: number
     yMax: number
+    /** Measured container width in screen pixels, used for corner radius and hit area scaling. */
+    containerWidth: number
     onSelectInterval?: (sectionType: SectionType, intervalIndex: number) => void
     selectedInterval: { sectionType: SectionType; intervalIndex: number } | null
     wuMsHandleX: number
@@ -1726,6 +1835,7 @@ interface UnifiedChartProps {
     ) => void
     onSvgPointerMove: (e: React.PointerEvent<SVGSVGElement>) => void
     onSvgPointerUp: (e: React.PointerEvent<SVGSVGElement>) => void
+    onSvgPointerCancel: (e: React.PointerEvent<SVGSVGElement>) => void
     /** Whether bar drag is enabled (parent has provided drag callbacks). */
     canDrag: boolean
     /** Whether boundary drag is enabled (parent has provided boundary callback). */
@@ -1757,6 +1867,7 @@ function UnifiedChart({
     layouts,
     totalWidth,
     yMax,
+    containerWidth,
     onSelectInterval,
     selectedInterval,
     wuMsHandleX,
@@ -1770,6 +1881,7 @@ function UnifiedChart({
     onBarPointerDown,
     onSvgPointerMove,
     onSvgPointerUp,
+    onSvgPointerCancel,
     canDrag,
     canMoveBoundary,
     onResizeHandlePointerDown,
@@ -1784,9 +1896,10 @@ function UnifiedChart({
             viewBox={`0 -${TOP_PADDING} ${totalWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
             preserveAspectRatio="none"
             className="block w-full"
-            style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none' }}
+            style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none', touchAction: 'none' }}
             onPointerMove={onSvgPointerMove}
             onPointerUp={onSvgPointerUp}
+            onPointerCancel={onSvgPointerCancel}
         >
             {/* Section background rects */}
             {layouts.map((layout) => {
@@ -1817,6 +1930,7 @@ function UnifiedChart({
                     layout.section.type,
                     layout.xOffset,
                     totalWidth,
+                    containerWidth,
                     onSelectInterval,
                     selectedInterval?.sectionType === layout.section.type
                         ? selectedInterval.intervalIndex
@@ -1837,7 +1951,7 @@ function UnifiedChart({
             {/* Ghost bar: follows the cursor in both axes. The grab offsets
                 ensure the bar stays under exactly the pixel that was clicked
                 rather than jumping to a centred or left-aligned position. */}
-            {barDragState !== null && (
+            {barDragState !== null && barDragState.hasMoved && (
                 <g
                     pointerEvents="none"
                     transform={`translate(0, ${barDragState.pointerSvgY - barDragState.grabOffsetY})`}
@@ -1847,12 +1961,13 @@ function UnifiedChart({
                         yMax,
                         barDragState.pointerSvgX - barDragState.grabOffsetX,
                         totalWidth,
+                        containerWidth,
                     )}
                 </g>
             )}
 
             {/* Drop indicator: thick solid line at the snapped insert position. */}
-            {barDragState !== null && (
+            {barDragState !== null && barDragState.hasMoved && (
                 <line
                     x1={barDragState.ghostX}
                     y1={-TOP_PADDING}
@@ -1890,6 +2005,8 @@ function UnifiedChart({
                     canMove={canMoveBoundary && !isDraggingBar}
                     onPointerDown={onBoundaryPointerDown}
                     isDraggingBoundary={isDraggingBoundary}
+                    svgTotalWidth={totalWidth}
+                    containerWidth={containerWidth}
                 />
             )}
 
@@ -1903,11 +2020,19 @@ function UnifiedChart({
                     canMove={canMoveBoundary && !isDraggingBar}
                     onPointerDown={onBoundaryPointerDown}
                     isDraggingBoundary={isDraggingBoundary}
+                    svgTotalWidth={totalWidth}
+                    containerWidth={containerWidth}
                 />
             )}
         </svg>
     )
 }
+
+/**
+ * Minimum touch hit area in screen pixels for boundary drag handles.
+ * 44px meets the WCAG 2.5.5 recommended touch target size.
+ */
+const MIN_TOUCH_HIT_PX = 44
 
 interface BoundaryHandleProps {
     x: number
@@ -1917,12 +2042,18 @@ interface BoundaryHandleProps {
     canMove: boolean
     onPointerDown: (boundary: 'WU_MS' | 'MS_CD', e: React.PointerEvent) => void
     isDraggingBoundary: boolean
+    /** Full SVG viewBox width in SVG units. Used to convert screen px to SVG units. */
+    svgTotalWidth: number
+    /** Measured container width in screen pixels. Used to guarantee the 44px touch target. */
+    containerWidth: number
 }
 
 /**
- * A draggable vertical handle rendered between two sections. The handle is a
- * subtle line with small tick marks, styled to hint at interactivity without
- * dominating the chart.
+ * A draggable vertical handle rendered between two sections. The full-height
+ * line remains visible but is non-interactive outside the grab capsule. Only
+ * the capsule near the top of the chart responds to pointer events, preventing
+ * accidental activation when the user drags bars across section boundaries on
+ * mobile. The capsule style mirrors the SectionSplitter boundary handles.
  */
 function BoundaryHandle({
     x,
@@ -1932,53 +2063,93 @@ function BoundaryHandle({
     canMove,
     onPointerDown,
     isDraggingBoundary,
+    svgTotalWidth,
+    containerWidth,
 }: BoundaryHandleProps): JSX.Element {
-    const colour = isActive
+    const lineColour = isActive
         ? 'rgba(255,255,255,0.9)'
         : hasPending
-        ? 'rgba(34,197,94,0.9)'    // brand green when pending
-        : 'rgba(161,161,170,0.35)' // subtle zinc when idle
+        ? 'rgba(34,197,94,0.9)'
+        : 'rgba(161,161,170,0.35)'
+
+    const capsuleColour = isActive
+        ? 'rgba(34,197,94,1.0)'
+        : hasPending
+        ? 'rgba(34,197,94,0.9)'
+        : canMove
+        ? 'rgba(34,197,94,0.75)'
+        : 'rgba(161,161,170,0.25)'
 
     const cursor = canMove && !isDraggingBoundary ? 'col-resize' : 'default'
-    // A wider invisible rect behind the line gives a larger pointer target
-    const hitAreaWidth = 12
+    const svgUnitsPerPx = containerWidth > 0 ? svgTotalWidth / containerWidth : 1
+    const hitAreaWidth = Math.max(12, MIN_TOUCH_HIT_PX * svgUnitsPerPx)
+
+    // Capsule sits in the upper part of the TOP_PADDING zone (y = -TOP_PADDING to 0).
+    // Starting 18 SVG units from the very top so it reads as "near top, not at top".
+    const capsuleTop = -(TOP_PADDING * 0.82)
+    const capsuleBottom = -(TOP_PADDING * 0.48)
+    const capsuleCentre = (capsuleTop + capsuleBottom) / 2
+    const capsuleStrokeWidth = isActive ? 12 : 10
+
+    // Hit area covers the capsule with touch padding; stays entirely above the bars.
+    const hitTop = -(TOP_PADDING * 0.92)
+    const hitHeight = TOP_PADDING * 0.70
 
     return (
-        <g
-            onPointerDown={canMove ? (e) => onPointerDown(boundary, e) : undefined}
-            style={{ cursor }}
-        >
-            {/* Invisible wide hit area */}
-            <rect
-                x={x - hitAreaWidth / 2}
-                y={-TOP_PADDING}
-                width={hitAreaWidth}
-                height={PLOT_HEIGHT + TOP_PADDING}
-                fill="transparent"
-            />
-            {/* Visible line */}
+        <g>
+            {/* Full-height line: always visible, never interactive. */}
             <line
                 x1={x}
                 y1={-TOP_PADDING}
                 x2={x}
                 y2={PLOT_HEIGHT}
-                stroke={colour}
+                stroke={lineColour}
                 strokeWidth={isActive || hasPending ? 2 : 1}
                 vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
             />
-            {/* Grip ticks at the centre of the line */}
-            {[PLOT_HEIGHT * 0.42, PLOT_HEIGHT * 0.5, PLOT_HEIGHT * 0.58].map((tickY) => (
+
+            {/* Grab capsule: only this region initiates a boundary drag. */}
+            <g
+                onPointerDown={canMove ? (e) => onPointerDown(boundary, e) : undefined}
+                style={{ cursor }}
+            >
+                {/* Invisible hit area restricted to the capsule region */}
+                <rect
+                    x={x - hitAreaWidth / 2}
+                    y={hitTop}
+                    width={hitAreaWidth}
+                    height={hitHeight}
+                    fill="transparent"
+                />
+
+                {/* Capsule body */}
                 <line
-                    key={tickY}
-                    x1={x - 3}
-                    y1={tickY}
-                    x2={x + 3}
-                    y2={tickY}
-                    stroke={colour}
-                    strokeWidth={isActive || hasPending ? 2 : 1}
+                    x1={x}
+                    y1={capsuleTop}
+                    x2={x}
+                    y2={capsuleBottom}
+                    stroke={capsuleColour}
+                    strokeWidth={capsuleStrokeWidth}
+                    strokeLinecap="round"
                     vectorEffect="non-scaling-stroke"
                 />
-            ))}
+
+                {/* Three dot grip ridges inside the capsule */}
+                {[capsuleCentre - 8, capsuleCentre, capsuleCentre + 8].map((tickY) => (
+                    <line
+                        key={tickY}
+                        x1={x}
+                        y1={tickY}
+                        x2={x}
+                        y2={tickY}
+                        stroke="rgba(0,0,0,0.35)"
+                        strokeWidth={4}
+                        strokeLinecap="round"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                ))}
+            </g>
         </g>
     )
 }
@@ -1993,6 +2164,8 @@ function BoundaryHandle({
  * @param xOffset                    offset added to every bar's local x position
  * @param svgTotalWidth              full SVG viewBox width in seconds, used to compute
  *                                   aspect-ratio-compensated corner radii
+ * @param containerWidth             measured container width in screen pixels, paired with
+ *                                   svgTotalWidth to produce accurate screen-pixel conversions
  * @param onSelectInterval           called when the user clicks a bar
  * @param selectedIndex              interval index that should receive a highlight stroke
  * @param onBarPointerDown           called when the user initiates a drag on a bar
@@ -2008,6 +2181,7 @@ function buildSectionShapes(
     sectionType: SectionType,
     xOffset: number,
     svgTotalWidth: number,
+    containerWidth: number,
     onSelectInterval: ((sectionType: SectionType, intervalIndex: number) => void) | undefined,
     selectedIndex: number | null,
     onBarPointerDown:
@@ -2119,6 +2293,7 @@ function buildSectionShapes(
                 x={cursor}
                 yMax={yMax}
                 svgTotalWidth={svgTotalWidth}
+                containerWidth={containerWidth}
                 isSelected={isSelected}
                 isDragging={isDragging}
                 onClick={handleClick}
@@ -2146,6 +2321,7 @@ function buildGhostShapes(
     yMax: number,
     ghostX: number,
     svgTotalWidth: number,
+    containerWidth: number,
 ): JSX.Element[] {
     const shapes: JSX.Element[] = []
     let cursor = ghostX
@@ -2166,6 +2342,7 @@ function buildGhostShapes(
                 x={cursor}
                 yMax={yMax}
                 svgTotalWidth={svgTotalWidth}
+                containerWidth={containerWidth}
                 isSelected={false}
                 isDragging={false}
             />,
@@ -2187,6 +2364,12 @@ interface BarShapeProps {
      * preserveAspectRatio="none", so corners look circular rather than sloped.
      */
     svgTotalWidth: number
+    /**
+     * Measured container width in screen pixels. Used alongside svgTotalWidth
+     * to convert screen-pixel constants (corner radii, hit areas) into correct
+     * SVG units at any viewport width.
+     */
+    containerWidth: number
     isSelected: boolean
     /** True when this bar is the one being dragged. Renders faded. */
     isDragging: boolean
@@ -2225,6 +2408,7 @@ function BarShape({
     x,
     yMax,
     svgTotalWidth,
+    containerWidth,
     isSelected,
     isDragging,
     onClick,
@@ -2247,13 +2431,11 @@ function BarShape({
 
     // The SVG uses preserveAspectRatio="none" with a fixed height of PLOT_HEIGHT
     // px. This means 1 SVG y-unit = 1px exactly, but 1 SVG x-unit varies by
-    // workout duration. To produce circular-looking corners, ry is fixed in
-    // SVG units (= px) and rx is scaled by the viewBox aspect ratio.
-    // ASSUMED_CONTAINER_PX is a reasonable estimate of the rendered container
-    // width in screen pixels; the assumption only affects how circular the
-    // corners appear, not correctness.
-    const ASSUMED_CONTAINER_PX = 700
+    // workout duration and container width. To produce circular-looking corners,
+    // ry is fixed in SVG units (= px) and rx is scaled by the actual viewBox
+    // aspect ratio derived from the measured container width.
     const RY_PX = 4
+    const effectiveContainerPx = containerWidth > 0 ? containerWidth : 700
     const ry = RY_PX   // SVG y-units ≈ screen px since height is fixed 1:1
 
     if (bar.style === 'ramp' && bar.startPowerPercent !== null && bar.endPowerPercent !== null) {
@@ -2266,7 +2448,7 @@ function BarShape({
         // rx compensates for non-uniform SVG scaling so corners look circular.
         // Capped at 25% of bar width and 15% of each end height.
         const rx = Math.min(
-            RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX,
+            RY_PX * svgTotalWidth / effectiveContainerPx,
             w * 0.25,
             startHeight * 0.15,
             endHeight * 0.15,
@@ -2310,7 +2492,7 @@ function BarShape({
         const gradientId = `ramp-${x}-${bar.durationSeconds}`
 
         const HANDLE_HIT_PX_RAMP = 8
-        const hitWRamp = Math.min(HANDLE_HIT_PX_RAMP * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.4)
+        const hitWRamp = Math.min(HANDLE_HIT_PX_RAMP * svgTotalWidth / effectiveContainerPx, w * 0.4)
         const isResizingRamp = liveDurationSeconds !== undefined
         const rampRightLineColour = hoverRight || isResizingRamp
             ? 'rgba(255,255,255,0.85)'
@@ -2410,7 +2592,7 @@ function BarShape({
     const fill = getColourForZone(getZoneForPower(renderPower))
     // rx compensates for non-uniform SVG scaling; ry is in px-equivalent units.
     // Both are capped to prevent over-rounding short or flat bars.
-    const rxFlat = Math.min(RY_PX * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.25)
+    const rxFlat = Math.min(RY_PX * svgTotalWidth / effectiveContainerPx, w * 0.25)
     const ryFlat = Math.min(ry, height / 3)
     // Axis-aligned edges allow separate rx/ry in the path for a proper elliptical
     // corner. Only the top two corners are rounded; the bottom stays flush.
@@ -2448,7 +2630,7 @@ function BarShape({
     // Same technique as rxFlat above. Capped at 40% of the bar dimension so
     // handles never swamp a very short or very flat bar.
     const HANDLE_HIT_PX = 8
-    const hitWRight = Math.min(HANDLE_HIT_PX * svgTotalWidth / ASSUMED_CONTAINER_PX, w * 0.4)
+    const hitWRight = Math.min(HANDLE_HIT_PX * svgTotalWidth / effectiveContainerPx, w * 0.4)
     const hitHTop = Math.min(HANDLE_HIT_PX, height * 0.4)
 
     // Active drag detection for styling: live values are only passed when this
@@ -2580,6 +2762,7 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
             onClick={() => onClick?.(sectionType)}
             disabled={disabled}
             title="Undo last change to this section"
+            aria-label="Undo last change to this section"
             className={`
                 px-2 py-0.5
                 bg-zinc-700 text-zinc-200
@@ -2590,7 +2773,20 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-700
             `}
         >
-            Undo
+            <span className="hidden sm:inline">Undo</span>
+            <svg
+                className="sm:hidden w-3.5 h-3.5"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <path d="M2.5 6H10a3.5 3.5 0 0 1 0 7H6" />
+                <polyline points="5.5 3 2.5 6 5.5 9" />
+            </svg>
         </button>
     )
 }

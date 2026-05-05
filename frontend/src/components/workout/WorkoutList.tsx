@@ -98,6 +98,10 @@ export function WorkoutList({
                             checked={allSelected}
                             onChange={() => onSelectAll(allSelected ? [] : workouts.map((w) => w.id))}
                             aria-label="Select all workouts"
+                            // Prevent the browser scrolling the hidden input into view when it
+                            // receives focus via the label click. The visual span and onChange
+                            // handler cover all interaction needs.
+                            tabIndex={-1}
                             className="sr-only"
                         />
                         <span
@@ -131,11 +135,11 @@ export function WorkoutList({
                 save we keep showing the existing list so the layout does
                 not collapse and the focused field stays in place. */}
             {isLoading && workouts.length === 0 && (
-                <p className="text-sm text-zinc-400">Loading workouts...</p>
+                <p role="status" aria-live="polite" className="text-sm text-zinc-400">Loading workouts...</p>
             )}
 
             {error && !isLoading && (
-                <p className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
+                <p role="alert" className="px-3 py-2 bg-red-900/40 text-red-300 text-sm rounded-md">
                     {error}
                 </p>
             )}

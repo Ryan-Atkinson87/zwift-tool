@@ -29,17 +29,48 @@ Backend requires a `.env` file — copy `backend/.env.example` and fill in all v
 
 ## Git Workflow
 
-**TechLead is the only agent responsible for git write operations.** All other agents must not run git write commands (no `git add`, `git commit`, `git push`, `git merge`, `git checkout`, `git stash`, or `git rebase`). Only read-only commands are permitted for non-TechLead agents: `git status`, `git diff`, `git log`, `git branch`, `git fetch`, `git rev-list`.
+Claude must not run git write commands (`git add`, `git commit`, `git push`, `git merge`, `git checkout`, `git stash`, `git rebase`) unless a skill explicitly instructs Claude to handle git operations as part of its workflow. Read-only commands are always permitted: `git status`, `git diff`, `git log`, `git branch`, `git fetch`, `git rev-list`.
 
 ### Branch and PR rules
 
-- TechLead creates feature branches from `dev`, named `issue-[number]-short-description`
-- TechLead is the only agent that stages, commits, pushes branches, and raises PRs
+- Feature branches are named `<type>/issue-<number>-<short-description>` (type: `feat`, `fix`, `chore`) and branch from `dev` — e.g. `feat/issue-42-zone-preset-editor`
 - All PRs target the `dev` branch — never `main`
-- The board reviews and merges PRs to `dev` — no agent merges anything
-- No agent ever raises a PR to `main` or merges into `main` under any circumstances
+- The user reviews and merges PRs to `dev`
+- `main` is promoted from `dev` exclusively via the `/merge-to-main` skill, which asks for explicit confirmation before each push to a protected branch
 
-When implementation or review is complete, notify the TechLead. The TechLead handles all staging, committing, pushing, and PR creation.
+When implementation is complete and no skill has taken over git, Claude provides the commit message and list of changed files for the user to stage, commit, and push.
+
+## GitHub Integration
+
+- **PR base branch:** `dev` — all feature PRs target `dev`, never `main`
+- **Draft PRs:** open as draft by default; mark ready when all checks pass
+- **PR title format:** `[#<issue-number>] <imperative description>` (e.g. `[#42] Add zone preset editor`)
+- **Auto-close issues:** PR body must include `Closes #<issue-number>`
+- **GitHub Project board:** run `gh project list` to find the project number; skills update issue status (Backlog → In Progress → In Review) when configured
+
+## Issue Conventions
+
+- **Issue body must include:** a short description, a bulleted **Tasks** list, and a checkbox **Acceptance criteria** list
+- **Type labels drive the conventional commit prefix:**
+  - `type: bug` → `fix:`
+  - `type: technical` / `type: chore` → `chore:`
+  - `type: user-story` / `type: feature` → `feat:`
+  - default → `feat:`
+- **Area labels:** `area: backend`, `area: frontend`, `area: docs`, `area: infrastructure`
+
+## Build and Verification Commands
+
+Skills reference this table to know which commands to run. Run only the suites relevant to the changed areas.
+
+| Step | Command | Working directory |
+|---|---|---|
+| Frontend lint | `npm run lint` | `frontend/` |
+| Frontend build | `npm run build` | `frontend/` |
+| Frontend typecheck | `npx tsc --noEmit` | `frontend/` |
+| Frontend tests | `npm test -- --run` | `frontend/` |
+| Backend compile | `mvn compile -q` | `backend/` |
+| Backend tests | `mvn test` | `backend/` |
+| Backend full verify | `mvn verify` | `backend/` |
 
 ## Tech Stack
 
@@ -875,6 +906,49 @@ Hook files are named `use` + the thing they manage: `useWorkouts.ts`, `useBlocks
 - Icon-only buttons must have an `aria-label`
 - No arbitrary bracket values (`text-[10px]`) where a standard scale class exists - extract repeated arbitrary values to a CSS utility class in `index.css`
 - No inline `style={{}}` props for values that have a Tailwind equivalent
+
+## How the Agent Should Work (Semi-Automatic Tier)
+
+This project uses the semi-automatic skill set. The rules are:
+
+1. **The agent owns implementation and PR creation.** Once a plan is confirmed, it creates branches, commits, pushes, opens PRs, and updates issue state.
+
+2. **The agent does not push to `dev` or `main` automatically.** `/merge-to-main` is the only skill permitted to push to protected branches, and it requires explicit user confirmation before each push.
+
+3. **The agent does not merge PRs automatically.** The user reviews and merges.
+
+4. **The agent stops only when input is genuinely needed** — vague acceptance criteria, missing schema details, design choices not in spec, or out-of-code tasks (DNS, secrets, infra).
+
+5. **Sub-agents handle parallel work and protect context.** PR review spawns up to 3–5 parallel agents (backend, frontend, security, accessibility, responsiveness).
+
+6. **TDD when sensible.** Write a failing test first for new logic with clear criteria. Skip TDD for trivial changes (config, docs, small fixes).
+
+7. **Tests are sacred.** A failing test is a hard stop. Pre-existing failures are noted in the PR body but not silently fixed unless directly related to the change.
+
+## Production Readiness Bar
+
+Every PR must meet this bar before opening. The `pre-pr-checklist` and `review-pr` skills enforce it.
+
+**All changes:**
+- No secrets in code, commits, or logs
+- Every external call has explicit success and failure paths — no swallowed errors
+- No devDependencies imported at runtime
+- `.env.example` updated for any new environment variable
+- Names convey intent; comments explain *why* not *what*
+
+**Frontend changes:**
+- New data-driven screens have loading, empty, error, and populated states
+- All `fetch` calls use `credentials: 'include'`
+- No hardcoded API URLs — use environment variables
+- No tokens in `localStorage` or `sessionStorage`
+- Destructive actions confirm before firing
+- All interactive elements have visible focus rings and `aria-label` where required
+
+**Backend changes:**
+- Every new request body validated (JSR-380 annotations or manual validation)
+- New endpoints accepting credentials are rate-limited
+- Uncaught errors surface with enough context to debug
+- New environment variables documented and added to `.env.example`
 
 ## Workflow Checkpoints
 When executing multi-step workflows or skills that define checkpoints, STOP and wait for explicit user confirmation at each checkpoint. Never run through review → planning → implementation → final checks without pausing.
