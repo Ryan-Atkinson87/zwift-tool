@@ -1077,7 +1077,7 @@ export function App(): JSX.Element {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
+        <div className="flex flex-col h-dvh bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
 
             {/* ── Header ── */}
             {/*
