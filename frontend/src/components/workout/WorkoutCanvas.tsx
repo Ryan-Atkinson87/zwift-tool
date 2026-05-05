@@ -1,4 +1,4 @@
-import { useState, useRef, type JSX } from 'react'
+import { useState, useRef, useEffect, type JSX } from 'react'
 import { useContainerWidth } from '../../hooks/useContainerWidth'
 import type { BlockDetail, ParsedInterval, SectionType, WorkoutDetail } from '../../types/workout'
 import { expandIntervalsToBars, type ChartBar } from '../../utils/intervalExpander'
@@ -249,6 +249,9 @@ interface BarDragState {
      * distinguish a click from a drag so a bare click never triggers a reorder.
      */
     hasMoved: boolean
+    /** Client X/Y at pointerdown, used to compute the drag threshold distance. */
+    startClientX: number
+    startClientY: number
 }
 
 /** State for a text event drag that is currently in progress. */
@@ -841,6 +844,20 @@ function ChartArea({
     const [paletteDragState, setPaletteDragState] = useState<PaletteDragState | null>(null)
     const [textEventDragState, setTextEventDragState] = useState<TextEventDragState | null>(null)
 
+    // Track whether any drag gesture is active using a ref so the selectstart
+    // listener below can read it synchronously without a state-timing gap.
+    const isDraggingRef = useRef(false)
+
+    // Suppress text selection across the entire page during any drag. The ref
+    // is set synchronously in each pointerdown handler so this listener always
+    // sees the correct value when selectstart fires (which is synchronous with
+    // the pointer event that initiates a potential selection).
+    useEffect(() => {
+        const prevent = (e: Event) => { if (isDraggingRef.current) e.preventDefault() }
+        document.addEventListener('selectstart', prevent)
+        return () => document.removeEventListener('selectstart', prevent)
+    }, [])
+
     const { layouts, totalWidth } = computeLayout(sections, totalSeconds)
     const [warmupLayout, mainsetLayout, cooldownLayout] = layouts
 
@@ -902,6 +919,7 @@ function ChartArea({
 
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
 
         const warmupIntervalCount = countIntervals(warmupLayout.section.bars)
@@ -952,6 +970,7 @@ function ChartArea({
         if (svgRef.current === null) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
         const { x: startSvgX, y: startSvgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
         setResizeDragState({
@@ -976,6 +995,7 @@ function ChartArea({
         if (svgRef.current === null) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         svgRef.current.setPointerCapture(e.pointerId)
 
         const { x: pointerSvgX, y: pointerSvgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
@@ -1005,6 +1025,8 @@ function ChartArea({
             grabOffsetX,
             grabOffsetY: pointerSvgY,
             hasMoved: false,
+            startClientX: e.clientX,
+            startClientY: e.clientY,
         })
     }
 
@@ -1021,6 +1043,7 @@ function ChartArea({
         clientY: number,
     ): void {
         if (svgRef.current === null) return
+        isDraggingRef.current = true
         // Transfer capture to the SVG so pointermove/up fire there during drag.
         // pointerId may be used from a setTimeout callback (touch long-press), so
         // we accept primitives rather than the original React event.
@@ -1038,10 +1061,10 @@ function ChartArea({
 
     function handleSvgPointerMove(e: React.PointerEvent<SVGSVGElement>): void {
         if (svgRef.current === null) return
-        // Palette drags don't call preventDefault at pointerdown (the 200ms hold
-        // window must leave scroll open). Suppress scroll here once the SVG owns
-        // the pointer capture and a palette drag is in progress.
-        if (paletteDragState !== null) {
+        // Suppress browser scroll and text selection while any drag is active.
+        // Palette drags do not call preventDefault at pointerdown (the 200ms hold
+        // window must leave scroll open), so we suppress here instead.
+        if (barDragState !== null || resizeDragState !== null || boundaryDragActive !== null || paletteDragState !== null) {
             e.preventDefault()
         }
         const { x: svgX, y: svgY } = clientToSvgCoords(e.clientX, e.clientY, svgRef.current)
@@ -1139,6 +1162,14 @@ function ChartArea({
             )
             const ghostX = starts[insertIdx] ?? targetLayout.xOffset + targetLayout.sectionWidth
 
+            // Only commit hasMoved once the pointer has travelled more than 5px from
+            // the grab point. This prevents a small click tremor from being treated as
+            // a reorder, which would suppress the selection callback on pointerup.
+            const DRAG_THRESHOLD_PX = 5
+            const newHasMoved =
+                barDragState.hasMoved ||
+                Math.hypot(e.clientX - barDragState.startClientX, e.clientY - barDragState.startClientY) >= DRAG_THRESHOLD_PX
+
             setBarDragState((prev) =>
                 prev !== null
                     ? {
@@ -1148,7 +1179,7 @@ function ChartArea({
                         ghostX,
                         pointerSvgX: svgX,
                         pointerSvgY: svgY,
-                        hasMoved: true,
+                        hasMoved: newHasMoved,
                     }
                     : null,
             )
@@ -1156,6 +1187,7 @@ function ChartArea({
     }
 
     function handleSvgPointerUp(e: React.PointerEvent<SVGSVGElement>): void {
+        isDraggingRef.current = false
         if (svgRef.current !== null) {
             svgRef.current.releasePointerCapture(e.pointerId)
         }
@@ -1232,6 +1264,7 @@ function ChartArea({
     }
 
     function handleSvgPointerCancel(e: React.PointerEvent<SVGSVGElement>): void {
+        isDraggingRef.current = false
         if (svgRef.current !== null) {
             svgRef.current.releasePointerCapture(e.pointerId)
         }
@@ -1299,6 +1332,7 @@ function ChartArea({
         if (containerRef.current === null || onMoveTextEvent === undefined) return
         e.stopPropagation()
         e.preventDefault()
+        isDraggingRef.current = true
         const rect = containerRef.current.getBoundingClientRect()
         // Record how far the pointer is from the event bar's left edge so the
         // bar does not jump when first grabbed.
@@ -1339,6 +1373,7 @@ function ChartArea({
     }
 
     function handleContainerPointerUp(e: React.PointerEvent): void {
+        isDraggingRef.current = false
         if (textEventDragState === null) return
         if (containerRef.current !== null) {
             containerRef.current.releasePointerCapture(e.pointerId)
@@ -1541,6 +1576,7 @@ function ChartArea({
                                     top: 4,
                                     height: 14,
                                     backgroundColor: 'rgba(255, 255, 255, 0.90)',
+                                    touchAction: canDragEvent ? 'none' : undefined,
                                 }}
                                 onPointerDown={
                                     canDragEvent
@@ -1860,7 +1896,7 @@ function UnifiedChart({
             viewBox={`0 -${TOP_PADDING} ${totalWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
             preserveAspectRatio="none"
             className="block w-full"
-            style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none' }}
+            style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none', touchAction: 'none' }}
             onPointerMove={onSvgPointerMove}
             onPointerUp={onSvgPointerUp}
             onPointerCancel={onSvgPointerCancel}
