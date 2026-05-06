@@ -34,8 +34,10 @@ test.describe('Workout editor — guest mode', () => {
     test('loads an example workout when the button is clicked', async ({ page }) => {
         await page.getByRole('button', { name: 'Load example workout' }).click()
 
-        // After loading an example, the workout name should appear in the editor
-        // and the canvas section should become visible
+        // Loading an example shows the section splitter. Confirm to build the workout.
+        await page.getByRole('button', { name: 'Confirm and save' }).click()
+
+        // After confirming the split, the workout canvas should become visible
         await expect(page.locator('[data-testid="workout-canvas"]')).toBeVisible({
             timeout: 5000,
         })
