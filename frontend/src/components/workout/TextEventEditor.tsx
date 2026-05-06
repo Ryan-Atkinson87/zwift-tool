@@ -157,40 +157,44 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
                 <input
                     type="text"
                     inputMode="numeric"
+                    aria-label="Minutes"
                     disabled={disabled}
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value)}
                     onBlur={handleBlur}
                     className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-400 text-xs">m</span>
+                <span className="text-zinc-400 text-xs" aria-hidden="true">m</span>
                 <input
                     type="text"
                     inputMode="numeric"
+                    aria-label="Seconds"
                     disabled={disabled}
                     value={seconds}
                     onChange={(e) => setSeconds(e.target.value)}
                     onBlur={handleBlur}
                     className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-400 text-xs">s</span>
+                <span className="text-zinc-400 text-xs" aria-hidden="true">s</span>
             </div>
 
             <div className="flex items-center gap-1">
                 <input
                     type="text"
                     inputMode="numeric"
+                    aria-label="Duration in seconds"
                     disabled={disabled}
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     onBlur={handleBlur}
                     className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-400 text-xs">dur</span>
+                <span className="text-zinc-400 text-xs" aria-hidden="true">dur</span>
             </div>
 
             <input
                 type="text"
+                aria-label="Message"
                 disabled={disabled}
                 value={message}
                 placeholder="Message..."
