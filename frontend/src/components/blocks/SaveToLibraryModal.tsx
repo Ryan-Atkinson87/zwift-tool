@@ -92,7 +92,7 @@ export function SaveToLibraryModal({
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
+                            placeholder:text-zinc-400
                             focus:outline-none focus:border-brand-500
                         `}
                     />
@@ -114,7 +114,7 @@ export function SaveToLibraryModal({
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
+                            placeholder:text-zinc-400
                             focus:outline-none focus:border-brand-500
                             resize-none
                         `}
