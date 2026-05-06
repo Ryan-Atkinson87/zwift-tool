@@ -76,13 +76,14 @@ export function DuplicateNameModal({
                             onChange={(e) => setNewName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
                             placeholder="Enter a new name..."
+                            aria-required="true"
                             autoFocus
                             className={`
                                 flex-1 px-3 py-2
                                 bg-zinc-700 text-white text-sm
                                 rounded-md border border-zinc-600
-                                placeholder:text-zinc-500
-                                focus:outline-none focus:border-brand-500
+                                placeholder:text-zinc-400
+                                focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             `}
                         />
                         <button

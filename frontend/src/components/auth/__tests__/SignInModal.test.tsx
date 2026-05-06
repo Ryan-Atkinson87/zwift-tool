@@ -120,4 +120,43 @@ describe('SignInModal', () => {
 
         expect(await screen.findByRole('button', { name: 'Signing in...' })).toBeDisabled()
     })
+
+    describe('ARIA associations', () => {
+        it('email input has no aria-describedby initially', () => {
+            renderSignInModal()
+            expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-describedby')
+        })
+
+        it('password input has no aria-describedby initially', () => {
+            renderSignInModal()
+            expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-describedby')
+        })
+
+        it('email input aria-describedby points to signin-form-error after validation failure', async () => {
+            const user = userEvent.setup()
+            renderSignInModal()
+            await user.click(screen.getByRole('button', { name: 'Sign in' }))
+            await screen.findByRole('alert')
+            expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', 'signin-form-error')
+        })
+
+        it('email input has no aria-invalid after generic server error', async () => {
+            const user = userEvent.setup()
+            const onSignIn = vi.fn().mockRejectedValue(new Error('Invalid email or password.'))
+            renderSignInModal({ onSignIn })
+            await user.type(screen.getByLabelText('Email'), 'bad@example.com')
+            await user.type(screen.getByLabelText('Password'), 'wrongpassword')
+            await user.click(screen.getByRole('button', { name: 'Sign in' }))
+            await screen.findByRole('alert')
+            expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-invalid')
+        })
+
+        it('error element has id signin-form-error', async () => {
+            const user = userEvent.setup()
+            renderSignInModal()
+            await user.click(screen.getByRole('button', { name: 'Sign in' }))
+            await screen.findByRole('alert')
+            expect(document.getElementById('signin-form-error')).toBeInTheDocument()
+        })
+    })
 })

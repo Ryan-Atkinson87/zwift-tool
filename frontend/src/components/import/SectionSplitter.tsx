@@ -231,7 +231,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
         <div className="flex flex-col gap-4 w-full">
             <div className="flex items-center justify-between">
                 <h3 className="text-white text-lg font-semibold">{workout.name}</h3>
-                <p className="text-zinc-500 text-sm">{workout.fileName}</p>
+                <p className="text-zinc-400 text-sm">{workout.fileName}</p>
             </div>
 
             <p className="text-zinc-400 text-sm">
@@ -267,9 +267,10 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                     viewBox={`0 -${TOP_PADDING} ${totalSvgWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
                     preserveAspectRatio="none"
                     className="block w-full"
-                    style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none' }}
+                    style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none', touchAction: 'none' }}
                     onPointerMove={handleSvgPointerMove}
                     onPointerUp={handleSvgPointerUp}
+                    onPointerCancel={() => setBoundaryDrag(null)}
                 >
                     {/* Warm-up section background: x=0 to wuBoundaryX */}
                     <rect

@@ -68,6 +68,7 @@ export function WorkoutList({
                     <button
                         type="button"
                         onClick={handleToggleSelectMode}
+                        aria-pressed={isSelectMode}
                         className={`
                             px-2 py-0.5
                             label-tiny

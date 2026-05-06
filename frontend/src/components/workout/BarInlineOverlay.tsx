@@ -297,7 +297,7 @@ export function BarInlineOverlay({
         w-12 px-1 py-0.5
         bg-zinc-900 text-white text-xs
         border border-zinc-600 rounded
-        focus:outline-none focus:border-brand-500
+        focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
         text-center
     `
 

@@ -78,9 +78,10 @@ function SectionGroup({ sectionType, block, isSingleMainset, onUpdate, onDelete 
                 onClick={() => setIsOpen((prev) => !prev)}
                 className="flex items-center gap-1.5 w-full text-left focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 aria-expanded={isOpen}
+                aria-controls={`section-group-${sectionType}`}
             >
                 <svg
-                    className="w-3 h-3 text-zinc-500 flex-shrink-0 transition-transform"
+                    className="w-3 h-3 text-zinc-400 flex-shrink-0 transition-transform"
                     style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
                     viewBox="0 0 20 20"
                     fill="currentColor"
@@ -92,12 +93,12 @@ function SectionGroup({ sectionType, block, isSingleMainset, onUpdate, onDelete 
                         clipRule="evenodd"
                     />
                 </svg>
-                <p className="label-tiny text-zinc-500">{SECTION_LABELS[sectionType]}</p>
-                <span className="label-tiny text-zinc-600">{formatDurationMins(block.durationSeconds)}</span>
-                <span className="label-tiny text-zinc-700 ml-auto">{block.intervals.length} interval{block.intervals.length !== 1 ? 's' : ''}</span>
+                <p className="label-tiny text-zinc-400">{SECTION_LABELS[sectionType]}</p>
+                <span className="label-tiny text-zinc-400">{formatDurationMins(block.durationSeconds)}</span>
+                <span className="label-tiny text-zinc-400 ml-auto">{block.intervals.length} interval{block.intervals.length !== 1 ? 's' : ''}</span>
             </button>
             {isOpen && (
-                <ul className="flex flex-col gap-1">
+                <ul id={`section-group-${sectionType}`} className="flex flex-col gap-1">
                     {block.intervals.map((interval, index) => (
                         <IntervalRow
                             key={`${sectionType}-${index}`}
@@ -400,7 +401,7 @@ function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Ele
 function DurationHint({ value }: { value: string }): JSX.Element | null {
     const seconds = parseInt(value, 10)
     if (isNaN(seconds) || seconds < 0) return null
-    return <span className="text-xs text-zinc-500">s ({formatDurationMins(seconds)})</span>
+    return <span className="text-xs text-zinc-400">s ({formatDurationMins(seconds)})</span>
 }
 
 function formatDurationMins(seconds: number): string {

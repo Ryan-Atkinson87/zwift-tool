@@ -1114,7 +1114,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => { handleClearSelection(); void signOut() }}
                                 className={`
-                                    px-3 py-1.5
+                                    min-h-11 px-3 py-1.5
                                     bg-zinc-700 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1132,7 +1132,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsSignInOpen(true)}
                                 className={`
-                                    px-4 py-1.5
+                                    min-h-11 px-4 py-1.5
                                     bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1145,7 +1145,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsSignUpOpen(true)}
                                 className={`
-                                    px-4 py-1.5
+                                    min-h-11 px-4 py-1.5
                                     bg-zinc-700 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1221,7 +1221,7 @@ export function App(): JSX.Element {
                             onClick={() => setMobilePanel('workouts')}
                             aria-label="Open workout list"
                             className={`
-                                md:hidden absolute left-0 top-14 z-50 min-w-11
+                                md:hidden absolute left-0 top-14 z-50 min-w-11 min-h-11
                                 bg-zinc-700 border border-zinc-600 rounded-r-lg
                                 hover:bg-zinc-600 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
@@ -1237,7 +1237,7 @@ export function App(): JSX.Element {
                             onClick={() => setMobilePanel('blocks')}
                             aria-label="Open block library"
                             className={`
-                                md:hidden absolute right-0 top-14 z-50 min-w-11
+                                md:hidden absolute right-0 top-14 z-50 min-w-11 min-h-11
                                 bg-zinc-700 border border-zinc-600 rounded-l-lg
                                 hover:bg-zinc-600 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
@@ -1266,7 +1266,7 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside
-                        inert={isMobile && mobilePanel !== 'workouts' ? true : undefined}
+                        inert={(isMobile && mobilePanel !== 'workouts') || (!isMobile && isLeftCollapsed) ? true : undefined}
                         className={[
                             'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
                             // Mobile: always absolutely positioned, slide in/out via transform
@@ -1490,7 +1490,7 @@ export function App(): JSX.Element {
                         </aside>
                     )}
                     <aside
-                        inert={isMobile && mobilePanel !== 'blocks' ? true : undefined}
+                        inert={(isMobile && mobilePanel !== 'blocks') || (!isMobile && isRightCollapsed) ? true : undefined}
                         className={[
                             'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
                             // Mobile: always absolutely positioned, slide in/out via transform

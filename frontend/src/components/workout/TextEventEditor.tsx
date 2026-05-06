@@ -81,7 +81,7 @@ export function TextEventEditor({
             </div>
 
             {localEvents.length === 0 ? (
-                <p className="text-xs italic text-zinc-500">
+                <p className="text-xs italic text-zinc-400">
                     No text events. Add one to display a message over the timeline.
                 </p>
             ) : (
@@ -161,9 +161,9 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value)}
                     onBlur={handleBlur}
-                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-500 text-xs">m</span>
+                <span className="text-zinc-400 text-xs">m</span>
                 <input
                     type="text"
                     inputMode="numeric"
@@ -171,9 +171,9 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
                     value={seconds}
                     onChange={(e) => setSeconds(e.target.value)}
                     onBlur={handleBlur}
-                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-500 text-xs">s</span>
+                <span className="text-zinc-400 text-xs">s</span>
             </div>
 
             <div className="flex items-center gap-1">
@@ -184,9 +184,9 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     onBlur={handleBlur}
-                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                    className="w-14 px-2 py-1 bg-zinc-900 text-white text-xs border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                 />
-                <span className="text-zinc-500 text-xs">dur</span>
+                <span className="text-zinc-400 text-xs">dur</span>
             </div>
 
             <input
@@ -196,7 +196,7 @@ function TextEventRow({ event, disabled, onCommit, onDelete }: RowProps): JSX.El
                 placeholder="Message..."
                 onChange={(e) => setMessage(e.target.value)}
                 onBlur={handleBlur}
-                className="flex-1 px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                className="flex-1 px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
             />
 
             <button

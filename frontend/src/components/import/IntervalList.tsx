@@ -34,11 +34,11 @@ export function IntervalList({ workouts, onSelectWorkout }: Props): JSX.Element 
                         {workout.description && (
                             <p className="text-zinc-400 text-sm">{workout.description}</p>
                         )}
-                        <p className="text-zinc-500 text-xs">{workout.fileName}</p>
+                        <p className="text-zinc-400 text-xs">{workout.fileName}</p>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <div className="flex px-3 py-1 text-zinc-500 text-xs font-medium uppercase tracking-wide">
+                        <div className="flex px-3 py-1 text-zinc-400 text-xs font-medium uppercase tracking-wide">
                             <span className="w-32">Type</span>
                             <span className="w-24">Duration</span>
                             <span className="flex-1">Power</span>
@@ -49,7 +49,7 @@ export function IntervalList({ workouts, onSelectWorkout }: Props): JSX.Element 
                     </div>
 
                     <div className="flex items-center justify-between">
-                        <p className="text-zinc-500 text-xs">
+                        <p className="text-zinc-400 text-xs">
                             {workout.intervals.length} interval{workout.intervals.length !== 1 ? 's' : ''} ·{' '}
                             {formatTotalDuration(workout.intervals)}
                         </p>

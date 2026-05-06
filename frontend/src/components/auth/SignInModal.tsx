@@ -81,6 +81,7 @@ export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = fals
                             setEmail(e.target.value)
                             setError(null)
                         }}
+                        aria-required="true"
                         aria-describedby={error ? 'signin-form-error' : undefined}
                         className={`
                             w-full px-3 py-2
@@ -108,6 +109,7 @@ export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = fals
                             setPassword(e.target.value)
                             setError(null)
                         }}
+                        aria-required="true"
                         aria-describedby={error ? 'signin-form-error' : undefined}
                         className={`
                             w-full px-3 py-2

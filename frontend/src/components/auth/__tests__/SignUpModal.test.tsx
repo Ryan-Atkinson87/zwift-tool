@@ -139,4 +139,52 @@ describe('SignUpModal', () => {
 
         expect(await screen.findByRole('button', { name: 'Creating account...' })).toBeDisabled()
     })
+
+    describe('ARIA associations', () => {
+        it('email input has no aria-describedby initially', () => {
+            renderSignUpModal()
+            expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-describedby')
+        })
+
+        it('password input has no aria-describedby initially', () => {
+            renderSignUpModal()
+            expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-describedby')
+        })
+
+        it('email input is aria-invalid="true" when email validation fails', async () => {
+            const user = userEvent.setup()
+            renderSignUpModal()
+            await user.click(screen.getByRole('button', { name: 'Sign up' }))
+            await screen.findByText('Email is required.')
+            expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
+        })
+
+        it('email input aria-describedby points to signup-email-error when email fails', async () => {
+            const user = userEvent.setup()
+            renderSignUpModal()
+            await user.click(screen.getByRole('button', { name: 'Sign up' }))
+            await screen.findByText('Email is required.')
+            expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', 'signup-email-error')
+        })
+
+        it('password input is aria-invalid="true" when password validation fails', async () => {
+            const user = userEvent.setup()
+            renderSignUpModal()
+            await user.type(screen.getByLabelText('Email'), 'test@example.com')
+            await user.click(screen.getByRole('button', { name: 'Sign up' }))
+            await screen.findByText('Password is required.')
+            expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
+        })
+
+        it('email input is not aria-invalid after a server-level error', async () => {
+            const user = userEvent.setup()
+            const onSignUp = vi.fn().mockRejectedValue(new Error('Email already in use.'))
+            renderSignUpModal({ onSignUp })
+            await user.type(screen.getByLabelText('Email'), 'existing@example.com')
+            await user.type(screen.getByLabelText('Password'), 'securepassword')
+            await user.click(screen.getByRole('button', { name: 'Sign up' }))
+            await screen.findByText('Email already in use.')
+            expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-invalid', 'true')
+        })
+    })
 })

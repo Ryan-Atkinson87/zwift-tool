@@ -258,10 +258,10 @@ function DurationField({ label, seconds, onChange }: DurationFieldProps): JSX.El
                         w-full px-2 py-1
                         bg-zinc-900 text-white text-sm
                         border border-zinc-700 rounded
-                        focus:outline-none focus:border-brand-500
+                        focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 />
-                <span className="text-zinc-500 text-xs">m</span>
+                <span className="text-zinc-400 text-xs">m</span>
                 <input
                     type="number"
                     min={0}
@@ -277,10 +277,10 @@ function DurationField({ label, seconds, onChange }: DurationFieldProps): JSX.El
                         w-full px-2 py-1
                         bg-zinc-900 text-white text-sm
                         border border-zinc-700 rounded
-                        focus:outline-none focus:border-brand-500
+                        focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 />
-                <span className="text-zinc-500 text-xs">s</span>
+                <span className="text-zinc-400 text-xs">s</span>
             </div>
         </label>
     )
@@ -335,7 +335,7 @@ function CadenceField({ cadence, onChange }: CadenceFieldProps): JSX.Element {
                     px-2 py-1
                     bg-zinc-900 text-white text-sm
                     border border-zinc-700 rounded
-                    focus:outline-none focus:border-brand-500
+                    focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                 `}
             />
         </label>
@@ -370,7 +370,7 @@ function NumberField({ label, value, onChange, min, max }: NumberFieldProps): JS
                     px-2 py-1
                     bg-zinc-900 text-white text-sm
                     border border-zinc-700 rounded
-                    focus:outline-none focus:border-brand-500
+                    focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                 `}
             />
         </label>

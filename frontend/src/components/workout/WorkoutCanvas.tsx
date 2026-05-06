@@ -2744,7 +2744,7 @@ interface YAxisLegendProps {
 function YAxisLegend({ yMax }: YAxisLegendProps): JSX.Element {
     return (
         <div
-            className="flex flex-col justify-between items-end text-tiny text-zinc-500 shrink-0"
+            className="flex flex-col justify-between items-end text-tiny text-zinc-400 shrink-0"
             style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, paddingTop: `${TOP_PADDING}px` }}
         >
             <span>{yMax}%</span>
@@ -2843,7 +2843,7 @@ function WorkoutFooter({ totalSeconds, normalisedPower, npWatts, intensityFactor
             ) : (
                 <div className="flex items-baseline gap-2">
                     <span className="text-zinc-400">IF</span>
-                    <span className="text-zinc-500 text-xs">Enter FTP above</span>
+                    <span className="text-zinc-400 text-xs">Enter FTP above</span>
                 </div>
             )}
         </div>

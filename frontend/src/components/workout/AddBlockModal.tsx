@@ -186,12 +186,13 @@ function TypeSelector({ value, onChange }: TypeSelectorProps): JSX.Element {
         { value: 'FreeRide', label: 'Free Ride' },
     ]
     return (
-        <div className="flex gap-2">
+        <div role="group" aria-label="Block type" className="flex gap-2">
             {options.map((option) => (
                 <button
                     key={option.value}
                     type="button"
                     onClick={() => onChange(option.value)}
+                    aria-pressed={value === option.value}
                     className={`
                         flex-1 px-3 py-2
                         text-sm font-medium
@@ -335,7 +336,7 @@ function NumberField({ label, value, onChange, min, max }: NumberFieldProps): JS
                     bg-zinc-900 text-white
                     text-sm
                     border border-zinc-700 rounded-md
-                    focus:outline-none focus:border-brand-500
+                    focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                 `}
             />
         </label>

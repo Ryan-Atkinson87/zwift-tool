@@ -205,7 +205,7 @@ function ZoneRow({
             </div>
 
             {error !== null && (
-                <p className="text-xs text-red-200">{error}</p>
+                <p role="alert" className="text-xs text-red-200">{error}</p>
             )}
         </div>
     )
