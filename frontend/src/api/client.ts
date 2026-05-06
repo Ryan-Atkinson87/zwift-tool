@@ -50,9 +50,9 @@ async function attemptRefresh(): Promise<boolean> {
 }
 
 /**
- * Returns true if the response status indicates an expired access token.
- * The backend returns 403 when the JWT has expired and 401 when no credentials
- * are present at all. Both should trigger a silent refresh attempt.
+ * Returns true if the response status warrants a silent token refresh and retry.
+ * Both 401 and 403 can indicate an expired or missing access token, so both
+ * trigger one refresh attempt via refresh() before signing the user out.
  */
 function isTokenExpiredResponse(status: number): boolean {
     return status === 401 || status === 403
