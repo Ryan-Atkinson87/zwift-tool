@@ -403,6 +403,8 @@ The JWT filter chain order and configuration must be documented with inline comm
 - No commented-out code committed to the repository
 - Delete unused imports - IntelliJ will flag these automatically
 - One class per file
+- DTO string fields with a known maximum length must have an `@Size(max = N)` constraint - do not rely on database column limits to reject oversized input
+- Test method names must be spelled correctly - use full words, no abbreviations (e.g. "Separated" not "Seperated", "Trimmed" not "Trimed")
 
 ## Frontend Coding Conventions
 
@@ -856,6 +858,148 @@ Any button that contains only an icon or a symbol character (trash, close, drag 
 </button>
 ```
 
+#### Form inputs
+
+Form inputs require the same full ring pattern as buttons. A border colour change alone (`focus:border-brand-500`) is insufficient for keyboard focus visibility.
+
+```tsx
+<input
+    type="text"
+    className="
+        w-full px-3 py-2 rounded-md text-sm
+        bg-zinc-700 text-white border border-zinc-600
+        placeholder:text-zinc-400
+        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+    "
+/>
+```
+
+Never use `focus:outline-none focus:border-brand-500` alone on an input — a 1px border colour change is not a visible focus indicator.
+
+#### Touch targets
+
+All interactive elements must meet the 44×44px minimum touch target. Use `min-w-11 min-h-11` on every button and link, including icon-only buttons and mobile-specific controls. Do not rely on padding alone when the element's content is small.
+
+```tsx
+<button
+    aria-label="Delete block"
+    className="min-w-11 min-h-11 flex items-center justify-center rounded-md ..."
+>
+    <TrashIcon className="w-4 h-4" aria-hidden="true" />
+</button>
+```
+
+#### Toggle and selection buttons
+
+Buttons that represent a binary state or a choice within a group must include `aria-pressed` so screen readers announce the current selection. Never convey selection state with background colour alone.
+
+```tsx
+<button
+    aria-pressed={sectionType === 'WARMUP'}
+    onClick={() => setSectionType('WARMUP')}
+    className="..."
+>
+    Warm-Up
+</button>
+```
+
+For a group of related toggle buttons, wrap them in a container with `role="group"` and `aria-labelledby` pointing to the group's visible label.
+
+#### Decorative icons
+
+Inline SVGs and icon components inside labelled buttons or links must have `aria-hidden="true"` so screen readers do not double-announce them.
+
+```tsx
+// Good
+<button aria-label="Delete block">
+    <TrashIcon className="w-4 h-4" aria-hidden="true" />
+</button>
+
+// Bad - icon content announced separately from the aria-label
+<button aria-label="Delete block">
+    <TrashIcon className="w-4 h-4" />
+</button>
+```
+
+---
+
+### Accessibility conventions
+
+#### Modal components
+
+Always use the shared `Modal.tsx` wrapper for modal dialogs. Never hand-roll a modal with a custom overlay. The shared wrapper provides `role="dialog"`, `aria-modal`, `aria-labelledby`, a focus trap (Tab cycle within the modal), Escape to close, and focus restoration. A hand-rolled modal fails all of these requirements simultaneously.
+
+#### Off-screen and hidden content
+
+Panels or drawers that are visually off-screen via CSS transform (`translate-x-full`) remain fully in the keyboard tab order unless explicitly excluded. Apply the `inert` boolean attribute to any panel that is not currently visible.
+
+```tsx
+<aside
+    className={`fixed inset-y-0 left-0 transition-transform ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+    {...(!isVisible ? { inert: true } : {})}
+>
+```
+
+Never rely on transform or opacity alone to exclude content from the tab order.
+
+#### Colour contrast
+
+`text-zinc-500` fails WCAG 2.1 AA on all zinc dark backgrounds. Use `text-zinc-400` as the minimum for body text, secondary labels, and hint text.
+
+| Text colour | Background | Approx. contrast | Result |
+|---|---|---|---|
+| `text-zinc-500` | `bg-zinc-800` | ~2.83:1 | FAIL |
+| `text-zinc-500` | `bg-zinc-900` | ~3.99:1 | FAIL |
+| `text-zinc-400` | `bg-zinc-800` | ~4.6:1 | PASS |
+| `text-zinc-400` | `bg-zinc-900` | ~5.1:1 | PASS |
+
+Placeholder text must always use `placeholder:text-zinc-400`. Never `placeholder:text-zinc-500`.
+
+#### Error identification
+
+When a form input has a per-field error, link the input to its error message using `aria-invalid` and `aria-describedby`.
+
+```tsx
+<input
+    id="email"
+    type="email"
+    aria-invalid={!!emailError}
+    aria-describedby={emailError ? 'email-error' : undefined}
+    className="..."
+/>
+{emailError && (
+    <p id="email-error" role="alert" className="text-sm text-red-400">
+        {emailError}
+    </p>
+)}
+```
+
+Do not apply `aria-invalid` for generic server-level errors that do not identify a specific field. A `role="alert"` on the error paragraph alone satisfies WCAG 3.3.1 in those cases.
+
+#### Required fields
+
+Required inputs must carry `aria-required="true"`. A visual asterisk alone is not accessible.
+
+```tsx
+<input type="email" aria-required="true" className="..." />
+```
+
+#### Heading hierarchy
+
+Every page or view must have exactly one `<h1>` identifying the primary content area. Heading levels must not skip — `<h3>` always follows `<h2>`, never jumps from `<h1>` directly to `<h3>`.
+
+#### Keyboard-accessible interactive elements
+
+Every clickable or selectable element must be a native HTML interactive element (`<button>`, `<a>`, `<input>`) or carry an explicit `role`, `tabIndex`, and `onKeyDown` handler for Enter and Space. Never use `<div onPointerDown>` or `<div onClick>` for actions without these attributes.
+
+```tsx
+// Bad - unreachable by keyboard
+<div onPointerDown={onAdd}>Add zone 3</div>
+
+// Good
+<button onClick={onAdd}>Add zone 3</button>
+```
+
 ---
 
 ### Hooks
@@ -906,6 +1050,15 @@ Hook files are named `use` + the thing they manage: `useWorkouts.ts`, `useBlocks
 - Icon-only buttons must have an `aria-label`
 - No arbitrary bracket values (`text-[10px]`) where a standard scale class exists - extract repeated arbitrary values to a CSS utility class in `index.css`
 - No inline `style={{}}` props for values that have a Tailwind equivalent
+- `placeholder:text-zinc-400` on all dark-background inputs — never `placeholder:text-zinc-500` (fails WCAG AA)
+- `text-zinc-400` minimum for secondary and hint text on dark backgrounds — never `text-zinc-500`
+- All interactive elements must use `min-w-11 min-h-11` for 44×44px minimum touch targets
+- Form inputs must use the full focus ring pattern — never `focus:outline-none focus:border-*` alone
+- Toggle and selection buttons must include `aria-pressed`
+- Decorative SVGs inside labelled buttons must have `aria-hidden="true"`
+- Required inputs must have `aria-required="true"`
+- Never hand-roll modal dialogs — always use shared `Modal.tsx`
+- Off-screen panels and drawers must use the `inert` attribute when not visible
 
 ## How the Agent Should Work (Semi-Automatic Tier)
 
@@ -942,7 +1095,17 @@ Every PR must meet this bar before opening. The `pre-pr-checklist` and `review-p
 - No hardcoded API URLs — use environment variables
 - No tokens in `localStorage` or `sessionStorage`
 - Destructive actions confirm before firing
-- All interactive elements have visible focus rings and `aria-label` where required
+- All interactive elements have visible focus rings — buttons and inputs use the full ring pattern (`focus:ring-2 focus:ring-offset-1 focus:ring-offset-zinc-900`), not a border colour change alone
+- All interactive elements meet the 44×44px touch target minimum (`min-w-11 min-h-11`)
+- All modals use shared `Modal.tsx` — no hand-rolled dialogs
+- Off-screen panels and drawers carry the `inert` attribute when not visible
+- Toggle and selection buttons have `aria-pressed`
+- Per-field form errors use `aria-invalid` and `aria-describedby` linking to the error element; generic server errors use `role="alert"` only
+- Required inputs have `aria-required="true"`
+- Decorative SVGs inside labelled buttons have `aria-hidden="true"`
+- Icon-only buttons have `aria-label`
+- Text colours on dark backgrounds use `text-zinc-400` minimum — never `text-zinc-500`
+- Placeholder text uses `placeholder:text-zinc-400` — never `placeholder:text-zinc-500`
 
 **Backend changes:**
 - Every new request body validated (JSR-380 annotations or manual validation)
