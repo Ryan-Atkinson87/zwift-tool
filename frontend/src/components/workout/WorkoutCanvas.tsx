@@ -1781,12 +1781,18 @@ function ChartArea({
                 </div>
             )}
 
-            {/* Interval palette: drag any item onto the chart to add an interval. */}
+            {/* Interval palette: drag any item onto the chart to add an interval,
+                or click/activate via keyboard to append to the main set. */}
             {onAddInterval !== undefined && (
                 <IntervalPalette
                     zonePresets={zonePresets}
                     onItemPointerDown={handlePaletteItemPointerDown}
                     isDragging={paletteDragState !== null && paletteDragState.hasMoved}
+                    onAddInterval={(interval) => {
+                        // Keyboard/click action: append to the end of the main set.
+                        const appendIndex = countIntervals(mainsetLayout.section.bars)
+                        onAddInterval('MAINSET', interval, appendIndex)
+                    }}
                 />
             )}
 

@@ -29,6 +29,12 @@ interface IntervalPaletteProps {
     zonePresets?: ZonePresetView[]
     onItemPointerDown: (interval: ParsedInterval, pointerId: number, clientX: number, clientY: number) => void
     isDragging: boolean
+    /**
+     * Called when the user clicks or activates a palette item via keyboard.
+     * Appends the interval to the end of the current section. When omitted,
+     * keyboard activation has no effect (drag-to-add still works).
+     */
+    onAddInterval?: (interval: ParsedInterval) => void
 }
 
 /**
@@ -48,6 +54,7 @@ export function IntervalPalette({
     zonePresets,
     onItemPointerDown,
     isDragging,
+    onAddInterval,
 }: IntervalPaletteProps): JSX.Element {
     const items = buildPaletteItems(zonePresets)
 
@@ -127,28 +134,31 @@ export function IntervalPalette({
     return (
         <div className="flex flex-wrap justify-center gap-2 mt-2 pt-2 border-t border-zinc-700">
             <span className="w-full text-center label-tiny text-zinc-500 pb-1">
-                Drag an interval onto the chart to add it
+                Drag onto the chart to insert, or press Enter/Space to append to the main set
             </span>
             {items.map((item) => (
-                <div
+                <button
                     key={item.id}
+                    type="button"
                     onPointerDown={(e) => handlePointerDown(item.interval, e)}
                     onPointerMove={handlePointerMove}
                     onPointerUp={cancelPending}
                     onPointerCancel={cancelPending}
+                    onClick={() => onAddInterval?.(item.interval)}
+                    aria-label={item.ariaLabel}
                     style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                    title={`Drag to add a ${item.label} interval`}
                     className={`
                         flex flex-col items-center gap-1
                         px-2 py-1.5
                         bg-zinc-700/60 rounded
                         hover:bg-zinc-700 transition-colors
                         select-none touch-none
+                        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 >
                     <PaletteItemShape interval={item.interval} />
                     <span className="label-tiny text-zinc-300">{item.label}</span>
-                </div>
+                </button>
             ))}
         </div>
     )
