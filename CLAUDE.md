@@ -131,6 +131,8 @@ This project uses the semi-automatic skill set. The rules are:
 
 7. **Tests are sacred.** A failing test is a hard stop. Pre-existing failures are noted in the PR body but not silently fixed unless directly related to the change.
 
+8. **Accessibility sweep on every frontend file touch.** When editing any frontend component file, audit every interactive element in that file — not just newly added code — against the accessibility rules in the Production Readiness Bar below. A file that was non-compliant before a change must be left compliant after it.
+
 ## Production Readiness Bar
 
 Every PR must meet this bar before opening. The `pre-pr-checklist` and `review-pr` skills enforce it.
@@ -151,14 +153,17 @@ Every PR must meet this bar before opening. The `pre-pr-checklist` and `review-p
 - All interactive elements have visible focus rings — buttons and inputs use the full ring pattern (`focus:ring-2 focus:ring-offset-1 focus:ring-offset-zinc-900`), not a border colour change alone
 - All interactive elements meet the 44×44px touch target minimum (`min-w-11 min-h-11`)
 - All modals use shared `Modal.tsx` — no hand-rolled dialogs
-- Off-screen panels and drawers carry the `inert` attribute when not visible
-- Toggle and selection buttons have `aria-pressed`
-- Per-field form errors use `aria-invalid` and `aria-describedby` linking to the error element; generic server errors use `role="alert"` only
+- All visually hidden panels carry the `inert` attribute — this includes mobile drawers hidden via CSS transform AND desktop panels hidden via conditional rendering or responsive classes (`md:hidden`)
+- Toggle and selection buttons have `aria-pressed` — this applies to every binary-state or choice button: section-type selectors, type pickers, select-mode toggles, filter tabs, etc.
+- Toggle button groups (section-type selectors, type pickers, filter tabs) have `role="group"` and `aria-labelledby` on the wrapper element
+- Expand/collapse buttons have `aria-expanded` and `aria-controls` referencing the collapsible region's `id`
+- Per-field form errors use `aria-invalid` and `aria-describedby` linking to the error element; generic server errors use `role="alert"` only — do NOT set `aria-invalid` on inputs for a generic server-level error where no specific field is at fault
 - Required inputs have `aria-required="true"`
 - Decorative SVGs inside labelled buttons have `aria-hidden="true"`
 - Icon-only buttons have `aria-label`
-- Text colours on dark backgrounds use `text-zinc-400` minimum — never `text-zinc-500`
+- Text colours on dark backgrounds use `text-zinc-400` minimum — never `text-zinc-500` — this applies to all visible text including unit labels, hints, suffixes, empty-state messages, and table headers
 - Placeholder text uses `placeholder:text-zinc-400` — never `placeholder:text-zinc-500`
+- SVG drag surfaces (canvas, splitters, overlays) have `touchAction: 'none'` in their `style` prop to prevent browser scroll interference on touch devices
 
 **Backend changes:**
 - Every new request body validated (JSR-380 annotations or manual validation)
