@@ -55,9 +55,11 @@ export function IntervalList({ workouts, onSelectWorkout }: Props): JSX.Element 
                         </p>
                         {onSelectWorkout && (
                             <button
+                                type="button"
                                 onClick={() => onSelectWorkout(workout)}
                                 className={`
                                     px-4 py-1.5
+                                    min-h-11
                                     bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md

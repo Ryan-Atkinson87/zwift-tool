@@ -150,6 +150,7 @@ export function IntervalPalette({
                     className={`
                         flex flex-col items-center gap-1
                         px-2 py-1.5
+                        min-w-11 min-h-11
                         bg-zinc-700/60 rounded
                         hover:bg-zinc-700 transition-colors
                         select-none touch-none
