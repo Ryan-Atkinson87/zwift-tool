@@ -1348,6 +1348,8 @@ export function App(): JSX.Element {
 
                     {/* Centre panel: canvas and editors — always visible on mobile as the base layer */}
                     <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
+                        {/* sr-only h1 establishes heading hierarchy required by WCAG 1.3.1 / 2.4.6 */}
+                        <h1 className="sr-only">Zwift Workout Editor</h1>
                         {activeWorkout !== null && (
                             <div className="px-6 md:px-0">
                                 <WorkoutMetadataEditor
