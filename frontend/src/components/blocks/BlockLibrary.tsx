@@ -114,7 +114,7 @@ export function BlockLibrary({ blocks, isLoading, error, onEditBlock, onDeleteBl
 
             {filteredBlocks.length === 0 ? (
                 <div className="px-4 py-4 bg-zinc-800/40 border border-zinc-700 rounded-lg text-center">
-                    <p className="text-sm text-zinc-500">
+                    <p className="text-sm text-zinc-400">
                         {blocks.length === 0
                             ? 'No saved blocks yet. Use "Save to library" on any section to add one.'
                             : `No ${activeFilter === 'ALL' ? '' : FILTER_TABS.find((t) => t.value === activeFilter)?.label + ' '}blocks saved yet.`

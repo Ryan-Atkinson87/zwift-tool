@@ -201,7 +201,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                 {/* Name */}
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="create-block-name">
-                        Name <span className="text-red-400">*</span>
+                        Name <span aria-hidden="true" className="text-red-400">*</span>
                     </label>
                     <input
                         id="create-block-name"
@@ -209,13 +209,14 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. 2x20 Threshold"
+                        aria-required="true"
                         autoFocus
                         className={`
                             w-full px-3 py-2
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
+                            placeholder:text-zinc-400
                             focus:outline-none focus:border-brand-500
                         `}
                     />
@@ -237,7 +238,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
+                            placeholder:text-zinc-400
                             focus:outline-none focus:border-brand-500
                             resize-none
                         `}
@@ -266,7 +267,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                     <p className="text-sm font-semibold text-zinc-300">Intervals</p>
 
                     {intervals.length === 0 ? (
-                        <p className="text-xs text-zinc-500 italic">
+                        <p className="text-xs text-zinc-400 italic">
                             No intervals yet. Drag an interval type from the palette above onto the chart to get started.
                         </p>
                     ) : (
@@ -644,7 +645,7 @@ function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Ele
 function DurationHint({ value }: { value: string }): JSX.Element | null {
     const seconds = parseInt(value, 10)
     if (isNaN(seconds) || seconds < 0) return null
-    return <span className="text-xs text-zinc-500">s ({formatDurationMins(seconds)})</span>
+    return <span className="text-xs text-zinc-400">s ({formatDurationMins(seconds)})</span>
 }
 
 /** Formats a duration in seconds as a human-readable minutes string, e.g. "10m" or "10m 30s". */

@@ -113,19 +113,22 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             setEmailError(null)
                             setServerError(null)
                         }}
+                        aria-invalid={!!emailError}
+                        aria-describedby={emailError ? 'signup-email-error' : undefined}
                         className={`
                             w-full px-3 py-2
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-brand-500
+                            placeholder:text-zinc-400
+                            outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${emailError ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="you@example.com"
                         autoComplete="email"
                     />
                     {emailError && (
-                        <p role="alert" className="text-sm text-red-400">{emailError}</p>
+                        <p id="signup-email-error" role="alert" className="text-sm text-red-400">{emailError}</p>
                     )}
                 </div>
 
@@ -142,24 +145,27 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             setPasswordError(null)
                             setServerError(null)
                         }}
+                        aria-invalid={!!passwordError}
+                        aria-describedby={passwordError ? 'signup-password-error' : undefined}
                         className={`
                             w-full px-3 py-2
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-brand-500
+                            placeholder:text-zinc-400
+                            outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${passwordError ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="Minimum 8 characters"
                         autoComplete="new-password"
                     />
                     {passwordError && (
-                        <p role="alert" className="text-sm text-red-400">{passwordError}</p>
+                        <p id="signup-password-error" role="alert" className="text-sm text-red-400">{passwordError}</p>
                     )}
                 </div>
 
                 {serverError && (
-                    <p role="alert" className="text-sm text-red-400 text-center">{serverError}</p>
+                    <p id="signup-server-error" role="alert" className="text-sm text-red-400 text-center">{serverError}</p>
                 )}
 
                 <button

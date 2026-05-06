@@ -1284,7 +1284,7 @@ export function App(): JSX.Element {
                                 <button
                                     onClick={() => setIsLeftCollapsed(true)}
                                     aria-label="Collapse workout list"
-                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                    className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                         <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
@@ -1348,6 +1348,8 @@ export function App(): JSX.Element {
 
                     {/* Centre panel: canvas and editors — always visible on mobile as the base layer */}
                     <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
+                        {/* sr-only h1 establishes heading hierarchy required by WCAG 1.3.1 / 2.4.6 */}
+                        <h1 className="sr-only">Zwift Workout Editor</h1>
                         {activeWorkout !== null && (
                             <div className="px-6 md:px-0">
                                 <WorkoutMetadataEditor
@@ -1501,7 +1503,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsRightCollapsed(true)}
                                 aria-label="Collapse block library"
-                                className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />

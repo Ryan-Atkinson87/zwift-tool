@@ -81,12 +81,15 @@ export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = fals
                             setEmail(e.target.value)
                             setError(null)
                         }}
+                        aria-invalid={!!error}
+                        aria-describedby={error ? 'signin-form-error' : undefined}
                         className={`
                             w-full px-3 py-2
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-brand-500
+                            placeholder:text-zinc-400
+                            outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${error ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="you@example.com"
@@ -106,12 +109,15 @@ export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = fals
                             setPassword(e.target.value)
                             setError(null)
                         }}
+                        aria-invalid={!!error}
+                        aria-describedby={error ? 'signin-form-error' : undefined}
                         className={`
                             w-full px-3 py-2
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
-                            outline-none focus:ring-2 focus:ring-brand-500
+                            placeholder:text-zinc-400
+                            outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${error ? 'border-red-500' : 'border-zinc-600'}
                         `}
                         placeholder="Your password"
@@ -120,7 +126,7 @@ export function SignInModal({ isOpen, onClose, onSignIn, showGuestWarning = fals
                 </div>
 
                 {error && (
-                    <p role="alert" className="text-sm text-red-400 text-center">{error}</p>
+                    <p id="signin-form-error" role="alert" className="text-sm text-red-400 text-center">{error}</p>
                 )}
 
                 <button

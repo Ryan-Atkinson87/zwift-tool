@@ -134,7 +134,7 @@ export function BlockPreview({
     if (intervals === null) {
         return (
             <div className="px-3 py-2 bg-zinc-900/40 rounded text-center">
-                <p className="text-xs text-zinc-500">Preview unavailable.</p>
+                <p className="text-xs text-zinc-400">Preview unavailable.</p>
             </div>
         )
     }
@@ -142,7 +142,7 @@ export function BlockPreview({
     if (intervals.length === 0 && onAddInterval === undefined) {
         return (
             <div className="px-3 py-2 bg-zinc-900/40 rounded text-center">
-                <p className="text-xs text-zinc-500">Empty section.</p>
+                <p className="text-xs text-zinc-400">Empty section.</p>
             </div>
         )
     }
