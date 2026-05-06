@@ -76,7 +76,7 @@ function SectionGroup({ sectionType, block, isSingleMainset, onUpdate, onDelete 
             <button
                 type="button"
                 onClick={() => setIsOpen((prev) => !prev)}
-                className="flex items-center gap-1.5 w-full text-left focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
+                className="flex items-center gap-1.5 w-full text-left focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 aria-expanded={isOpen}
             >
                 <svg
@@ -279,6 +279,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                                 value={repeatStr}
                                 onChange={(e) => setRepeatStr(e.target.value)}
                                 onBlur={commitRepeat}
+                                aria-label="Number of repeats"
                                 className={INPUT_CLASS}
                             />
                         </div>
@@ -290,6 +291,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                                 value={onDurationStr}
                                 onChange={(e) => setOnDurationStr(e.target.value)}
                                 onBlur={commitOnDuration}
+                                aria-label="On interval duration in seconds"
                                 className={INPUT_CLASS}
                             />
                             <DurationHint value={onDurationStr} />
@@ -301,6 +303,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                                 value={onPowerStr}
                                 onChange={(e) => setOnPowerStr(e.target.value)}
                                 onBlur={commitOnPower}
+                                aria-label="On interval intensity percent FTP"
                                 className={INPUT_CLASS}
                             />
                             <span className="text-xs text-zinc-400">%</span>
@@ -313,6 +316,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                                 value={offDurationStr}
                                 onChange={(e) => setOffDurationStr(e.target.value)}
                                 onBlur={commitOffDuration}
+                                aria-label="Off interval duration in seconds"
                                 className={INPUT_CLASS}
                             />
                             <DurationHint value={offDurationStr} />
@@ -324,6 +328,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
                                 value={offPowerStr}
                                 onChange={(e) => setOffPowerStr(e.target.value)}
                                 onBlur={commitOffPower}
+                                aria-label="Off interval intensity percent FTP"
                                 className={INPUT_CLASS}
                             />
                             <span className="text-xs text-zinc-400">%</span>
@@ -338,7 +343,7 @@ function IntervalRow({ interval, deleteDisabled, onUpdate, onDelete }: IntervalR
     )
 }
 
-const INPUT_CLASS = 'w-16 px-2 py-1 bg-zinc-700 text-white text-xs rounded border border-zinc-600 focus:outline-none focus:border-brand-500'
+const INPUT_CLASS = 'w-16 px-2 py-1 bg-zinc-700 text-white text-xs rounded border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500'
 const FIELD_LABEL_CLASS = 'text-xs text-zinc-400'
 
 interface PowerFieldProps {
@@ -359,6 +364,7 @@ function PowerField({ label, value, onChange, onBlur }: PowerFieldProps): JSX.El
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
+                aria-label={`${label} intensity percent FTP`}
                 className={INPUT_CLASS}
             />
             <span className="text-xs text-zinc-400">%</span>
@@ -382,6 +388,7 @@ function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Ele
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
+                aria-label="Duration in seconds"
                 className={INPUT_CLASS}
             />
             <DurationHint value={value} />

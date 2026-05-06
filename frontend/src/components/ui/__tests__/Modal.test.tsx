@@ -187,20 +187,24 @@ describe('Modal', () => {
     })
 
     describe('focus restoration', () => {
-        it('restores focus to the trigger element when the modal unmounts', () => {
+        it('restores focus to the trigger element when isOpen transitions to false', () => {
             const trigger = document.createElement('button')
             document.body.appendChild(trigger)
             trigger.focus()
             expect(document.activeElement).toBe(trigger)
 
-            const { unmount } = render(
+            const { rerender } = render(
                 <Modal isOpen onClose={vi.fn()} title="Restore Test">
                     <p>Content</p>
                 </Modal>
             )
 
-            // Unmounting simulates the modal closing
-            unmount()
+            // Closing the modal by setting isOpen to false should restore focus
+            rerender(
+                <Modal isOpen={false} onClose={vi.fn()} title="Restore Test">
+                    <p>Content</p>
+                </Modal>
+            )
             expect(document.activeElement).toBe(trigger)
 
             document.body.removeChild(trigger)

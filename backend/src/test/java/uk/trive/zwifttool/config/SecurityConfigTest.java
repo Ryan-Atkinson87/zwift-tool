@@ -1,6 +1,7 @@
 package uk.trive.zwifttool.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.util.List;
@@ -55,6 +56,22 @@ class SecurityConfigTest {
         assertThat(corsConfig).as("CORS configuration registered under /**").isNotNull();
         List<String> origins = corsConfig.getAllowedOrigins();
         return origins != null ? origins : List.of();
+    }
+
+    /**
+     * A blank value (empty string after trimming) throws {@link IllegalStateException}
+     * with a diagnostic message, rather than silently allowing zero origins which
+     * would reject all cross-origin requests.
+     */
+    @Test
+    void blankOrigin_throwsIllegalStateException() {
+        JwtAuthenticationFilter mockFilter = mock(JwtAuthenticationFilter.class);
+        SecurityConfig config = new SecurityConfig(mockFilter);
+        ReflectionTestUtils.setField(config, "allowedOrigins", "   ");
+
+        assertThatThrownBy(config::corsConfigurationSource)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CORS_ALLOWED_ORIGIN is not configured");
     }
 
     /**

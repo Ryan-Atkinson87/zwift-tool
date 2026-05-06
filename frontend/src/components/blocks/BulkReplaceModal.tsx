@@ -162,7 +162,7 @@ export function BulkReplaceModal({
                             </div>
                         ))}
                     </div>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-zinc-400">
                         The current {SECTION_LABELS[sectionType]} on each workout will be saved for
                         undo. A zip of updated .zwo files will download on completion.
                     </p>
@@ -174,7 +174,7 @@ export function BulkReplaceModal({
                         type="checkbox"
                         checked={downloadZip}
                         onChange={(e) => setDownloadZip(e.target.checked)}
-                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-brand-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-brand-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800"
                     />
                     <span className="text-sm text-zinc-300">
                         Download updated .zwo files as a zip

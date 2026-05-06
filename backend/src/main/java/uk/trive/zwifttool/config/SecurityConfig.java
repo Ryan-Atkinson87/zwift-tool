@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Value("${app.cors.allowed-origin}")
+    @Value("${app.cors.allowed-origin:}")
     private String allowedOrigins;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;

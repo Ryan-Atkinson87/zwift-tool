@@ -146,7 +146,7 @@ function ZoneRow({
                         </span>
                     )}
                 </div>
-                <span className="label-tiny text-zinc-500">
+                <span className="label-tiny text-zinc-400">
                     {rangeLabel}
                 </span>
             </div>
@@ -205,7 +205,7 @@ function ZoneRow({
             </div>
 
             {error !== null && (
-                <p className="text-[11px] text-red-200">{error}</p>
+                <p className="text-xs text-red-200">{error}</p>
             )}
         </div>
     )

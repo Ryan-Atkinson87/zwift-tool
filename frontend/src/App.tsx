@@ -1086,7 +1086,7 @@ export function App(): JSX.Element {
     }
 
     return (
-        <div className="flex flex-col h-dvh bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
+        <div className="flex flex-col h-screen h-dvh bg-zinc-900 text-white overflow-hidden overflow-x-hidden">
 
             {/* ── Header ── */}
             {/*
@@ -1102,7 +1102,7 @@ export function App(): JSX.Element {
                     <div className="flex items-center gap-2.5 min-w-0">
                         <img src="/trive-symbol-dark-32.png" alt="Trive Dev" width={28} height={28} className="shrink-0" />
                         <div className="flex flex-col leading-none min-w-0">
-                            <span className="text-[0.6rem] font-semibold uppercase tracking-widest text-brand-400 truncate">Trive Dev</span>
+                            <span className="label-tiny tracking-widest text-brand-400 truncate">Trive Dev</span>
                             <span className="text-base font-bold text-white truncate">Zwift Tool</span>
                         </div>
                     </div>
@@ -1358,7 +1358,10 @@ export function App(): JSX.Element {
                     </aside>
 
                     {/* Centre panel: canvas and editors — always visible on mobile as the base layer */}
-                    <main className="flex-1 flex flex-col overflow-y-auto p-4 gap-4">
+                    <main
+                        className="flex-1 flex flex-col overflow-y-auto p-4 gap-4"
+                        {...(isMobile && mobilePanel !== 'editor' ? { inert: true } : {})}
+                    >
                         {/* sr-only h1 establishes heading hierarchy required by WCAG 1.3.1 / 2.4.6 */}
                         <h1 className="sr-only">Zwift Workout Editor</h1>
                         {activeWorkout !== null && (
@@ -1516,7 +1519,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsRightCollapsed(true)}
                                 aria-label="Collapse block library"
-                                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
+                                className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />

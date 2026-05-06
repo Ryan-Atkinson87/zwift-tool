@@ -62,16 +62,17 @@ export function Modal({ isOpen, onClose, title, children, titleId, maxWidth = 'm
         }
     }, [isOpen])
 
-    // Restore focus to the trigger element on unmount (i.e. when the modal
-    // closes and this component is removed from the tree).
+    // Restore focus to the trigger element when the modal closes. Modals are
+    // permanently mounted and return null when closed, so the unmount-based
+    // cleanup would never fire; this fires when isOpen transitions to false.
     useEffect(() => {
-        return () => {
+        if (!isOpen) {
             const trigger = triggerElementRef.current
             if (trigger instanceof HTMLElement) {
                 trigger.focus({ preventScroll: true })
             }
         }
-    }, [])
+    }, [isOpen])
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent): void {

@@ -87,6 +87,8 @@ export function SaveToLibraryModal({
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. 2x20 Threshold"
                         aria-required="true"
+                        aria-invalid={!!error || undefined}
+                        aria-describedby={error ? 'save-to-library-error' : undefined}
                         autoFocus
                         className={`
                             w-full px-3 py-2
@@ -102,7 +104,7 @@ export function SaveToLibraryModal({
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="block-description">
                         Description{' '}
-                        <span className="text-zinc-500">(optional)</span>
+                        <span className="text-zinc-400">(optional)</span>
                     </label>
                     <textarea
                         id="block-description"
@@ -123,7 +125,7 @@ export function SaveToLibraryModal({
                 </div>
 
                 {error !== null && (
-                    <p role="alert" className="text-sm text-red-400">{error}</p>
+                    <p id="save-to-library-error" role="alert" className="text-sm text-red-400">{error}</p>
                 )}
 
                 <div className="flex justify-end gap-3 mt-2">

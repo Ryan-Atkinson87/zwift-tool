@@ -174,8 +174,8 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
             <div className="flex flex-col gap-5">
                 {/* Section type */}
                 <div className="flex flex-col gap-2">
-                    <p className="text-sm text-zinc-300">Section type</p>
-                    <div className="flex gap-2">
+                    <p id="create-block-section-type-label" className="text-sm text-zinc-300">Section type</p>
+                    <div className="flex gap-2" role="group" aria-labelledby="create-block-section-type-label">
                         {SECTION_OPTIONS.map((option) => (
                             <button
                                 key={option.value}
@@ -211,6 +211,8 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. 2x20 Threshold"
                         aria-required="true"
+                        aria-invalid={error === 'Name is required.' ? true : undefined}
+                        aria-describedby={error !== null ? 'create-block-error' : undefined}
                         autoFocus
                         className={`
                             w-full px-3 py-2
@@ -226,7 +228,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                 {/* Description */}
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="create-block-desc">
-                        Description <span className="text-zinc-500">(optional)</span>
+                        Description <span className="text-zinc-400">(optional)</span>
                     </label>
                     <textarea
                         id="create-block-desc"
@@ -285,7 +287,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                 </div>
 
                 {error !== null && (
-                    <p role="alert" className="text-sm text-red-400">{error}</p>
+                    <p id="create-block-error" role="alert" className="text-sm text-red-400">{error}</p>
                 )}
 
                 {/* Footer */}
@@ -368,7 +370,7 @@ interface IntervalRowProps {
     onUpdate: (next: ParsedInterval) => void
 }
 
-const INPUT_CLASS = 'w-16 px-2 py-1 bg-zinc-700 text-white text-xs rounded border border-zinc-600 focus:outline-none focus:border-brand-500'
+const INPUT_CLASS = 'w-16 px-2 py-1 bg-zinc-700 text-white text-xs rounded border border-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500'
 const FIELD_LABEL_CLASS = 'text-xs text-zinc-400'
 
 /**
@@ -533,6 +535,7 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                                 value={repeatStr}
                                 onChange={(e) => setRepeatStr(e.target.value)}
                                 onBlur={commitRepeat}
+                                aria-label="Number of repeats"
                                 className={INPUT_CLASS}
                             />
                         </div>
@@ -544,6 +547,7 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                                 value={onDurationStr}
                                 onChange={(e) => setOnDurationStr(e.target.value)}
                                 onBlur={commitOnDuration}
+                                aria-label="On interval duration in seconds"
                                 className={INPUT_CLASS}
                             />
                             <DurationHint value={onDurationStr} />
@@ -555,6 +559,7 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                                 value={onPowerStr}
                                 onChange={(e) => setOnPowerStr(e.target.value)}
                                 onBlur={commitOnPower}
+                                aria-label="On interval intensity percent FTP"
                                 className={INPUT_CLASS}
                             />
                             <span className="text-xs text-zinc-400">%</span>
@@ -567,6 +572,7 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                                 value={offDurationStr}
                                 onChange={(e) => setOffDurationStr(e.target.value)}
                                 onBlur={commitOffDuration}
+                                aria-label="Off interval duration in seconds"
                                 className={INPUT_CLASS}
                             />
                             <DurationHint value={offDurationStr} />
@@ -578,6 +584,7 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                                 value={offPowerStr}
                                 onChange={(e) => setOffPowerStr(e.target.value)}
                                 onBlur={commitOffPower}
+                                aria-label="Off interval intensity percent FTP"
                                 className={INPUT_CLASS}
                             />
                             <span className="text-xs text-zinc-400">%</span>
@@ -611,6 +618,7 @@ function PowerField({ label, value, onChange, onBlur }: PowerFieldProps): JSX.El
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
+                aria-label={`${label} intensity percent FTP`}
                 className={INPUT_CLASS}
             />
             <span className="text-xs text-zinc-400">%</span>
@@ -635,6 +643,7 @@ function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Ele
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onBlur={onBlur}
+                aria-label="Duration in seconds"
                 className={INPUT_CLASS}
             />
             <DurationHint value={value} />
