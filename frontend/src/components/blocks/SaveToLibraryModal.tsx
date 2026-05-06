@@ -134,7 +134,7 @@ export function SaveToLibraryModal({
                         onClick={handleClose}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -150,7 +150,7 @@ export function SaveToLibraryModal({
                         onClick={() => void handleConfirm()}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md

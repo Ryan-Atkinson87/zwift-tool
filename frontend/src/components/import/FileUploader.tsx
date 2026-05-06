@@ -108,7 +108,7 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
             <label
                 className={`
                     flex items-center justify-center
-                    w-full px-4 py-2
+                    w-full min-h-11 px-4 py-2
                     bg-zinc-700 text-white
                     text-sm font-medium
                     rounded-md
@@ -136,7 +136,7 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
                 onClick={handleLoadExample}
                 disabled={examplesExhausted || isProcessing}
                 className={`
-                    w-full px-4 py-2
+                    w-full min-h-11 px-4 py-2
                     bg-zinc-700 text-white
                     text-sm font-medium
                     rounded-md
@@ -155,7 +155,7 @@ export function FileUploader({ onFilesParsed }: Props): JSX.Element {
             )}
 
             {errors.length > 0 && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2" role="alert">
                     {errors.map((error, index) => (
                         <p
                             key={index}

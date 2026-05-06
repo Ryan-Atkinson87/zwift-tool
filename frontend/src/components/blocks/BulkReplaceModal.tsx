@@ -96,7 +96,7 @@ export function BulkReplaceModal({
                                 onClick={() => handleSectionChange(type)}
                                 aria-pressed={sectionType === type}
                                 className={`
-                                    px-3 py-1.5
+                                    min-h-11 px-3 py-1.5
                                     text-sm font-medium
                                     rounded-md border
                                     transition-colors
@@ -191,7 +191,7 @@ export function BulkReplaceModal({
                         onClick={handleClose}
                         disabled={isBulkReplacing}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -207,7 +207,7 @@ export function BulkReplaceModal({
                         onClick={handleConfirm}
                         disabled={selectedBlockId === null || isBulkReplacing || filteredBlocks.length === 0}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md

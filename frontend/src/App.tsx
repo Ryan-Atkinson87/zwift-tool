@@ -1220,6 +1220,8 @@ export function App(): JSX.Element {
                         <button
                             onClick={() => setMobilePanel('workouts')}
                             aria-label="Open workout list"
+                            aria-expanded={false}
+                            aria-controls="workout-list-panel"
                             className={`
                                 md:hidden absolute left-0 top-14 z-50 min-w-11 min-h-11
                                 bg-zinc-700 border border-zinc-600 rounded-r-lg
@@ -1236,6 +1238,8 @@ export function App(): JSX.Element {
                         <button
                             onClick={() => setMobilePanel('blocks')}
                             aria-label="Open block library"
+                            aria-expanded={false}
+                            aria-controls="block-library-panel"
                             className={`
                                 md:hidden absolute right-0 top-14 z-50 min-w-11 min-h-11
                                 bg-zinc-700 border border-zinc-600 rounded-l-lg
@@ -1257,15 +1261,18 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsLeftCollapsed(false)}
                                 aria-label="Expand workout list"
+                                aria-expanded={false}
+                                aria-controls="workout-list-panel"
                                 className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                                 </svg>
                             </button>
                         </aside>
                     )}
                     <aside
+                        id="workout-list-panel"
                         inert={(isMobile && mobilePanel !== 'workouts') || (!isMobile && isLeftCollapsed) ? true : undefined}
                         className={[
                             'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
@@ -1295,9 +1302,11 @@ export function App(): JSX.Element {
                                 <button
                                     onClick={() => setIsLeftCollapsed(true)}
                                     aria-label="Collapse workout list"
+                                    aria-expanded={true}
+                                    aria-controls="workout-list-panel"
                                     className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                         <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
                                     </svg>
                                 </button>
@@ -1307,7 +1316,7 @@ export function App(): JSX.Element {
                                 onClick={() => void handleCreateBlankWorkout()}
                                 disabled={isSaving}
                                 className={`
-                                    w-full px-4 py-2
+                                    w-full min-h-11 px-4 py-2
                                     bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1481,15 +1490,18 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsRightCollapsed(false)}
                                 aria-label="Expand block library"
+                                aria-expanded={false}
+                                aria-controls="block-library-panel"
                                 className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
                                 </svg>
                             </button>
                         </aside>
                     )}
                     <aside
+                        id="block-library-panel"
                         inert={(isMobile && mobilePanel !== 'blocks') || (!isMobile && isRightCollapsed) ? true : undefined}
                         className={[
                             'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
@@ -1519,9 +1531,11 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsRightCollapsed(true)}
                                 aria-label="Collapse block library"
+                                aria-expanded={true}
+                                aria-controls="block-library-panel"
                                 className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                                 </svg>
                             </button>
@@ -1532,7 +1546,7 @@ export function App(): JSX.Element {
                                 <button
                                     onClick={() => setIsCreateBlockOpen(true)}
                                     className={`
-                                        w-full px-4 py-2
+                                        w-full min-h-11 px-4 py-2
                                         bg-brand-600 text-white
                                         text-sm font-medium
                                         rounded-md
@@ -1563,7 +1577,7 @@ export function App(): JSX.Element {
                                 <button
                                     onClick={() => setIsSignInOpen(true)}
                                     className={`
-                                        px-4 py-2
+                                        min-h-11 px-4 py-2
                                         bg-brand-600 text-white
                                         text-sm font-medium
                                         rounded-md
@@ -1576,7 +1590,7 @@ export function App(): JSX.Element {
                                 <button
                                     onClick={() => setIsSignUpOpen(true)}
                                     className={`
-                                        px-4 py-2
+                                        min-h-11 px-4 py-2
                                         bg-zinc-700 text-white
                                         text-sm font-medium
                                         rounded-md
@@ -1604,7 +1618,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsSignInOpen(true)}
                                 className={`
-                                    w-full px-4 py-2.5
+                                    w-full min-h-11 px-4 py-2.5
                                     bg-brand-600 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1617,7 +1631,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setIsSignUpOpen(true)}
                                 className={`
-                                    w-full px-4 py-2.5
+                                    w-full min-h-11 px-4 py-2.5
                                     bg-zinc-700 text-white
                                     text-sm font-medium
                                     rounded-md
@@ -1630,7 +1644,7 @@ export function App(): JSX.Element {
                             <button
                                 onClick={() => setGuestMode(true)}
                                 className={`
-                                    w-full px-4 py-2.5
+                                    w-full min-h-11 px-4 py-2.5
                                     bg-transparent text-zinc-400
                                     text-sm font-medium
                                     rounded-md

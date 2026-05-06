@@ -57,7 +57,12 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
     return (
         // Relative positioning allows the primary action button to fill the card
         // with absolute inset-0, while action buttons sit above it via z-10.
+        // role="group" + aria-labelledby ties the card name to the interactive region
+        // so screen readers can identify the group even though the name text sits
+        // outside the primary <button> overlay.
         <div
+            role="group"
+            aria-labelledby={`block-name-${block.id}`}
             className={`
                 relative flex flex-col gap-1
                 w-full px-3 py-2
@@ -73,6 +78,7 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
                 type="button"
                 aria-label={`Select block ${block.name}`}
                 aria-pressed={ariaPressed}
+                aria-describedby={`block-stats-${block.id}`}
                 onClick={onClick}
                 className="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
             />
@@ -90,7 +96,7 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
                     {SECTION_LABELS[block.sectionType]}
                 </span>
                 <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-xs text-zinc-400 shrink-0">
+                    <span id={`block-stats-${block.id}`} className="text-xs text-zinc-400 shrink-0">
                         {formatDuration(block.durationSeconds)} &middot; {block.intervalCount}{' '}
                         {block.intervalCount === 1 ? 'interval' : 'intervals'}
                     </span>
@@ -142,7 +148,7 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
             </div>
 
             {/* Block name and description — above the primary button via z-10 */}
-            <p className="relative z-10 text-sm font-medium text-white truncate">{block.name}</p>
+            <p id={`block-name-${block.id}`} className="relative z-10 text-sm font-medium text-white truncate">{block.name}</p>
             {block.description !== null && block.description.length > 0 && (
                 <p className="relative z-10 text-xs text-zinc-400 line-clamp-2">{block.description}</p>
             )}
@@ -156,7 +162,7 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
                             type="button"
                             onClick={handleCancelDelete}
                             className={`
-                                px-2 py-0.5
+                                min-h-11 min-w-11 flex items-center justify-center px-2 py-0.5
                                 bg-zinc-600 text-zinc-300
                                 text-xs font-medium
                                 rounded
@@ -170,7 +176,7 @@ export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined,
                             type="button"
                             onClick={handleConfirmDelete}
                             className={`
-                                px-2 py-0.5
+                                min-h-11 min-w-11 flex items-center justify-center px-2 py-0.5
                                 bg-red-700 text-white
                                 text-xs font-medium
                                 rounded

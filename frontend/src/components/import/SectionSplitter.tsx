@@ -93,6 +93,10 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
     // are scaled correctly regardless of viewport size.
     const { ref: chartContainerRef, width: containerWidth } = useContainerWidth(700)
 
+    const svgHeight = containerWidth > 0
+        ? Math.min(Math.max(Math.round(containerWidth * 0.35), 100), PLOT_HEIGHT + TOP_PADDING)
+        : PLOT_HEIGHT + TOP_PADDING
+
     const bars = useMemo(
         () => expandIntervalsToBars(intervals, 'split'),
         [intervals],
@@ -230,7 +234,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
     return (
         <div className="flex flex-col gap-4 w-full">
             <div className="flex items-center justify-between">
-                <h3 className="text-white text-lg font-semibold">{workout.name}</h3>
+                <h2 className="text-white text-lg font-semibold">{workout.name}</h2>
                 <p className="text-zinc-400 text-sm">{workout.fileName}</p>
             </div>
 
@@ -267,7 +271,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                     viewBox={`0 -${TOP_PADDING} ${totalSvgWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
                     preserveAspectRatio="none"
                     className="block w-full"
-                    style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none', touchAction: 'none' }}
+                    style={{ height: `${svgHeight}px`, userSelect: 'none', touchAction: 'none' }}
                     onPointerMove={handleSvgPointerMove}
                     onPointerUp={handleSvgPointerUp}
                     onPointerCancel={() => setBoundaryDrag(null)}
@@ -389,7 +393,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                     onClick={handleConfirm}
                     disabled={mainsetIsEmpty || isSaving}
                     className={`
-                        px-6 py-2
+                        min-h-11 px-6 py-2
                         bg-brand-600 text-white
                         text-sm font-medium
                         rounded-md
@@ -404,7 +408,7 @@ export function SectionSplitter({ workout, onConfirm, onCancel, isSaving }: Prop
                     onClick={onCancel}
                     disabled={isSaving}
                     className={`
-                        px-6 py-2
+                        min-h-11 px-6 py-2
                         bg-zinc-700 text-white
                         text-sm font-medium
                         rounded-md

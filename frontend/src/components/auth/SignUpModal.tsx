@@ -113,6 +113,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             setEmailError(null)
                             setServerError(null)
                         }}
+                        aria-required="true"
                         aria-invalid={!!emailError}
                         aria-describedby={emailError ? 'signup-email-error' : undefined}
                         className={`
@@ -145,6 +146,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             setPasswordError(null)
                             setServerError(null)
                         }}
+                        aria-required="true"
                         aria-invalid={!!passwordError}
                         aria-describedby={passwordError ? 'signup-password-error' : undefined}
                         className={`

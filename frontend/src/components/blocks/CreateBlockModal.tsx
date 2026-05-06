@@ -183,7 +183,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                                 onClick={() => setSectionType(option.value)}
                                 aria-pressed={sectionType === option.value}
                                 className={`
-                                    flex-1 px-3 py-2
+                                    flex-1 min-h-11 px-3 py-2
                                     text-sm font-medium
                                     rounded-md transition-colors
                                     focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
@@ -297,7 +297,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         onClick={handleClose}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -313,7 +313,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         onClick={() => void handleSave()}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
@@ -498,14 +498,14 @@ function IntervalRow({ interval, isSelected, onSelect, onDelete, onUpdate }: Int
                 <button
                     type="button"
                     onClick={onSelect}
-                    className="label-tiny text-zinc-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
+                    className="min-h-11 px-2 label-tiny text-zinc-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
                 >
                     {typeLabel[interval.type]}
                 </button>
                 <button
                     type="button"
                     onClick={onDelete}
-                    className="px-2 py-1 bg-red-900/50 text-red-200 label-tiny rounded hover:bg-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800"
+                    className="min-h-11 min-w-11 px-2 py-1 bg-red-900/50 text-red-200 label-tiny rounded hover:bg-red-800 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-800"
                 >
                     Delete
                 </button>

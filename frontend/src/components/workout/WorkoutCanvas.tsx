@@ -1433,7 +1433,7 @@ function ChartArea({
                                         aria-label="Save this section to your block library"
                                         className={`
                                             inline-flex items-center justify-center
-                                            min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
+                                            min-h-11 min-w-11 px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
                                             label-tiny
                                             rounded
@@ -1469,7 +1469,7 @@ function ChartArea({
                                         aria-label="Replace this section with a saved library block"
                                         className={`
                                             inline-flex items-center justify-center
-                                            min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
+                                            min-h-11 min-w-11 px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
                                             label-tiny
                                             rounded
@@ -1507,6 +1507,7 @@ function ChartArea({
                 <div
                     ref={containerRef}
                     className="relative flex-1 min-w-0"
+                    style={{ touchAction: 'none' }}
                     onPointerMove={handleContainerPointerMove}
                     onPointerUp={handleContainerPointerUp}
                 >
@@ -1753,7 +1754,7 @@ function ChartArea({
                         onClick={handleSaveBoundary}
                         disabled={onSaveBoundaries === undefined}
                         className={`
-                            px-3 py-1
+                            min-h-11 px-3 py-1
                             bg-brand-600 text-white
                             label-tiny
                             rounded
@@ -1768,7 +1769,7 @@ function ChartArea({
                         type="button"
                         onClick={handleCancelBoundary}
                         className={`
-                            px-3 py-1
+                            min-h-11 px-3 py-1
                             bg-zinc-700 text-zinc-200
                             label-tiny
                             rounded
@@ -1898,6 +1899,10 @@ function UnifiedChart({
     const isDraggingBoundary = boundaryDragActive !== null
     const isDraggingBar = barDragState !== null
 
+    const svgHeight = containerWidth > 0
+        ? Math.min(Math.max(Math.round(containerWidth * 0.35), 120), PLOT_HEIGHT + TOP_PADDING)
+        : PLOT_HEIGHT + TOP_PADDING
+
     return (
         <svg
             ref={svgRef}
@@ -1905,7 +1910,7 @@ function UnifiedChart({
             viewBox={`0 -${TOP_PADDING} ${totalWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
             preserveAspectRatio="none"
             className="block w-full"
-            style={{ height: `${PLOT_HEIGHT + TOP_PADDING}px`, userSelect: 'none', touchAction: 'none' }}
+            style={{ height: `${svgHeight}px`, userSelect: 'none', touchAction: 'none' }}
             onPointerMove={onSvgPointerMove}
             onPointerUp={onSvgPointerUp}
             onPointerCancel={onSvgPointerCancel}
@@ -2774,7 +2779,7 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
             aria-label="Undo last change to this section"
             className={`
                 inline-flex items-center justify-center
-                min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
+                min-h-11 min-w-11 px-2 py-0.5
                 bg-zinc-700 text-zinc-200
                 label-tiny
                 rounded
