@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react'
 import { saveBlock, updateBlock, type LibraryBlock } from '../../api/blocks'
 import { BlockPreview } from './BlockPreview'
+import { Modal } from '../ui/Modal'
 import type { ParsedInterval, SectionType } from '../../types/workout'
 import type { ZonePresetView } from '../../api/zonePresets'
 import { sumIntervalDuration } from '../../utils/editorDraft'
@@ -35,7 +36,7 @@ const SECTION_OPTIONS: Array<{ value: SectionType; label: string }> = [
  * constant for the create case) so React remounts the modal, and resets all
  * local state, when switching between blocks.</p>
  */
-export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null, zonePresets }: Props): JSX.Element | null {
+export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null, zonePresets }: Props): JSX.Element {
     const [sectionType, setSectionType] = useState<SectionType>(initialBlock?.sectionType ?? 'MAINSET')
     const [intervals, setIntervals] = useState<ParsedInterval[]>(
         initialBlock !== null && initialBlock.content.trim().length > 0
@@ -47,10 +48,6 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
     const [isSaving, setIsSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
-
-    if (!isOpen) {
-        return null
-    }
 
     function handleClose(): void {
         setSectionType(initialBlock?.sectionType ?? 'MAINSET')
@@ -168,183 +165,164 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8"
-            onClick={handleClose}
+        <Modal
+            isOpen={isOpen}
+            onClose={handleClose}
+            title={initialBlock !== null ? 'Edit library block' : 'Create library block'}
+            maxWidth="max-w-2xl"
         >
-            <div
-                className="flex flex-col w-full max-w-2xl mx-4 p-6 bg-zinc-800 text-white rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">
-                        {initialBlock !== null ? 'Edit library block' : 'Create library block'}
-                    </h2>
+            <div className="flex flex-col gap-5">
+                {/* Section type */}
+                <div className="flex flex-col gap-2">
+                    <p className="text-sm text-zinc-300">Section type</p>
+                    <div className="flex gap-2">
+                        {SECTION_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setSectionType(option.value)}
+                                className={`
+                                    flex-1 px-3 py-2
+                                    text-sm font-medium
+                                    rounded-md transition-colors
+                                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
+                                    ${sectionType === option.value
+                                        ? 'bg-brand-600 text-white'
+                                        : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                                    }
+                                `}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Name */}
+                <div className="flex flex-col gap-1">
+                    <label className="text-sm text-zinc-300" htmlFor="create-block-name">
+                        Name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                        id="create-block-name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. 2x20 Threshold"
+                        autoFocus
+                        className={`
+                            w-full px-3 py-2
+                            bg-zinc-700 text-white
+                            text-sm
+                            rounded-md border border-zinc-600
+                            placeholder:text-zinc-500
+                            focus:outline-none focus:border-brand-500
+                        `}
+                    />
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-1">
+                    <label className="text-sm text-zinc-300" htmlFor="create-block-desc">
+                        Description <span className="text-zinc-500">(optional)</span>
+                    </label>
+                    <textarea
+                        id="create-block-desc"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Short description of this block..."
+                        rows={2}
+                        className={`
+                            w-full px-3 py-2
+                            bg-zinc-700 text-white
+                            text-sm
+                            rounded-md border border-zinc-600
+                            placeholder:text-zinc-500
+                            focus:outline-none focus:border-brand-500
+                            resize-none
+                        `}
+                    />
+                </div>
+
+                {/* Live preview with interval palette */}
+                <div className="flex flex-col gap-1">
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                        Preview
+                    </p>
+                    <BlockPreview
+                        block={previewBlock}
+                        onReorder={handleReorder}
+                        onAddInterval={handleAddInterval}
+                        zonePresets={zonePresets}
+                        selectedIntervalIndex={selectedIndex}
+                        onSelectInterval={(i) => setSelectedIndex(i)}
+                        onUpdateInterval={handleUpdateInterval}
+                        onDeleteInterval={handleDeleteInterval}
+                    />
+                </div>
+
+                {/* Intervals */}
+                <div className="flex flex-col gap-2">
+                    <p className="text-sm font-semibold text-zinc-300">Intervals</p>
+
+                    {intervals.length === 0 ? (
+                        <p className="text-xs text-zinc-500 italic">
+                            No intervals yet. Drag an interval type from the palette above onto the chart to get started.
+                        </p>
+                    ) : (
+                        <IntervalList
+                            intervals={intervals}
+                            selectedIndex={selectedIndex}
+                            onSelect={(index) =>
+                                setSelectedIndex((prev) => (prev === index ? null : index))
+                            }
+                            onDelete={handleDeleteInterval}
+                            onUpdate={handleUpdateInterval}
+                        />
+                    )}
+                </div>
+
+                {error !== null && (
+                    <p role="alert" className="text-sm text-red-400">{error}</p>
+                )}
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 mt-2">
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="text-zinc-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800 rounded"
-                        aria-label="Close modal"
+                        disabled={isSaving}
+                        className={`
+                            px-4 py-2
+                            bg-zinc-700 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-zinc-600 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
                     >
-                        &#x2715;
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void handleSave()}
+                        disabled={isSaving}
+                        className={`
+                            px-4 py-2
+                            bg-brand-600 text-white
+                            text-sm font-medium
+                            rounded-md
+                            hover:bg-brand-500 transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
+                            disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
+                    >
+                        {isSaving ? 'Saving...' : initialBlock !== null ? 'Save changes' : 'Save to library'}
                     </button>
                 </div>
-
-                <div className="flex flex-col gap-5">
-                    {/* Section type */}
-                    <div className="flex flex-col gap-2">
-                        <p className="text-sm text-zinc-300">Section type</p>
-                        <div className="flex gap-2">
-                            {SECTION_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => setSectionType(option.value)}
-                                    className={`
-                                        flex-1 px-3 py-2
-                                        text-sm font-medium
-                                        rounded-md transition-colors
-                                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                        ${sectionType === option.value
-                                            ? 'bg-brand-600 text-white'
-                                            : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                                        }
-                                    `}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Name */}
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm text-zinc-300" htmlFor="create-block-name">
-                            Name <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                            id="create-block-name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. 2x20 Threshold"
-                            autoFocus
-                            className={`
-                                w-full px-3 py-2
-                                bg-zinc-700 text-white
-                                text-sm
-                                rounded-md border border-zinc-600
-                                placeholder:text-zinc-500
-                                focus:outline-none focus:border-brand-500
-                            `}
-                        />
-                    </div>
-
-                    {/* Description */}
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm text-zinc-300" htmlFor="create-block-desc">
-                            Description <span className="text-zinc-500">(optional)</span>
-                        </label>
-                        <textarea
-                            id="create-block-desc"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Short description of this block..."
-                            rows={2}
-                            className={`
-                                w-full px-3 py-2
-                                bg-zinc-700 text-white
-                                text-sm
-                                rounded-md border border-zinc-600
-                                placeholder:text-zinc-500
-                                focus:outline-none focus:border-brand-500
-                                resize-none
-                            `}
-                        />
-                    </div>
-
-                    {/* Live preview with interval palette */}
-                    <div className="flex flex-col gap-1">
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
-                            Preview
-                        </p>
-                        <BlockPreview
-                            block={previewBlock}
-                            onReorder={handleReorder}
-                            onAddInterval={handleAddInterval}
-                            zonePresets={zonePresets}
-                            selectedIntervalIndex={selectedIndex}
-                            onSelectInterval={(i) => setSelectedIndex(i)}
-                            onUpdateInterval={handleUpdateInterval}
-                            onDeleteInterval={handleDeleteInterval}
-                        />
-                    </div>
-
-                    {/* Intervals */}
-                    <div className="flex flex-col gap-2">
-                        <p className="text-sm font-semibold text-zinc-300">Intervals</p>
-
-                        {intervals.length === 0 ? (
-                            <p className="text-xs text-zinc-500 italic">
-                                No intervals yet. Drag an interval type from the palette above onto the chart to get started.
-                            </p>
-                        ) : (
-                            <IntervalList
-                                intervals={intervals}
-                                selectedIndex={selectedIndex}
-                                onSelect={(index) =>
-                                    setSelectedIndex((prev) => (prev === index ? null : index))
-                                }
-                                onDelete={handleDeleteInterval}
-                                onUpdate={handleUpdateInterval}
-                            />
-                        )}
-                    </div>
-
-                    {error !== null && (
-                        <p role="alert" className="text-sm text-red-400">{error}</p>
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex justify-end gap-3 mt-2">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            disabled={isSaving}
-                            className={`
-                                px-4 py-2
-                                bg-zinc-700 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-zinc-600 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                            `}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => void handleSave()}
-                            disabled={isSaving}
-                            className={`
-                                px-4 py-2
-                                bg-brand-600 text-white
-                                text-sm font-medium
-                                rounded-md
-                                hover:bg-brand-500 transition-colors
-                                focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                                disabled:opacity-50 disabled:cursor-not-allowed
-                            `}
-                        >
-                            {isSaving ? 'Saving...' : initialBlock !== null ? 'Save changes' : 'Save to library'}
-                        </button>
-                    </div>
-                </div>
-
             </div>
-        </div>
+        </Modal>
     )
 }
 

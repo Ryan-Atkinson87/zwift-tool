@@ -22,6 +22,11 @@ interface Props {
      * from the title string.
      */
     titleId?: string
+    /**
+     * Optional Tailwind max-width class for the panel. Defaults to 'max-w-md'.
+     * Use 'max-w-2xl' for modals with complex content that needs more horizontal space.
+     */
+    maxWidth?: string
 }
 
 /**
@@ -37,7 +42,7 @@ interface Props {
  * - Focus on open: moves focus to the first focusable element inside the panel
  * - Focus restoration on close: returns focus to the element that opened the modal
  */
-export function Modal({ isOpen, onClose, title, children, titleId }: Props): JSX.Element | null {
+export function Modal({ isOpen, onClose, title, children, titleId, maxWidth = 'max-w-md' }: Props): JSX.Element | null {
     const panelRef = useRef<HTMLDivElement>(null)
 
     // Derive a stable title id from the titleId prop or the title string.
@@ -158,7 +163,7 @@ export function Modal({ isOpen, onClose, title, children, titleId }: Props): JSX
                 tabIndex={-1}
                 className={`
                     relative flex flex-col
-                    w-full max-w-md max-h-[90vh]
+                    w-full ${maxWidth} max-h-[90vh]
                     mx-4
                     bg-zinc-800 text-white
                     rounded-lg
