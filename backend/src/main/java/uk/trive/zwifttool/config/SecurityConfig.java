@@ -24,10 +24,10 @@ import lombok.RequiredArgsConstructor;
  * including CORS policy, CSRF settings, JWT authentication, and
  * endpoint authorisation rules.
  *
- * <p>CORS and cookie behaviour are environment-aware. In production the allowed
- * origin is {@code https://zwifttool.trivedev.uk}; in local dev it is
- * {@code http://localhost:5173}. The values are set via environment variables
- * so the same code runs in both environments without profiles.</p>
+ * <p>CORS and cookie behaviour are environment-aware. {@code CORS_ALLOWED_ORIGIN} accepts
+ * a comma-separated list of allowed origins, trimmed and filtered before being applied,
+ * so multiple origins can be permitted simultaneously without changing code. For example,
+ * production and a local dev origin can both be listed in the same variable.</p>
  */
 @Configuration
 @EnableWebSecurity
@@ -116,9 +116,11 @@ public class SecurityConfig {
     /**
      * Defines the CORS policy for the API.
      *
-     * <p>Only the single origin specified by {@code CORS_ALLOWED_ORIGIN} is permitted.
-     * Credentials are allowed so that HttpOnly auth cookies are sent cross-origin
-     * from the frontend to the API. All standard methods and headers are permitted.</p>
+     * <p>{@code CORS_ALLOWED_ORIGIN} is parsed as a comma-separated list: each value is
+     * trimmed and empty strings are filtered out before the resulting list is applied as
+     * the set of permitted origins. Credentials are allowed so that HttpOnly auth cookies
+     * are sent cross-origin from the frontend to the API. All standard methods and headers
+     * are permitted.</p>
      *
      * @return the CORS configuration source applied to all endpoints
      */
