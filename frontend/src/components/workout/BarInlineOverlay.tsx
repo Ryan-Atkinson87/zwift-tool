@@ -447,7 +447,7 @@ export function BarInlineOverlay({
                     onClick={(e) => { e.stopPropagation(); onDelete() }}
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
+                    className="flex items-center justify-center min-w-11 min-h-11 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -575,7 +575,7 @@ export function BarInlineOverlay({
                     onClick={(e) => { e.stopPropagation(); onDelete() }}
                     onPointerDown={(e) => e.stopPropagation()}
                     style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                    className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
+                    className="flex items-center justify-center min-w-11 min-h-11 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -663,7 +663,7 @@ export function BarInlineOverlay({
                 onClick={(e) => { e.stopPropagation(); onDelete() }}
                 onPointerDown={(e) => e.stopPropagation()}
                 style={{ position: 'absolute', top: `${trashTopPx}px`, left: `${xLeftPct}%`, marginLeft: '3px', zIndex: 20 }}
-                className="p-0.5 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
+                className="flex items-center justify-center min-w-11 min-h-11 text-zinc-400 hover:text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-zinc-900 rounded"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
