@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 2026-05-06
 
 ### Added
 
@@ -15,12 +15,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Focus trap, `aria-dialog`, and focus restoration across all modals (#147)
 - Touch targets increased to 44×44px minimum for all icon-only buttons (#149)
 - `aria-live` regions to announce loading and error states to screen readers (#151)
+- Mobile side-tab navigation for the workouts and blocks panels
+- Section splitter skipped for multi-file imports to streamline the flow (#153)
 
 ### Fixed
 
 - Colour contrast improved across placeholder text, disabled states, and links to meet WCAG 2.1 AA (#148)
 - `WorkoutCanvas` and `SectionSplitter` SVG now scales responsively on small screens (#150)
 - `BlockCard` replaced `role="button"` div with a semantic `<button>` element (#152)
+- 403 responses in the API client now trigger a token refresh and automatic retry (#154)
+- Scroll jump when selecting a workout from the library (#156)
+- Header and footer hidden behind iOS browser chrome on mobile, resolved by switching to `h-dvh`
+- Text selection and drag reliability issues on the workout canvas on mobile
+- Icon-only buttons (Save, Replace, Undo) now displayed correctly on mobile
+- Boundary handle drag target restricted to the grab capsule above the bars
+- Palette drag dropping prematurely due to `pointercancel` events on touch devices
+- Touch conflicts between the workout canvas and the interval palette on mobile
+- Pull-to-refresh browser gesture triggering a full page reload in the editor
+- Editor state now restored after an accidental page reload
 
 ## [1.1.0] - 2026-04-19
 
