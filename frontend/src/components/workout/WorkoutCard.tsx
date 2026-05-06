@@ -74,7 +74,8 @@ export function WorkoutCard({ workout, isSelected, isChecked, isSelectMode, onSe
                         aria-label="Delete workout"
                         className={`
                             absolute top-2 right-2
-                            p-0.5 rounded
+                            flex items-center justify-center
+                            min-w-11 min-h-11 rounded
                             text-zinc-500 hover:text-red-400
                             transition-colors
                             focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
