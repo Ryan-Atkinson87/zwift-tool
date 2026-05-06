@@ -286,7 +286,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                         <p className="text-sm font-semibold text-zinc-300">Intervals</p>
 
                         {intervals.length === 0 ? (
-                            <p className="text-xs text-zinc-500 italic">
+                            <p className="text-xs text-zinc-400 italic">
                                 No intervals yet. Drag an interval type from the palette above onto the chart to get started.
                             </p>
                         ) : (
@@ -666,7 +666,7 @@ function DurationField({ value, onChange, onBlur }: DurationFieldProps): JSX.Ele
 function DurationHint({ value }: { value: string }): JSX.Element | null {
     const seconds = parseInt(value, 10)
     if (isNaN(seconds) || seconds < 0) return null
-    return <span className="text-xs text-zinc-500">s ({formatDurationMins(seconds)})</span>
+    return <span className="text-xs text-zinc-400">s ({formatDurationMins(seconds)})</span>
 }
 
 /** Formats a duration in seconds as a human-readable minutes string, e.g. "10m" or "10m 30s". */
