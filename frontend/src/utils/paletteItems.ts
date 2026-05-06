@@ -5,6 +5,8 @@ import { ZONE_PRESETS } from './zonePresets'
 export interface PaletteItemDef {
     id: string
     label: string
+    /** Accessible label describing the interval type and action, used as aria-label on each palette button. */
+    ariaLabel: string
     interval: ParsedInterval
 }
 
@@ -20,6 +22,7 @@ export function buildPaletteItems(effectivePresets?: ZonePresetView[]): PaletteI
         return {
             id: `zone-${preset.zone}`,
             label: `Z${preset.zone}`,
+            ariaLabel: `Add Zone ${preset.zone} ${preset.name} interval`,
             interval: {
                 type: 'SteadyState',
                 durationSeconds,
@@ -40,6 +43,7 @@ export function buildPaletteItems(effectivePresets?: ZonePresetView[]): PaletteI
         {
             id: 'ramp',
             label: 'Ramp',
+            ariaLabel: 'Add Ramp interval',
             interval: {
                 type: 'Ramp',
                 durationSeconds: 300,
@@ -56,6 +60,7 @@ export function buildPaletteItems(effectivePresets?: ZonePresetView[]): PaletteI
         {
             id: 'intervals',
             label: 'Intervals',
+            ariaLabel: 'Add Intervals interval',
             interval: {
                 type: 'IntervalsT',
                 durationSeconds: 600,
@@ -72,6 +77,7 @@ export function buildPaletteItems(effectivePresets?: ZonePresetView[]): PaletteI
         {
             id: 'freeride',
             label: 'Free Ride',
+            ariaLabel: 'Add Free Ride interval',
             interval: {
                 type: 'FreeRide',
                 durationSeconds: 600,
