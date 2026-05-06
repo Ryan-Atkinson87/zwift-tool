@@ -78,7 +78,7 @@ export function SaveToLibraryModal({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="block-name">
-                        Name <span className="text-red-400">*</span>
+                        Name <span aria-hidden="true" className="text-red-400">*</span>
                     </label>
                     <input
                         id="block-name"
@@ -86,6 +86,7 @@ export function SaveToLibraryModal({
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. 2x20 Threshold"
+                        aria-required="true"
                         autoFocus
                         className={`
                             w-full px-3 py-2
