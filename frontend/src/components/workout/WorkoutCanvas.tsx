@@ -1432,7 +1432,8 @@ function ChartArea({
                                         title="Save this section to your block library"
                                         aria-label="Save this section to your block library"
                                         className={`
-                                            px-2 py-0.5
+                                            inline-flex items-center justify-center
+                                            min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
                                             label-tiny
                                             rounded
@@ -1467,7 +1468,8 @@ function ChartArea({
                                         title="Replace this section with a saved library block"
                                         aria-label="Replace this section with a saved library block"
                                         className={`
-                                            px-2 py-0.5
+                                            inline-flex items-center justify-center
+                                            min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
                                             bg-zinc-700 text-zinc-200
                                             label-tiny
                                             rounded
@@ -2765,7 +2767,8 @@ function UndoButton({ sectionType, disabled, onClick }: UndoButtonProps): JSX.El
             title="Undo last change to this section"
             aria-label="Undo last change to this section"
             className={`
-                px-2 py-0.5
+                inline-flex items-center justify-center
+                min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-2 py-0.5
                 bg-zinc-700 text-zinc-200
                 label-tiny
                 rounded
