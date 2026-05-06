@@ -118,6 +118,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
+                            placeholder:text-zinc-400
                             outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${emailError ? 'border-red-500' : 'border-zinc-600'}
                         `}
@@ -147,6 +148,7 @@ export function SignUpModal({ isOpen, onClose, onSignUp, showGuestWarning = fals
                             bg-zinc-900 text-white
                             text-sm
                             border rounded-md
+                            placeholder:text-zinc-400
                             outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             ${passwordError ? 'border-red-500' : 'border-zinc-600'}
                         `}
