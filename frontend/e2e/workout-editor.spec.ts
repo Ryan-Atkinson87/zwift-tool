@@ -36,7 +36,7 @@ test.describe('Workout editor — guest mode', () => {
 
         // After loading an example, the workout name should appear in the editor
         // and the canvas section should become visible
-        await expect(page.locator('[data-testid="workout-canvas"], canvas, svg').first()).toBeVisible({
+        await expect(page.locator('[data-testid="workout-canvas"]')).toBeVisible({
             timeout: 5000,
         })
     })
