@@ -134,6 +134,15 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
+
+        // Fail fast if the environment variable is missing, blank, or contains only
+        // commas and whitespace. Allowing zero origins would silently reject every
+        // cross-origin request, which is extremely hard to diagnose at runtime.
+        if (origins.isEmpty()) {
+            throw new IllegalStateException(
+                    "CORS_ALLOWED_ORIGIN is not configured — set at least one allowed origin in the environment.");
+        }
+
         config.setAllowedOrigins(origins);
 
         // Allow credentials so the browser sends HttpOnly cookies cross-origin
