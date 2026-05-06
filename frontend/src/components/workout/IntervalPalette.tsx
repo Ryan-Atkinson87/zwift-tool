@@ -133,7 +133,7 @@ export function IntervalPalette({
 
     return (
         <div className="flex flex-wrap justify-center gap-2 mt-2 pt-2 border-t border-zinc-700">
-            <span className="w-full text-center label-tiny text-zinc-500 pb-1">
+            <span className="w-full text-center label-tiny text-zinc-400 pb-1">
                 Drag onto the chart to insert, or press Enter/Space to append to the main set
             </span>
             {items.map((item) => (
@@ -153,7 +153,7 @@ export function IntervalPalette({
                         bg-zinc-700/60 rounded
                         hover:bg-zinc-700 transition-colors
                         select-none touch-none
-                        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 focus:ring-offset-zinc-900
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 >
                     <PaletteItemShape interval={item.interval} />

@@ -140,7 +140,7 @@ public class SecurityConfig {
         // cross-origin request, which is extremely hard to diagnose at runtime.
         if (origins.isEmpty()) {
             throw new IllegalStateException(
-                    "CORS_ALLOWED_ORIGIN is not configured — set at least one allowed origin in the environment.");
+                    "CORS_ALLOWED_ORIGIN is not configured: set at least one allowed origin in the environment.");
         }
 
         config.setAllowedOrigins(origins);

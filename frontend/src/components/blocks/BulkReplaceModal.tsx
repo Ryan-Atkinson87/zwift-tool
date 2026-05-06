@@ -85,15 +85,16 @@ export function BulkReplaceModal({
 
                 {/* Section type picker */}
                 <div className="flex flex-col gap-2">
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+                    <p id="bulk-replace-section-label" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
                         Section to replace
                     </p>
-                    <div className="flex gap-2">
+                    <div role="group" aria-labelledby="bulk-replace-section-label" className="flex gap-2">
                         {ALL_SECTION_TYPES.map((type) => (
                             <button
                                 key={type}
                                 type="button"
                                 onClick={() => handleSectionChange(type)}
+                                aria-pressed={sectionType === type}
                                 className={`
                                     px-3 py-1.5
                                     text-sm font-medium

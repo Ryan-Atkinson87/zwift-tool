@@ -107,13 +107,6 @@ interface RampResizeDragState {
 }
 
 /**
- * Renders a compact bar chart preview of a library block's intervals.
- * When {@code onReorder} is provided, bars become draggable for reordering.
- *
- * <p>Malformed block content is handled gracefully by showing a fallback
- * message rather than throwing.</p>
- */
-/**
  * Displays a compact bar chart preview of a library block's intervals.
  * Handles invalid or empty content gracefully with a fallback message.
  * When {@code onReorder} is provided, delegates to {@link BlockPreviewSvg}

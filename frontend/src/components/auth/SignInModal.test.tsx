@@ -22,17 +22,17 @@ function renderSignInModal(onSignIn = noopAsync): void {
 
 describe('SignInModal', () => {
     describe('initial state — no error', () => {
-        it('email input is not marked invalid initially', () => {
+        it('email input has no aria-invalid initially', () => {
             renderSignInModal()
             const emailInput = screen.getByRole('textbox', { name: /email/i })
-            expect(emailInput).toHaveAttribute('aria-invalid', 'false')
+            expect(emailInput).not.toHaveAttribute('aria-invalid')
         })
 
-        it('password input is not marked invalid initially', () => {
+        it('password input has no aria-invalid initially', () => {
             renderSignInModal()
             // password inputs have no implicit role — query by label text
             const passwordInput = screen.getByLabelText(/password/i)
-            expect(passwordInput).toHaveAttribute('aria-invalid', 'false')
+            expect(passwordInput).not.toHaveAttribute('aria-invalid')
         })
 
         it('email input has no aria-describedby initially', () => {
@@ -67,16 +67,16 @@ describe('SignInModal', () => {
             expect(document.getElementById('signin-form-error')).toBeInTheDocument()
         })
 
-        it('email input is marked aria-invalid="true"', async () => {
+        it('email input has no aria-invalid after empty-fields error', async () => {
             await submitEmptyForm()
             const emailInput = screen.getByRole('textbox', { name: /email/i })
-            expect(emailInput).toHaveAttribute('aria-invalid', 'true')
+            expect(emailInput).not.toHaveAttribute('aria-invalid')
         })
 
-        it('password input is marked aria-invalid="true"', async () => {
+        it('password input has no aria-invalid after empty-fields error', async () => {
             await submitEmptyForm()
             const passwordInput = screen.getByLabelText(/password/i)
-            expect(passwordInput).toHaveAttribute('aria-invalid', 'true')
+            expect(passwordInput).not.toHaveAttribute('aria-invalid')
         })
 
         it('email input aria-describedby points to the error element', async () => {
@@ -115,10 +115,10 @@ describe('SignInModal', () => {
             expect(screen.getByRole('alert')).toHaveTextContent(/invalid credentials/i)
         })
 
-        it('email input is aria-invalid after server error', async () => {
+        it('email input has no aria-invalid after server error', async () => {
             await submitWithFailure()
             const emailInput = screen.getByRole('textbox', { name: /email/i })
-            expect(emailInput).toHaveAttribute('aria-invalid', 'true')
+            expect(emailInput).not.toHaveAttribute('aria-invalid')
         })
 
         it('email input aria-describedby is set after server error', async () => {

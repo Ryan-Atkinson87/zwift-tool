@@ -73,7 +73,7 @@ class SecurityConfigTest {
      * Two comma-separated origins are both returned, in input order.
      */
     @Test
-    void twoCommaSeperatedOrigins_returnsBothOrigins() {
+    void twoCommaSeparatedOrigins_returnsBothOrigins() {
         CorsConfigurationSource source = buildSourceWithOrigin("https://a.com,https://b.com");
 
         List<String> origins = getAllowedOrigins(source);
@@ -86,7 +86,7 @@ class SecurityConfigTest {
      * an origin string with spaces still matches requests correctly.
      */
     @Test
-    void originsWithWhitespace_areTrimed() {
+    void originsWithWhitespace_areTrimmed() {
         CorsConfigurationSource source = buildSourceWithOrigin(" https://a.com , https://b.com ");
 
         List<String> origins = getAllowedOrigins(source);

@@ -181,6 +181,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                                 key={option.value}
                                 type="button"
                                 onClick={() => setSectionType(option.value)}
+                                aria-pressed={sectionType === option.value}
                                 className={`
                                     flex-1 px-3 py-2
                                     text-sm font-medium
@@ -217,7 +218,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                             text-sm
                             rounded-md border border-zinc-600
                             placeholder:text-zinc-400
-                            focus:outline-none focus:border-brand-500
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                         `}
                     />
                 </div>
@@ -239,7 +240,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                             text-sm
                             rounded-md border border-zinc-600
                             placeholder:text-zinc-400
-                            focus:outline-none focus:border-brand-500
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                             resize-none
                         `}
                     />

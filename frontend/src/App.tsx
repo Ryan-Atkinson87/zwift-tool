@@ -62,6 +62,15 @@ export function App(): JSX.Element {
         const panel = sessionStorage.getItem('zwift-tool.mobilePanel')
         return (panel === 'editor' && workoutId !== null) ? 'editor' : 'workouts'
     })
+    // Tracked so inert can be applied to off-screen drawers only on narrow viewports,
+    // preventing keyboard users from reaching visually hidden panel content.
+    const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)')
+        const handler = (e: MediaQueryListEvent): void => { setIsMobile(e.matches) }
+        mq.addEventListener('change', handler)
+        return () => mq.removeEventListener('change', handler)
+    }, [])
 
     // Guest mode: true once the user has chosen to use the tool without signing in
     const [guestMode, setGuestMode] = useState(false)
@@ -1212,7 +1221,7 @@ export function App(): JSX.Element {
                             onClick={() => setMobilePanel('workouts')}
                             aria-label="Open workout list"
                             className={`
-                                md:hidden absolute left-0 top-14 z-50
+                                md:hidden absolute left-0 top-14 z-50 min-w-11
                                 bg-zinc-700 border border-zinc-600 rounded-r-lg
                                 hover:bg-zinc-600 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
@@ -1228,7 +1237,7 @@ export function App(): JSX.Element {
                             onClick={() => setMobilePanel('blocks')}
                             aria-label="Open block library"
                             className={`
-                                md:hidden absolute right-0 top-14 z-50
+                                md:hidden absolute right-0 top-14 z-50 min-w-11
                                 bg-zinc-700 border border-zinc-600 rounded-l-lg
                                 hover:bg-zinc-600 transition-colors
                                 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
@@ -1256,16 +1265,18 @@ export function App(): JSX.Element {
                             </button>
                         </aside>
                     )}
-                    <aside className={[
-                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
-                        // Mobile: always absolutely positioned, slide in/out via transform
-                        'absolute inset-y-0 left-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
-                        mobilePanel === 'workouts' ? 'translate-x-0' : '-translate-x-full',
-                        // Desktop: static in-flow panel, no transform, collapse as normal
-                        isLeftCollapsed
-                            ? 'md:hidden md:translate-x-0 md:transition-none'
-                            : 'md:flex md:static md:inset-auto md:left-auto md:w-56 lg:w-72 md:flex-none md:z-auto md:translate-x-0 md:transition-none',
-                    ].join(' ')}>
+                    <aside
+                        inert={isMobile && mobilePanel !== 'workouts' ? true : undefined}
+                        className={[
+                            'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-r border-zinc-700',
+                            // Mobile: always absolutely positioned, slide in/out via transform
+                            'absolute inset-y-0 left-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                            mobilePanel === 'workouts' ? 'translate-x-0' : '-translate-x-full',
+                            // Desktop: static in-flow panel, no transform, collapse as normal
+                            isLeftCollapsed
+                                ? 'md:hidden md:translate-x-0 md:transition-none'
+                                : 'md:flex md:static md:inset-auto md:left-auto md:w-56 lg:w-72 md:flex-none md:z-auto md:translate-x-0 md:transition-none',
+                        ].join(' ')}>
                             {/* Mobile close button — collapses the workouts drawer back to the left */}
                             <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
                                 <span className="text-sm font-semibold text-white">Workouts</span>
@@ -1274,7 +1285,7 @@ export function App(): JSX.Element {
                                     aria-label="Close workout list"
                                     className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                         <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
                                     </svg>
                                 </button>
@@ -1475,16 +1486,18 @@ export function App(): JSX.Element {
                             </button>
                         </aside>
                     )}
-                    <aside className={[
-                        'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
-                        // Mobile: always absolutely positioned, slide in/out via transform
-                        'absolute inset-y-0 right-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
-                        mobilePanel === 'blocks' ? 'translate-x-0' : 'translate-x-full',
-                        // Desktop: static in-flow panel, no transform, collapse as normal
-                        isRightCollapsed
-                            ? 'md:hidden md:translate-x-0 md:transition-none'
-                            : 'md:flex md:static md:inset-auto md:right-auto md:w-64 lg:w-80 md:shrink-0 md:z-auto md:translate-x-0 md:transition-none',
-                    ].join(' ')}>
+                    <aside
+                        inert={isMobile && mobilePanel !== 'blocks' ? true : undefined}
+                        className={[
+                            'flex flex-col overflow-y-auto p-3 gap-3 bg-zinc-900 border-l border-zinc-700',
+                            // Mobile: always absolutely positioned, slide in/out via transform
+                            'absolute inset-y-0 right-0 w-5/6 z-50 transition-transform duration-300 ease-in-out',
+                            mobilePanel === 'blocks' ? 'translate-x-0' : 'translate-x-full',
+                            // Desktop: static in-flow panel, no transform, collapse as normal
+                            isRightCollapsed
+                                ? 'md:hidden md:translate-x-0 md:transition-none'
+                                : 'md:flex md:static md:inset-auto md:right-auto md:w-64 lg:w-80 md:shrink-0 md:z-auto md:translate-x-0 md:transition-none',
+                        ].join(' ')}>
                         {/* Mobile close button — collapses the blocks drawer back to the right */}
                         <div className="md:hidden flex items-center justify-between pb-2 border-b border-zinc-700">
                             <button
@@ -1492,7 +1505,7 @@ export function App(): JSX.Element {
                                 aria-label="Close block library"
                                 className="min-w-11 min-h-11 flex items-center justify-center rounded text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                                     <path fillRule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 1 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
                                 </svg>
                             </button>

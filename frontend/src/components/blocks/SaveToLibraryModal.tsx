@@ -94,7 +94,7 @@ export function SaveToLibraryModal({
                             text-sm
                             rounded-md border border-zinc-600
                             placeholder:text-zinc-400
-                            focus:outline-none focus:border-brand-500
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                         `}
                     />
                 </div>
@@ -116,7 +116,7 @@ export function SaveToLibraryModal({
                             text-sm
                             rounded-md border border-zinc-600
                             placeholder:text-zinc-400
-                            focus:outline-none focus:border-brand-500
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                             resize-none
                         `}
                     />
