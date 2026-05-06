@@ -1893,6 +1893,7 @@ function UnifiedChart({
     return (
         <svg
             ref={svgRef}
+            data-testid="workout-canvas"
             viewBox={`0 -${TOP_PADDING} ${totalWidth} ${PLOT_HEIGHT + TOP_PADDING}`}
             preserveAspectRatio="none"
             className="block w-full"
