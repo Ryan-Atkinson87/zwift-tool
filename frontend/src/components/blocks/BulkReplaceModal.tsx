@@ -128,6 +128,7 @@ export function BulkReplaceModal({
                                     key={block.id}
                                     block={block}
                                     isSelected={selectedBlockId === block.id}
+                                    ariaPressed={selectedBlockId === block.id}
                                     onClick={() => setSelectedBlockId(block.id)}
                                 />
                             ))}

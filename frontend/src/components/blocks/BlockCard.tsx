@@ -7,6 +7,12 @@ interface Props {
     block: LibraryBlock
     isSelected: boolean
     onClick: () => void
+    /**
+     * When true, the primary action button announces its pressed state to
+     * assistive technology via aria-pressed. Use this when BlockCard acts as a
+     * toggle selection control, for example inside BulkReplaceModal.
+     */
+    ariaPressed?: boolean
     /** When omitted, the edit button is not rendered. */
     onEdit?: () => void
     /** When omitted, the delete button is not rendered. */
@@ -30,7 +36,7 @@ const SECTION_LABELS: Record<SectionType, string> = {
  * sit above the primary button via z-index, so they do not nest inside it,
  * which would be invalid HTML.
  */
-export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDelete = undefined }: Props): JSX.Element {
+export function BlockCard({ block, isSelected, onClick, ariaPressed = undefined, onEdit = undefined, onDelete = undefined }: Props): JSX.Element {
     const [isPendingDelete, setIsPendingDelete] = useState(false)
 
     function handleDeleteClick(e: React.MouseEvent): void {
@@ -66,6 +72,7 @@ export function BlockCard({ block, isSelected, onClick, onEdit = undefined, onDe
             <button
                 type="button"
                 aria-label={`Select block ${block.name}`}
+                aria-pressed={ariaPressed}
                 onClick={onClick}
                 className="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900"
             />
