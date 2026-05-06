@@ -221,7 +221,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                     {/* Name */}
                     <div className="flex flex-col gap-1">
                         <label className="text-sm text-zinc-300" htmlFor="create-block-name">
-                            Name <span className="text-red-400">*</span>
+                            Name <span aria-hidden="true" className="text-red-400">*</span>
                         </label>
                         <input
                             id="create-block-name"
@@ -229,6 +229,7 @@ export function CreateBlockModal({ isOpen, onClose, onSaved, initialBlock = null
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. 2x20 Threshold"
+                            aria-required="true"
                             autoFocus
                             className={`
                                 w-full px-3 py-2
