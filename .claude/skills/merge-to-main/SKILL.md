@@ -1,109 +1,148 @@
 ---
-description: Run pre-merge checks for dev to main, then hand off merge to user
-allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(npm run *:*), Bash(mvn *:*), Bash(cd *:*), Bash(gh pr *:*)
+description: Run pre-merge checks against main (or your integration branch) and perform the merge — asks for explicit confirmation before pushing
+allowed-tools: Read, Glob, Grep, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git fetch:*), Bash(git pull:*), Bash(git rev-list:*), Bash(git checkout:*), Bash(git switch:*), Bash(git merge:*), Bash(gh repo view:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(npm:*), Bash(pnpm:*), Bash(yarn:*), Bash(mvn:*), Bash(./gradlew:*), Bash(pytest:*), Bash(uv:*), Bash(ruff:*), Bash(mypy:*), Bash(go:*), Bash(cargo:*), Bash(cd:*), mcp__claude_ai_Notion__notion-update-page
 ---
+
+## Overview
+
+Used in projects with a `dev` → `main` flow. Run pre-merge checks, then merge `dev` into `main` and sync `dev` back. The skill **performs** the merge (this is the semi-auto tier) but explicitly confirms with the user before each push to a protected branch.
+
+If your project uses a single-branch flow (PRs merge directly to `main`), this skill is not for you — merge each PR directly via `gh pr merge` after review.
+
+## Git permissions
+
+Allowed: `git checkout`, `git fetch`, `git pull`, `git merge`, `git push origin <integration>`.
+**Forbidden without confirmation:** pushing to `main`. The skill always asks before each push to a protected branch.
 
 ## Context
 
+- Repo: !`gh repo view --json nameWithOwner -q .nameWithOwner`
 - Current branch: !`git branch --show-current`
 - Git status: !`git status`
-- Dev branch log (last 10): !`git log --oneline dev -10`
-- Main branch log (last 5): !`git log --oneline main -5`
-- Changes dev has over main: !`git log --oneline main..dev`
-- File diff summary: !`git diff --stat main..dev`
 
 ## Your task
 
-Merge the `dev` branch into `main` after running all relevant checks. Work through each step in order. Print a clear heading for each section. If any step fails, stop and report before proceeding.
+### Step 1 — Confirm the project model
 
-### 1. Pre-flight Checks
+Read `CLAUDE.md`. Confirm the project uses a `dev` → `main` flow. If it uses a single-branch flow, tell the user this skill does not apply and recommend using `gh pr merge` per PR.
 
-Before anything else, verify:
+### Step 2 — Pre-flight checks
 
-1. **Clean working tree**: There must be no uncommitted changes. If there are, stop and tell the user to commit or stash first.
-2. **Commits to merge**: Check that `dev` is ahead of `main`. If there are no new commits, stop and tell the user there is nothing to merge.
-3. **Remote sync**: Fetch from origin and check that the local `dev` branch is up to date with `origin/dev`. If behind, warn the user and stop.
+Run the following and stop on any failure:
 
-Print what was checked and the result.
+1. **Working tree clean** — no uncommitted changes
+2. **On `dev`** — switch if not (`git checkout dev`)
+3. **`dev` up to date with origin** (`git fetch origin dev`, then check `rev-list`)
+4. **Commits to merge** — `git rev-list --count main..dev` > 0. If 0, tell the user there is nothing to merge and stop.
 
-### 2. Identify Changed Areas
+### Step 3 — Identify changed areas
 
-Using the diff between `main` and `dev`, determine which areas of the project were changed:
+Using `git diff --stat main..dev`, summarise:
+- Files changed by top-level area (frontend / backend / docs / config)
+- Number of commits
+- Authors (first line of `git log main..dev --pretty='%an'`, deduped)
 
-- **Frontend changed**: any files under `frontend/`
-- **Backend changed**: any files under `backend/`
-- **Docs changed**: `CLAUDE.md`, `README.md`, or files under `internal_docs/`
-- **Config changed**: CI/CD, database scripts, or other infrastructure files
+Print a summary so the user knows what is about to ship.
 
-Print a summary of what changed and how many files were affected in each area.
+### Step 4 — Open PRs check
 
-### 3. Lint & Build
+```bash
+gh pr list --base dev --state open
+```
 
-Run checks based on the areas that changed:
+If any PR is targeting `dev` and is not yet merged, warn the user. Ask whether to wait or proceed. Stop until they reply.
 
-- If `frontend/` was changed: run `npm run lint` then `npm run build` from the `frontend/` directory
-- If `backend/` was changed: run `mvn verify -q` from the `backend/` directory
+### Step 5 — Lint and build
 
-If no frontend or backend files changed, skip this step and note that.
+Run lint and build per `CLAUDE.md`. Run only the suites for areas that changed. Stop on any failure.
 
-Print the result of each check. If any check fails, stop here and tell the user what needs fixing.
+### Step 6 — Tests
 
-### 4. Tests
+Run the test command per `CLAUDE.md`. Stop on any failure.
 
-Run tests based on the areas that changed:
-
-- If `frontend/` was changed: run `npm test -- --run` from the `frontend/` directory (skip if no test script is defined in package.json)
-- If `backend/` was changed: run `mvn test` from the `backend/` directory (skip if no test files exist beyond the smoke test)
-
-Print results. If tests fail, stop and report.
-
-### 5. Documentation Check
-
-Before handing off the merge, check whether documentation has been updated for the changes being merged.
+### Step 7 — Documentation check
 
 Ask the user:
 
-> "Have you run `/update-documentation` for the changes on `dev`? If not, run it now before merging — it updates README.md, CHANGELOG.md, and checks for missing standard docs."
+> "Have you run `/update-docs` for the changes on `dev`? It updates README, CHANGELOG, and version. Reply 'yes' (or 'not needed') to continue."
 
-**HALT. Wait for the user to confirm they have run `/update-documentation` (or confirm it is not needed for this merge) before proceeding.**
+**Wait for the reply.** If they say no, stop and instruct them to run `/update-docs` first.
 
-### 6. Hand Off Merge to User
+### Step 8 — Confirm before merge
 
-Once all checks pass and documentation is confirmed up to date, do NOT run git checkout, git merge, or git push yourself. Tell the user to run:
+Print:
 
 ```
+About to merge:
+- <N> commits
+- Areas: <list>
+- All checks passed: lint, build, tests
+- Working tree clean
+
+Reply 'merge' to proceed with:
+  git checkout main
+  git merge dev --no-ff -m "merge: dev into main"
+  git push origin main
+```
+
+**Wait for explicit `merge` reply.** No proceeding on silence or anything else.
+
+### Step 9 — Merge to main
+
+Once confirmed:
+
+```bash
 git checkout main
+git pull origin main
 git merge dev --no-ff -m "merge: dev into main"
+```
+
+If the merge has conflicts, **stop**, abort the merge (`git merge --abort`), and tell the user. Do not auto-resolve conflicts — they require human judgement.
+
+### Step 10 — Confirm before push to main
+
+Print:
+
+```
+Merge prepared on main. About to push to origin/main.
+Reply 'push' to confirm.
+```
+
+**Wait for `push` reply.** Then:
+
+```bash
 git push origin main
 ```
 
-### 7. Hand Off Dev Sync to User
+### Step 11 — Sync dev with main
 
-Tell the user to sync dev with main:
-
-```
+```bash
 git checkout dev
 git merge main
 git push origin dev
 ```
 
-This keeps `dev` in sync with `main` so that future work starts from a clean base.
+The push to `dev` does not need a separate confirmation — `dev` is the integration branch and this is a fast-forward sync.
 
-### 8. Summary
+### Step 12 — Update Notion Social Media Context
 
-Once the user confirms the merge and sync are done, print a final summary:
+Update the Zwift Tool Social Media Context page in Notion (page ID: `35314c40-040d-81dd-a023-ead51be6ac88`).
 
-- Number of commits merged
+Update the three sections to reflect the current project state:
+
+- **Current Status** — update the version shipped, date, and a one-line description of what it included. State that the posting window is active if relevant.
+- **Recent Milestones** — append a new bullet for the version just merged to main, using the format: `vX.Y.Z shipped (DD Mon YYYY) — [what shipped]. [Content angle sentence].`
+- **What's Coming Next** — update the upcoming technical features list to reflect the next milestone in the GitHub project board. Remove any milestones that have now shipped and add the next one in sequence.
+
+Use `mcp__claude_ai_Notion__notion-update-page` with `command: update_content` to apply targeted replacements. Do not rewrite sections that are not affected.
+
+### Step 13 — Final summary
+
+Print:
+- Number of commits merged into main
 - Areas affected (frontend, backend, docs, config)
-- Whether origin/main and origin/dev are both up to date
-
-### Future: Merge Restrictions
-
-This section is a placeholder for future merge restrictions. Currently there are none, but the following may be added:
-
-- Required CI checks passing
-- Required code review approvals
-- Branch protection rules
-- Changelog or version bump requirements
-
-When restrictions are added, enforce them in step 1 (Pre-flight Checks) before proceeding.
+- Origin state for `main` and `dev` (both up to date)
+- Recommended next steps:
+  - Tag the release if this completes a milestone (do it manually with `git tag -a vX.Y.Z`)
+  - Update any external status pages or release notes
+  - Plan the next milestone with `/plan-release`

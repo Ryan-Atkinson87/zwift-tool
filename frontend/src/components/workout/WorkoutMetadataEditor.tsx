@@ -125,7 +125,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                         bg-transparent text-white
                         text-lg font-semibold
                         border border-transparent rounded
-                        hover:border-zinc-700 focus:border-brand-500
+                        hover:border-zinc-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                         focus:outline-none transition-colors
                         disabled:opacity-50
                     `}
@@ -163,7 +163,7 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                     bg-transparent text-zinc-300
                     text-sm
                     border border-transparent rounded
-                    hover:border-zinc-700 focus:border-brand-500
+                    hover:border-zinc-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     focus:outline-none transition-colors
                     disabled:opacity-50
                 `}
@@ -184,14 +184,14 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                         bg-transparent text-zinc-300
                         text-sm
                         border border-transparent rounded
-                        hover:border-zinc-700 focus:border-brand-500
+                        hover:border-zinc-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                         focus:outline-none transition-colors resize-y
                         disabled:opacity-50
                     `}
                 />
 
                 <div className="flex flex-col gap-1 shrink-0">
-                    <label className="text-xs text-zinc-500" htmlFor="ftp-input">
+                    <label className="text-xs text-zinc-400" htmlFor="ftp-input">
                         FTP
                     </label>
                     <div className="flex items-center gap-1">
@@ -211,12 +211,12 @@ export function WorkoutMetadataEditor({ workout, onSave, isSaving, onExport, isE
                                 bg-transparent text-zinc-300
                                 text-sm text-right
                                 border border-transparent rounded
-                                hover:border-zinc-700 focus:border-brand-500
+                                hover:border-zinc-700 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                                 focus:outline-none transition-colors
                                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
                             `}
                         />
-                        <span className="text-xs text-zinc-500">W</span>
+                        <span className="text-xs text-zinc-400">W</span>
                     </div>
                 </div>
             </div>

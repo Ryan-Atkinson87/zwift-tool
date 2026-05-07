@@ -8,7 +8,7 @@ import type {
     WorkoutSummary,
 } from '../types/workout'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 /** Request body for saving a workout from the import flow. */
 export interface SaveWorkoutRequest {

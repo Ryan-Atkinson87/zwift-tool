@@ -1,5 +1,6 @@
 package uk.trive.zwifttool.config;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -23,18 +24,18 @@ import lombok.RequiredArgsConstructor;
  * including CORS policy, CSRF settings, JWT authentication, and
  * endpoint authorisation rules.
  *
- * <p>CORS and cookie behaviour are environment-aware. In production the allowed
- * origin is {@code https://zwifttool.trivedev.uk}; in local dev it is
- * {@code http://localhost:5173}. The values are set via environment variables
- * so the same code runs in both environments without profiles.</p>
+ * <p>CORS and cookie behaviour are environment-aware. {@code CORS_ALLOWED_ORIGIN} accepts
+ * a comma-separated list of allowed origins, trimmed and filtered before being applied,
+ * so multiple origins can be permitted simultaneously without changing code. For example,
+ * production and a local dev origin can both be listed in the same variable.</p>
  */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Value("${app.cors.allowed-origin}")
-    private String allowedOrigin;
+    @Value("${app.cors.allowed-origin:}")
+    private String allowedOrigins;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -115,9 +116,11 @@ public class SecurityConfig {
     /**
      * Defines the CORS policy for the API.
      *
-     * <p>Only the single origin specified by {@code CORS_ALLOWED_ORIGIN} is permitted.
-     * Credentials are allowed so that HttpOnly auth cookies are sent cross-origin
-     * from the frontend to the API. All standard methods and headers are permitted.</p>
+     * <p>{@code CORS_ALLOWED_ORIGIN} is parsed as a comma-separated list: each value is
+     * trimmed and empty strings are filtered out before the resulting list is applied as
+     * the set of permitted origins. Credentials are allowed so that HttpOnly auth cookies
+     * are sent cross-origin from the frontend to the API. All standard methods and headers
+     * are permitted.</p>
      *
      * @return the CORS configuration source applied to all endpoints
      */
@@ -125,10 +128,22 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Only allow requests from the configured frontend origin.
-        // Production: https://zwifttool.trivedev.uk
-        // Local dev:  http://localhost:5173
-        config.setAllowedOrigins(List.of(allowedOrigin));
+        // Accepts a comma-separated list so multiple origins can be permitted simultaneously,
+        // e.g. localhost:5173 and a LAN IP for mobile testing.
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        // Fail fast if the environment variable is missing, blank, or contains only
+        // commas and whitespace. Allowing zero origins would silently reject every
+        // cross-origin request, which is extremely hard to diagnose at runtime.
+        if (origins.isEmpty()) {
+            throw new IllegalStateException(
+                    "CORS_ALLOWED_ORIGIN is not configured: set at least one allowed origin in the environment.");
+        }
+
+        config.setAllowedOrigins(origins);
 
         // Allow credentials so the browser sends HttpOnly cookies cross-origin
         config.setAllowCredentials(true);

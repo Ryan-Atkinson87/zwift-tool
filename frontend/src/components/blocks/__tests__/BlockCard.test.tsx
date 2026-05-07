@@ -67,20 +67,20 @@ describe('BlockCard', () => {
         expect(screen.queryByText(/1 intervals/)).not.toBeInTheDocument()
     })
 
-    it('calls onClick when the card is clicked', async () => {
+    it('calls onClick when the card primary button is clicked', async () => {
         const user = userEvent.setup()
         const onClick = vi.fn()
         renderBlockCard({ onClick })
-        await user.click(screen.getByRole('button'))
+        await user.click(screen.getByRole('button', { name: /select block threshold 3x8/i }))
         expect(onClick).toHaveBeenCalledOnce()
     })
 
-    it('calls onClick when Enter is pressed on the card', async () => {
+    it('calls onClick when Enter is pressed on the primary button', async () => {
         const user = userEvent.setup()
         const onClick = vi.fn()
         renderBlockCard({ onClick })
-        const card = screen.getByRole('button')
-        card.focus()
+        const primaryButton = screen.getByRole('button', { name: /select block threshold 3x8/i })
+        primaryButton.focus()
         await user.keyboard('{Enter}')
         expect(onClick).toHaveBeenCalledOnce()
     })
@@ -139,7 +139,8 @@ describe('BlockCard', () => {
 
     it('applies a selected border when isSelected is true', () => {
         const { container } = renderBlockCard({ isSelected: true })
-        const card = container.querySelector('[role="button"]')!
+        // The outer wrapper div carries the selection styling
+        const card = container.firstElementChild!
         expect(card.className).toContain('border-brand-500')
     })
 })

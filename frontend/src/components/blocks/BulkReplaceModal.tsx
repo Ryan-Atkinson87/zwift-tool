@@ -85,17 +85,18 @@ export function BulkReplaceModal({
 
                 {/* Section type picker */}
                 <div className="flex flex-col gap-2">
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
+                    <p id="bulk-replace-section-label" className="text-xs font-medium text-zinc-400 uppercase tracking-wide">
                         Section to replace
                     </p>
-                    <div className="flex gap-2">
+                    <div role="group" aria-labelledby="bulk-replace-section-label" className="flex gap-2">
                         {ALL_SECTION_TYPES.map((type) => (
                             <button
                                 key={type}
                                 type="button"
                                 onClick={() => handleSectionChange(type)}
+                                aria-pressed={sectionType === type}
                                 className={`
-                                    px-3 py-1.5
+                                    min-h-11 px-3 py-1.5
                                     text-sm font-medium
                                     rounded-md border
                                     transition-colors
@@ -128,6 +129,7 @@ export function BulkReplaceModal({
                                     key={block.id}
                                     block={block}
                                     isSelected={selectedBlockId === block.id}
+                                    ariaPressed={selectedBlockId === block.id}
                                     onClick={() => setSelectedBlockId(block.id)}
                                 />
                             ))}
@@ -160,7 +162,7 @@ export function BulkReplaceModal({
                             </div>
                         ))}
                     </div>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-zinc-400">
                         The current {SECTION_LABELS[sectionType]} on each workout will be saved for
                         undo. A zip of updated .zwo files will download on completion.
                     </p>
@@ -172,7 +174,7 @@ export function BulkReplaceModal({
                         type="checkbox"
                         checked={downloadZip}
                         onChange={(e) => setDownloadZip(e.target.checked)}
-                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-brand-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-brand-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800"
                     />
                     <span className="text-sm text-zinc-300">
                         Download updated .zwo files as a zip
@@ -180,7 +182,7 @@ export function BulkReplaceModal({
                 </label>
 
                 {error !== null && (
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p role="alert" className="text-sm text-red-400">{error}</p>
                 )}
 
                 <div className="flex justify-end gap-3">
@@ -189,7 +191,7 @@ export function BulkReplaceModal({
                         onClick={handleClose}
                         disabled={isBulkReplacing}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -205,7 +207,7 @@ export function BulkReplaceModal({
                         onClick={handleConfirm}
                         disabled={selectedBlockId === null || isBulkReplacing || filteredBlocks.length === 0}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md

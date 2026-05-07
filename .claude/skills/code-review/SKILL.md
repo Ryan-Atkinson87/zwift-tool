@@ -1,21 +1,35 @@
 ---
-description: Review either a specific PR or the full codebase for code quality, security, and conventions
+description: Review a specific PR or the full codebase for quality, security, conventions, and architecture
 argument-hint: PR <number> | FULL
-allowed-tools: Read, Glob, Grep, Agent, Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh api:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(ls:*), mcp__github__get_pull_request, mcp__github__get_pull_request_files, mcp__github__get_pull_request_comments, mcp__github__get_pull_request_reviews
+allowed-tools: Read, Glob, Grep, Agent, Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr list:*), Bash(gh repo view:*), Bash(gh api:*), Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git branch:*), Bash(ls:*), Bash(find . -name:*), mcp__github__get_pull_request, mcp__github__get_pull_request_files
 ---
+
+## Overview
+
+Two modes:
+- **PR Review** — review a specific PR with parallel sub-agents
+- **Full Codebase Review** — audit the whole repo for quality, security, and convention drift
+
+Both modes consolidate findings into a single report grouped by severity.
+
+This skill differs from `review-pr`: it produces a long-form analysis written to your terminal (and optionally to a file), not a posted PR review. Use this for periodic audits or for a deeper look at a complex PR.
+
+## Git policy
+
+Read-only.
 
 ## Context
 
 - Arguments: $ARGUMENTS
+- Repo: !`gh repo view --json nameWithOwner -q .nameWithOwner`
 - Current branch: !`git branch --show-current`
 
 ## Your task
 
-Parse $ARGUMENTS to determine the review mode:
-
-- If $ARGUMENTS starts with `PR` (e.g. `PR 42`), extract the PR number and run **PR Review mode**.
-- If $ARGUMENTS is `FULL`, run **Full Codebase Review mode**.
-- Otherwise, print `Usage: /code-review PR <number> | FULL` and stop.
+Parse `$ARGUMENTS`:
+- Starts with `PR ` (e.g. `PR 42`) → **Mode A: PR Review**
+- Equals `FULL` → **Mode B: Full Codebase Review**
+- Otherwise: print `Usage: /code-review PR <number> | FULL` and stop
 
 ---
 
@@ -23,121 +37,100 @@ Parse $ARGUMENTS to determine the review mode:
 
 ### Step A.1 — Load reference material
 
-Read both files before proceeding:
-
+Read both files in full before proceeding:
+- `CLAUDE.md`
 - `/internal_docs/INSTRUCTIONS_COPY.md`
-- `/CLAUDE.md`
 
-### Step A.2 — Fetch PR context
-
-Fetch the PR details and the full diff:
+### Step A.2 — Fetch PR
 
 ```bash
-gh pr view <number> --repo Ryan-Atkinson87/zwift-tool --json number,title,body,baseRefName,headRefName,labels,author,additions,deletions,changedFiles
-gh pr diff <number> --repo Ryan-Atkinson87/zwift-tool
+gh pr view <number> --json number,title,body,baseRefName,headRefName,labels,author,additions,deletions,changedFiles
+gh pr diff <number>
+mcp__github__get_pull_request_files  pull_number=<number>
 ```
 
-Also fetch the list of changed files:
+Read every changed file from the working tree (not just the diff) so reviewers have full context. Skip deleted files.
 
-```
-mcp__github__get_pull_request_files  repo=Ryan-Atkinson87/zwift-tool  pull_number=<number>
-```
-
-Read each changed file from the working tree (not the diff) so reviewers have full context. If a file is deleted, note it but do not try to read it.
-
-Determine which areas are touched:
-- **Backend only** — all changed files are under `backend/`
-- **Frontend only** — all changed files are under `frontend/`
-- **Both** — files span both areas
+Determine areas touched (backend / frontend / docs / config).
 
 ### Step A.3 — Spawn parallel review sub-agents
 
-Spawn the appropriate sub-agents **simultaneously in a single call** based on what areas are touched:
+Spawn specialized sub-agents in a **single message**:
 
-| Area | Agents to spawn |
-|------|-----------------|
-| Backend only | `code-reviewer-backend` + `code-reviewer-security` |
-| Frontend only | `code-reviewer-frontend` + `code-reviewer-security` |
-| Both | `code-reviewer-backend` + `code-reviewer-frontend` + `code-reviewer-security` |
+| Areas changed | Sub-agents |
+|---|---|
+| Backend only | `code-reviewer-backend`, `code-reviewer-security` |
+| Frontend only | `code-reviewer-frontend`, `code-reviewer-security` |
+| Both | `code-reviewer-backend`, `code-reviewer-frontend`, `code-reviewer-security` |
+| Docs / config only | `code-reviewer-backend` (conventions), `code-reviewer-security` |
 
-**Prompt to pass to each agent** (fill in all values):
+Pass each sub-agent a fully-self-contained prompt:
 
 ```
 MODE: PR
 
-PR #[number]: [title]
-Base branch: [base]
-Head branch: [head]
-Labels: [labels]
-Changes: +[additions] -[deletions] across [changedFiles] files
+PR #<number>: <title>
+Base: <base>  Head: <head>
+Labels: <labels>
++<adds> -<dels> across <count> files
 
 PR description:
-[full PR body]
+<body>
 
 Changed files:
-[list of changed file paths, one per line]
+<paths, one per line>
 
 Full diff:
-[paste the full gh pr diff output]
+<paste gh pr diff>
 
-Full file contents of changed files:
-[for each changed file: paste path as a heading and full content below]
+Full file contents (post-change):
+<for each file: path heading + content>
+
+Project conventions: <paste relevant section of CLAUDE.md>
+
+Your focus is <backend / frontend / security / conventions>. Look for:
+<focus-specific bullet list>
 ```
 
-Wait for all parallel sub-agents to complete.
+Wait for all sub-agents to complete.
 
-### Step A.4 — Consolidate and report
+### Step A.4 — Consolidate report
 
-Print the consolidated review report. Use the structure below. Only print sections where findings exist — skip empty sections rather than writing "No issues found."
+Print:
 
----
+```markdown
+## Code Review: PR #<n> — <title>
 
-## Code Review: PR #[number] — [title]
+**Verdict:** Approved | Approved with comments | Changes requested
 
-**Verdict:** [one of: Approved / Approved with comments / Changes requested]
-
-**Summary:** [2–3 sentence summary of what the PR does and the overall quality assessment]
-
----
+**Summary:** <2–3 sentences>
 
 ### Critical Issues
 > Must be resolved before merge.
-
-[List each critical finding. For each: filename + line reference, description of the issue, why it matters, and suggested fix.]
-
----
+- `<file>:<line>` — <description>. Why it matters: <reason>. Fix: <fix>
 
 ### Significant Issues
-> Should be resolved before merge, but reviewer discretion applies.
-
-[Same format as critical.]
-
----
+> Should be resolved before merge; reviewer discretion.
+- ...
 
 ### Minor Issues
-> Nice-to-have improvements; do not block merge.
-
-[Same format.]
-
----
+> Nice-to-have improvements.
+- ...
 
 ### Security
-[Any security-specific findings from the security reviewer, or "No security concerns identified."]
-
----
+<security-specific findings, or "No security concerns identified.">
 
 ### Conventions
-[Any convention violations (Java or TypeScript), or "Conventions followed throughout."]
-
----
+<convention violations, or "Conventions followed throughout.">
 
 ### What was done well
-[Genuine positives only — do not pad. Skip if nothing stands out.]
+<genuine positives only — skip if nothing stands out>
 
----
+**Files reviewed:** <count>
+**Sub-agents:** <list>
+```
 
-**Files reviewed:** [count]
-**Reviewers:** code-reviewer-backend, code-reviewer-frontend (if applicable), code-reviewer-security
+Skip empty sections — don't write "No issues found".
 
 ---
 
@@ -145,20 +138,18 @@ Print the consolidated review report. Use the structure below. Only print sectio
 
 ### Step B.1 — Load reference material
 
-Read both files before proceeding:
-
+Read both files in full before proceeding:
+- `CLAUDE.md`
 - `/internal_docs/INSTRUCTIONS_COPY.md`
-- `/CLAUDE.md`
 
 ### Step B.2 — Codebase snapshot
-
-Gather a high-level picture of the codebase before spawning sub-agents:
 
 ```bash
 git log --oneline -20
 ```
 
-List key directories to confirm structure:
+List key directories:
+- Top-level layout (`ls`)
 - `backend/src/main/java/`
 - `frontend/src/`
 
@@ -166,96 +157,77 @@ Read `frontend/package.json` and `backend/pom.xml` to note the dependency landsc
 
 ### Step B.3 — Spawn parallel review sub-agents
 
-Spawn all three sub-agents **simultaneously in a single call**:
-
+Spawn three specialized sub-agents in a single message:
 - `code-reviewer-backend`
 - `code-reviewer-frontend`
 - `code-reviewer-security`
 
-**Prompt to pass to each agent:**
+Pass each a fully-self-contained prompt:
 
 ```
 MODE: FULL
-
-This is a full codebase review of the Zwift Tool project.
 
 Project: Zwift Tool — web-based workout editor for Zwift cyclists.
 Stack: Spring Boot (Java 21) backend, React + TypeScript + Tailwind frontend, Neon PostgreSQL, JWT auth via HttpOnly cookies.
 
 Recent commits (last 20):
-[paste git log output]
+<git log output>
 
-Your focus area and specific instructions are defined in your agent system prompt.
-Review everything within your focus area. Be thorough.
+CLAUDE.md (full):
+<paste>
+
+INSTRUCTIONS_COPY.md (full):
+<paste>
+
+Your focus is <backend / frontend / security>. Audit the whole repo within your area.
+Be thorough — read actual source files, don't rely only on the diff.
 ```
 
-Wait for all parallel sub-agents to complete.
+Each sub-agent does its own `Read`/`Glob`/`Grep` to navigate the codebase.
 
-### Step B.4 — Consolidate and report
+### Step B.4 — Consolidate report
 
-Print the consolidated report. Group findings by severity across all three reviewers.
-
----
-
+```markdown
 ## Full Codebase Review
 
-**Date:** [today's date]
-**Verdict:** [one of: Clean / Minor issues / Significant issues / Critical issues found]
+**Date:** <today>
+**Verdict:** Clean | Minor issues | Significant issues | Critical issues found
 
-**Executive summary:** [3–5 sentences covering the overall health of the codebase, standout strengths, and the most pressing areas to address]
-
----
+**Executive summary:** <3–5 sentences on overall health, strengths, most pressing areas>
 
 ### Critical Issues
-> Must be resolved immediately.
-
-[Each finding: file path + line reference, description, why it matters, suggested fix]
-
----
+- ...
 
 ### Significant Issues
-> Should be resolved in the near term.
-
-[Same format.]
-
----
+- ...
 
 ### Minor Issues
-> Low-priority improvements.
-
-[Same format.]
-
----
+- ...
 
 ### Security
-[Security-specific findings consolidated from all three reviewers. Be explicit about the attack surface and impact for each finding.]
-
----
+<consolidated security findings — be explicit about attack surface and impact>
 
 ### Backend: Java Conventions and Architecture
-
-[All backend-specific findings not already listed above: Javadoc gaps, Lombok misuse, controller/service/exception pattern violations, SQL in services, etc.]
-
----
+<all backend findings not already listed above>
 
 ### Frontend: TypeScript and React Conventions
-
-[All frontend-specific findings not already listed above: missing types, `any` usage, default exports, inline fetch calls, missing JSDoc, Tailwind violations, accessibility gaps, etc.]
-
----
+<all frontend findings not already listed above>
 
 ### What is in good shape
-[Areas of the codebase that are well-written. Be specific — name files or patterns. Do not pad.]
-
----
+<specific, named files or patterns — no padding>
 
 ### Recommended priorities
+1. <most important>
+2. <second>
+3. <third>
 
-1. [Most important thing to fix and why]
-2. [Second most important]
-3. [Third most important]
-(Add more only if genuinely distinct and important)
+**Sub-agents:** code-reviewer-backend, code-reviewer-frontend, code-reviewer-security
+```
 
----
+### Step B.5 — Save (optional)
 
-**Reviewers:** code-reviewer-backend, code-reviewer-frontend, code-reviewer-security
+Ask the user:
+
+> "Save this review as `internal_docs/code-review-<date>.md` for future reference? Reply 'save' or 'skip'."
+
+If they say save, write the file. Otherwise leave the report in the terminal only.

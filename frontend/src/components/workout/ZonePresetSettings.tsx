@@ -146,7 +146,7 @@ function ZoneRow({
                         </span>
                     )}
                 </div>
-                <span className="label-tiny text-zinc-500">
+                <span className="label-tiny text-zinc-400">
                     {rangeLabel}
                 </span>
             </div>
@@ -164,7 +164,7 @@ function ZoneRow({
                                 setDurationMinutes(next)
                             }
                         }}
-                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500"
                     />
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
@@ -180,7 +180,7 @@ function ZoneRow({
                                 setFtpPercent(next)
                             }
                         }}
-                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:border-brand-500"
+                        className="px-2 py-1 bg-zinc-900 text-white text-sm border border-zinc-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500"
                     />
                 </label>
             </div>
@@ -205,7 +205,7 @@ function ZoneRow({
             </div>
 
             {error !== null && (
-                <p className="text-[11px] text-red-300">{error}</p>
+                <p role="alert" className="text-xs text-red-200">{error}</p>
             )}
         </div>
     )

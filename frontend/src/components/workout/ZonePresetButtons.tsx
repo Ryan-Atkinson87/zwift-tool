@@ -48,10 +48,12 @@ export function ZonePresetButtons({
                     type="button"
                     onClick={() => onSelectPreset(sectionType, preset.zone)}
                     disabled={disabled}
+                    aria-label={`Add Zone ${preset.zone}: ${preset.name} (${ftp}% FTP, ${Math.round(durationSeconds / 60)} min)`}
                     title={`Add ${preset.name} (${ftp}% FTP, ${Math.round(durationSeconds / 60)} min)`}
                     style={{ backgroundColor: getColourForZone(preset.zone) }}
                     className={`
                         px-1.5 py-0.5
+                        min-w-11 min-h-11
                         label-tiny text-white
                         rounded
                         hover:opacity-90 transition-opacity

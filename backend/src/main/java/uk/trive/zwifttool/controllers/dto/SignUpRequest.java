@@ -22,5 +22,6 @@ public class SignUpRequest {
     @Size(min = 8, message = "Password must be at least 8 characters.")
     private String password;
 
+    @Size(max = 100, message = "Display name must be 100 characters or fewer.")
     private String displayName;
 }

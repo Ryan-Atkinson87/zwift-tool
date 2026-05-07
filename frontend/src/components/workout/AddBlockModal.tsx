@@ -143,7 +143,7 @@ export function AddBlockModal({
                         type="button"
                         onClick={onClose}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -157,7 +157,7 @@ export function AddBlockModal({
                         type="button"
                         onClick={handleConfirm}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
@@ -186,26 +186,30 @@ function TypeSelector({ value, onChange }: TypeSelectorProps): JSX.Element {
         { value: 'FreeRide', label: 'Free Ride' },
     ]
     return (
-        <div className="flex gap-2">
-            {options.map((option) => (
-                <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => onChange(option.value)}
-                    className={`
-                        flex-1 px-3 py-2
-                        text-sm font-medium
-                        rounded-md transition-colors
-                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
-                        ${value === option.value
-                            ? 'bg-brand-600 text-white'
-                            : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                        }
-                    `}
-                >
-                    {option.label}
-                </button>
-            ))}
+        <div className="flex flex-col gap-1">
+            <span id="add-block-type-label" className="text-sm text-zinc-300">Block type</span>
+            <div role="group" aria-labelledby="add-block-type-label" className="flex gap-2">
+                {options.map((option) => (
+                    <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => onChange(option.value)}
+                        aria-pressed={value === option.value}
+                        className={`
+                            flex-1 min-h-11 px-3 py-2
+                            text-sm font-medium
+                            rounded-md transition-colors
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-800
+                            ${value === option.value
+                                ? 'bg-brand-600 text-white'
+                                : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                            }
+                        `}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </div>
         </div>
     )
 }
@@ -331,11 +335,11 @@ function NumberField({ label, value, onChange, min, max }: NumberFieldProps): JS
                     }
                 }}
                 className={`
-                    px-3 py-2
+                    min-h-11 px-3 py-2
                     bg-zinc-900 text-white
                     text-sm
                     border border-zinc-700 rounded-md
-                    focus:outline-none focus:border-brand-500
+                    focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                 `}
             />
         </label>

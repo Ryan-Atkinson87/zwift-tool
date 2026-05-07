@@ -1,4 +1,4 @@
-import type { JSX } from 'react'
+import { useRef, type JSX } from 'react'
 import type { ParsedInterval } from '../../types/workout'
 import type { ZonePresetView } from '../../api/zonePresets'
 import { getColourForZone, getZoneForPower } from '../../utils/zoneColours'
@@ -13,10 +13,28 @@ const PALETTE_VB_HEIGHT = 60
 /** ViewBox width for palette item shapes, in SVG units. */
 const PALETTE_VB_WIDTH = 50
 
+/**
+ * How long (ms) a touch must be held before drag activates.
+ * Gives the browser a window to commit to a scroll gesture instead.
+ */
+const TOUCH_DRAG_DELAY_MS = 200
+
+/**
+ * Maximum movement (px, squared) during the hold window before the pending
+ * drag is cancelled and the gesture is treated as a scroll.
+ */
+const TOUCH_DRAG_CANCEL_SQ = 8 * 8
+
 interface IntervalPaletteProps {
     zonePresets?: ZonePresetView[]
-    onItemPointerDown: (interval: ParsedInterval, e: React.PointerEvent) => void
+    onItemPointerDown: (interval: ParsedInterval, pointerId: number, clientX: number, clientY: number) => void
     isDragging: boolean
+    /**
+     * Called when the user clicks or activates a palette item via keyboard.
+     * Appends the interval to the end of the current section. When omitted,
+     * keyboard activation has no effect (drag-to-add still works).
+     */
+    onAddInterval?: (interval: ParsedInterval) => void
 }
 
 /**
@@ -25,38 +43,123 @@ interface IntervalPaletteProps {
  *
  * <p>Includes one block per Zwift zone (using effective zone presets when
  * available) and separate Ramp, Intervals, and Free Ride blocks.</p>
+ *
+ * <p>On touch devices, a 200ms hold is required before drag activates so that
+ * a quick swipe is still handled as a page scroll. Pointer capture is set on
+ * the palette item div immediately in pointerdown (required by iOS Safari),
+ * then transferred to the chart SVG from within a pointermove handler once
+ * the hold period has elapsed.</p>
  */
 export function IntervalPalette({
     zonePresets,
     onItemPointerDown,
     isDragging,
+    onAddInterval,
 }: IntervalPaletteProps): JSX.Element {
     const items = buildPaletteItems(zonePresets)
+
+    const pendingRef = useRef<{
+        timerId: ReturnType<typeof setTimeout>
+        interval: ParsedInterval
+        pointerId: number
+        startX: number
+        startY: number
+        /** Set to true by the timer. The next pointermove will transfer capture to the SVG. */
+        dragActivated: boolean
+    } | null>(null)
+
+    function cancelPending(): void {
+        if (pendingRef.current !== null) {
+            clearTimeout(pendingRef.current.timerId)
+            pendingRef.current = null
+        }
+    }
+
+    function handlePointerDown(interval: ParsedInterval, e: React.PointerEvent): void {
+        if (e.pointerType !== 'touch') {
+            // Mouse/pen: start drag immediately (existing behaviour)
+            e.preventDefault()
+            onItemPointerDown(interval, e.pointerId, e.clientX, e.clientY)
+            return
+        }
+
+        cancelPending()
+
+        // Capture to this element immediately — iOS Safari requires setPointerCapture
+        // to be called from within a pointer event handler. Capturing here ensures
+        // pointermove continues firing on this element even after the finger moves away,
+        // which is needed both to detect scroll intent and to transfer capture to the SVG.
+        ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+
+        const { pointerId, clientX, clientY } = e
+        pendingRef.current = {
+            timerId: setTimeout(() => {
+                if (pendingRef.current !== null) {
+                    pendingRef.current.dragActivated = true
+                }
+            }, TOUCH_DRAG_DELAY_MS),
+            interval,
+            pointerId,
+            startX: clientX,
+            startY: clientY,
+            dragActivated: false,
+        }
+    }
+
+    function handlePointerMove(e: React.PointerEvent): void {
+        if (pendingRef.current === null) return
+
+        if (pendingRef.current.dragActivated) {
+            // Hold period elapsed — suppress the browser's scroll gesture before
+            // transferring capture to the SVG. Without this, the page scrolls
+            // when the user drags upward from the palette onto the chart.
+            e.preventDefault()
+            const { interval, pointerId } = pendingRef.current
+            pendingRef.current = null
+            onItemPointerDown(interval, pointerId, e.clientX, e.clientY)
+            return
+        }
+
+        // Cancel if the finger moved significantly before the hold completed.
+        const dx = e.clientX - pendingRef.current.startX
+        const dy = e.clientY - pendingRef.current.startY
+        if (dx * dx + dy * dy > TOUCH_DRAG_CANCEL_SQ) {
+            clearTimeout(pendingRef.current.timerId)
+            // Release capture so the browser can resume its scroll handling.
+            ;(e.currentTarget as Element).releasePointerCapture(pendingRef.current.pointerId)
+            pendingRef.current = null
+        }
+    }
+
     return (
         <div className="flex flex-wrap justify-center gap-2 mt-2 pt-2 border-t border-zinc-700">
-            <span className="w-full text-center label-tiny text-zinc-500 pb-1">
-                Drag an interval onto the chart to add it
+            <span className="w-full text-center label-tiny text-zinc-400 pb-1">
+                Drag onto the chart to insert, or press Enter/Space to append to the main set
             </span>
             {items.map((item) => (
-                <div
+                <button
                     key={item.id}
-                    onPointerDown={(e) => {
-                        e.preventDefault()
-                        onItemPointerDown(item.interval, e)
-                    }}
+                    type="button"
+                    onPointerDown={(e) => handlePointerDown(item.interval, e)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={cancelPending}
+                    onPointerCancel={cancelPending}
+                    onClick={() => onAddInterval?.(item.interval)}
+                    aria-label={item.ariaLabel}
                     style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                    title={`Drag to add a ${item.label} interval`}
                     className={`
                         flex flex-col items-center gap-1
                         px-2 py-1.5
+                        min-w-11 min-h-11
                         bg-zinc-700/60 rounded
                         hover:bg-zinc-700 transition-colors
-                        select-none
+                        select-none touch-none
+                        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                     `}
                 >
                     <PaletteItemShape interval={item.interval} />
                     <span className="label-tiny text-zinc-300">{item.label}</span>
-                </div>
+                </button>
             ))}
         </div>
     )

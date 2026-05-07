@@ -76,13 +76,14 @@ export function DuplicateNameModal({
                             onChange={(e) => setNewName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleRename() }}
                             placeholder="Enter a new name..."
+                            aria-required="true"
                             autoFocus
                             className={`
                                 flex-1 px-3 py-2
                                 bg-zinc-700 text-white text-sm
                                 rounded-md border border-zinc-600
-                                placeholder:text-zinc-500
-                                focus:outline-none focus:border-brand-500
+                                placeholder:text-zinc-400
+                                focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900
                             `}
                         />
                         <button
@@ -90,7 +91,7 @@ export function DuplicateNameModal({
                             onClick={handleRename}
                             disabled={newName.trim().length === 0}
                             className={`
-                                px-4 py-2
+                                min-h-11 px-4 py-2
                                 bg-brand-600 text-white text-sm font-medium
                                 rounded-md
                                 hover:bg-brand-500 transition-colors
@@ -109,7 +110,7 @@ export function DuplicateNameModal({
                         onClick={() => void handleReplace()}
                         disabled={isReplacing}
                         className={`
-                            w-full px-4 py-2
+                            w-full min-h-11 px-4 py-2
                             bg-zinc-700 text-white text-sm font-medium
                             rounded-md
                             hover:bg-zinc-600 transition-colors
@@ -125,7 +126,7 @@ export function DuplicateNameModal({
                         onClick={handleClose}
                         disabled={isReplacing}
                         className={`
-                            w-full px-4 py-2
+                            w-full min-h-11 px-4 py-2
                             bg-transparent text-zinc-400 text-sm
                             rounded-md
                             hover:text-white transition-colors
@@ -138,7 +139,7 @@ export function DuplicateNameModal({
                 </div>
 
                 {error !== null && (
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p role="alert" className="text-sm text-red-400">{error}</p>
                 )}
             </div>
         </Modal>

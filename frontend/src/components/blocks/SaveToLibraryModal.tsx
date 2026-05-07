@@ -78,7 +78,7 @@ export function SaveToLibraryModal({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="block-name">
-                        Name <span className="text-red-400">*</span>
+                        Name <span aria-hidden="true" className="text-red-400">*</span>
                     </label>
                     <input
                         id="block-name"
@@ -86,14 +86,17 @@ export function SaveToLibraryModal({
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. 2x20 Threshold"
+                        aria-required="true"
+                        aria-invalid={!!error || undefined}
+                        aria-describedby={error ? 'save-to-library-error' : undefined}
                         autoFocus
                         className={`
                             w-full px-3 py-2
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
-                            focus:outline-none focus:border-brand-500
+                            placeholder:text-zinc-400
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                         `}
                     />
                 </div>
@@ -101,7 +104,7 @@ export function SaveToLibraryModal({
                 <div className="flex flex-col gap-1">
                     <label className="text-sm text-zinc-300" htmlFor="block-description">
                         Description{' '}
-                        <span className="text-zinc-500">(optional)</span>
+                        <span className="text-zinc-400">(optional)</span>
                     </label>
                     <textarea
                         id="block-description"
@@ -114,15 +117,15 @@ export function SaveToLibraryModal({
                             bg-zinc-700 text-white
                             text-sm
                             rounded-md border border-zinc-600
-                            placeholder:text-zinc-500
-                            focus:outline-none focus:border-brand-500
+                            placeholder:text-zinc-400
+                            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 focus:ring-offset-zinc-900 focus:border-brand-500
                             resize-none
                         `}
                     />
                 </div>
 
                 {error !== null && (
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p id="save-to-library-error" role="alert" className="text-sm text-red-400">{error}</p>
                 )}
 
                 <div className="flex justify-end gap-3 mt-2">
@@ -131,7 +134,7 @@ export function SaveToLibraryModal({
                         onClick={handleClose}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-zinc-700 text-white
                             text-sm font-medium
                             rounded-md
@@ -147,7 +150,7 @@ export function SaveToLibraryModal({
                         onClick={() => void handleConfirm()}
                         disabled={isSaving}
                         className={`
-                            px-4 py-2
+                            min-h-11 px-4 py-2
                             bg-brand-600 text-white
                             text-sm font-medium
                             rounded-md
