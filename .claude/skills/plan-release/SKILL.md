@@ -220,9 +220,17 @@ gh issue edit <n> --milestone "<milestone title>"
 
 Process all assignments. If any fail, note them and continue — do not abort the whole run on a single failure.
 
-### Step 6.3 — (Optional) Update project board
+### Step 6.3 — Add issues to the project board
 
-If the project board is configured in `CLAUDE.md`, set each newly assigned issue's status to `Backlog`. Skip if not configured.
+Find the project number with `gh project list --owner <owner>`. For each newly assigned issue, add it to the project and set its status to `Backlog`:
+
+```bash
+gh project item-add <number> --owner <owner> --url <issue-url> --format json
+gh project item-edit --id <item-id> --project-id <project-id> \
+  --field-id <status-field-id> --single-select-option-id <backlog-option-id>
+```
+
+Look up `<status-field-id>` and `<backlog-option-id>` once via `gh project field-list <number> --owner <owner> --format json`. Reuse for all issues in the run. If no project board exists for the repo, skip this step.
 
 ### Step 6.4 — Write IMPLEMENTATION_PLAN.md
 
