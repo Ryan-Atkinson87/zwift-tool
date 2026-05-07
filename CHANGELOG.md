@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-05-06
+## [1.2.0] - 2026-05-07
 
 ### Added
 
@@ -17,6 +17,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `aria-live` regions to announce loading and error states to screen readers (#151)
 - Mobile side-tab navigation for the workouts and blocks panels
 - Section splitter skipped for multi-file imports to streamline the flow (#153)
+- Screen-reader-only `<h1>` to establish a correct heading hierarchy (#181)
+- `aria-required` on all required form inputs (#186)
+- `aria-pressed` on `BlockCard` selection state inside `BulkReplaceModal` (#188)
 
 ### Fixed
 
@@ -33,6 +36,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Touch conflicts between the workout canvas and the interval palette on mobile
 - Pull-to-refresh browser gesture triggering a full page reload in the editor
 - Editor state now restored after an accidental page reload
+- `CreateBlockModal` converted to use the shared `Modal` for focus trap and consistent a11y (#175)
+- `IntervalPalette` items now keyboard-accessible (#176)
+- Auth form field errors associated with their inputs via `aria-describedby` (#177)
+- `BlockCard` icon buttons raised to `text-zinc-300` to meet WCAG 1.4.11 non-text contrast (#178)
+- Placeholder text contrast raised to `zinc-400` across all modals (#179)
+- Mobile Save, Replace, and Undo buttons enlarged to the 44×44px touch target minimum (#180)
+- Muted text raised from `text-zinc-500` to `text-zinc-400` for WCAG 1.4.3 contrast (#182)
+- Panel collapse buttons aligned to the `text-zinc-400` muted-text baseline (#183)
+- `BarInlineOverlay` trash buttons enlarged to the 44×44px touch target minimum (#184)
+- `WorkoutCard` delete button enlarged to the 44×44px touch target minimum (#185)
+- Auth modal inputs gained `focus:ring-offset` for a clearly visible focus ring (#187)
+
+### Security
+
+- Backend now fails fast at startup if `CORS_ALLOWED_ORIGIN` is empty rather than booting with a permissive default (#190)
 
 ## [1.1.0] - 2026-04-19
 
