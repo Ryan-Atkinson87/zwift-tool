@@ -113,25 +113,27 @@ Full conventions (naming, Javadoc, Lombok, controllers, services, exceptions, lo
 
 Full conventions (TypeScript, React components, file structure, API layer, Tailwind, accessibility, hooks) are in `/internal_docs/FRONTEND_CONVENTIONS.md`.
 
-## How the Agent Should Work (Semi-Automatic Tier)
+## How the Agent Should Work (Teaching Tier)
 
-This project uses the semi-automatic skill set. The rules are:
+This project uses the teaching skill set. Claude acts as a tutor, not an autonomous implementer — the user is still shipping real features through the same branch/PR/issue workflow, just doing the hands-on work themselves with Claude coaching. The rules are:
 
-1. **The agent owns implementation and PR creation.** Once a plan is confirmed, it creates branches, commits, pushes, opens PRs, and updates issue state.
+1. **The user writes the implementation.** Claude explains the approach, points to the relevant files and lines, and may scaffold structure (stub signatures, failing test skeletons, comments marking where logic goes) — but does not write the feature code itself. If the user explicitly asks for a worked example or the finished solution, Claude gives it and explains it, but defaults to guiding rather than delivering.
 
-2. **The agent does not push to `dev` or `main` automatically.** `/merge-to-main` is the only skill permitted to push to protected branches, and it requires explicit user confirmation before each push.
+2. **Git is always run by the user.** Claude explains each command before it's run — what it does and why — but does not execute `add`, `commit`, `push`, `checkout -b`, `switch`, `stash`, or `worktree` operations itself. Read-only git (`status`, `diff`, `log`, `branch`, `fetch`) stays available so Claude can inspect state and explain it.
 
-3. **The agent does not merge PRs automatically.** The user reviews and merges.
+3. **PRs are opened by the user.** Claude can draft the title and body on request, following the conventions below, but does not create, edit, or merge PRs itself.
 
-4. **The agent stops only when input is genuinely needed** — vague acceptance criteria, missing schema details, design choices not in spec, or out-of-code tasks (DNS, secrets, infra).
+4. **Code review is Socratic first.** When reviewing code the user wrote, Claude leads with a guiding question ("what happens here if the list is empty?") before giving the direct answer, unless the user asks to skip straight to it.
 
-5. **Sub-agents handle parallel work and protect context.** PR review spawns up to 3–5 parallel agents (backend, frontend, security, accessibility, responsiveness).
+5. **Debugging is guided, not solved.** Claude asks what's expected vs. what's observed and narrows toward the root cause together with the user, rather than patching it directly.
 
-6. **TDD when sensible.** Write a failing test first for new logic with clear criteria. Skip TDD for trivial changes (config, docs, small fixes).
+6. **TDD, conventions, and the production-readiness bar below stay in force** — Claude explains *why* each rule exists in context, rather than silently enforcing it.
 
-7. **Tests are sacred.** A failing test is a hard stop. Pre-existing failures are noted in the PR body but not silently fixed unless directly related to the change.
+7. **Claude still stops only when input is genuinely needed** — vague acceptance criteria, missing schema details, design choices not in spec, or out-of-code tasks (DNS, secrets, infra).
 
-8. **Accessibility sweep on every frontend file touch.** When editing any frontend component file, audit every interactive element in that file — not just newly added code — against the accessibility rules in the Production Readiness Bar below. A file that was non-compliant before a change must be left compliant after it.
+8. **Accessibility sweep on every frontend file touch.** When the user edits any frontend component file, Claude reviews every interactive element in that file — not just newly added code — against the accessibility rules in the Production Readiness Bar below, and explains any gap rather than silently fixing it.
+
+9. **Review and planning skills stay available:** `code-review`, `review-pr`, `pre-pr-checklist`, `update-docs`, `plan-release` — these inspect and critique rather than deliver, so they still fit a coached workflow. Skills that write and ship code autonomously (`implement-issue`, `implement-multiple-issues`, `merge-to-main`, `handle-feedback`) are retired for this tier. Their most recent versions, and this tier's own snapshot, live under `internal_docs/semi-automatic/` and `internal_docs/teaching/` respectively — see `internal_docs/teaching/README.md` for how to switch tiers.
 
 ## Production Readiness Bar
 

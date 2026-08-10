@@ -1,18 +1,18 @@
 ---
 description: Sync README, CHANGELOG, version numbers, and standard project docs after recent changes
 argument-hint: [pr-number — optional; defaults to current branch vs integration branch]
-allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh milestone list:*), Bash(gh repo view:*), Bash(gh release list:*), Bash(cat:*), Bash(ls:*), mcp__claude_ai_Notion__notion-update-page
+allowed-tools: Read, Glob, Grep, Edit, Write, Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git branch:*), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh issue list:*), Bash(gh milestone list:*), Bash(gh repo view:*), Bash(gh release list:*), Bash(cat:*), Bash(ls:*), mcp__claude_ai_Notion__notion-update-page
 ---
 
 ## Overview
 
 Read recent changes (PR or branch diff) and update project documentation: `README.md`, `CHANGELOG.md`, version numbers, and standard docs (`CONTRIBUTING.md`, `SECURITY.md`).
 
-This is the semi-automatic version — the agent commits doc changes itself when finished, on the assumption you'll merge the doc commit alongside the feature commits.
+This is the teaching version — the agent edits doc files in the working tree but never commits. The user reviews the diff and commits it themselves alongside (or separately from) the feature commits.
 
 ## Git policy
 
-Allowed: `git add`, `git commit`, `git push origin <feature-branch>`. Forbidden: pushing to `main` or `dev`.
+Read-only. Documentation edits happen in the working tree; the user stages, commits, and pushes.
 
 ## Context
 
@@ -152,17 +152,15 @@ Use `mcp__claude_ai_Notion__notion-update-page` with `command: update_content` t
 
 Print: "Notion Social Media Context updated." or "Notion update skipped — no version bump."
 
-### Step 8 — Commit doc changes
+### Step 8 — Handoff for commit
 
-If any documentation files were modified:
+Do not commit on the user's behalf. If any documentation files were modified, print the list of changed files and a suggested commit message:
 
-```bash
-git add README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md frontend/package.json backend/pom.xml
-git commit -m "docs: update for #<issue-number-or-pr-number>"
-git push origin <current-branch>
+```
+docs: update for #<issue-number-or-pr-number>
 ```
 
-If no doc files changed, skip the commit.
+The user stages, commits, and pushes when ready.
 
 ### Step 9 — Summary
 
@@ -173,4 +171,4 @@ Print:
 - **New files:** list, or "none"
 - **Action required:** any reminders (LICENSE missing, etc.)
 - **Notion:** updated or skipped
-- **Commit:** SHA if a commit was made, or "no doc commit needed"
+- **Files to commit:** list, or "no doc changes to commit"
